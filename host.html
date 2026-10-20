@@ -89,8 +89,12 @@ dialog form { padding: 18px; display: grid; grid-template-columns: repeat(auto-f
 dialog h3 { grid-column: 1 / -1; margin: 0; font-size: 19px; }
 label.campo { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--muted); }
 label.campo.ancho, .ancho { grid-column: 1 / -1; }
-input, textarea { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 11px; font-size: 15px; width: 100%; min-width: 0; color: var(--fg); }
+input, textarea, select { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 11px; font-size: 15px; width: 100%; min-width: 0; color: var(--fg); }
 textarea { min-height: 110px; resize: vertical; }
+h4.sub { margin: 6px 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--gold, var(--muted)); }
+.ayuda { font-weight: 500; font-size: 12px; color: var(--muted); }
+.params { display: flex; flex-wrap: wrap; gap: 6px; }
+.params span { font-size: 12px; font-weight: 600; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
 .sensible { font-weight: 600; color: var(--warn); font-size: 12px; }
 .pie { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 details.norma { border-top: 1px solid var(--line); padding: 8px 0; }
@@ -118,6 +122,15 @@ details.norma p { margin: 6px 0 0; white-space: pre-line; color: var(--fg); line
 <dialog id="dlg">
   <form id="f-ficha" method="dialog">
     <h3 id="dlg-titulo">Ficha de la unidad</h3>
+    <h4 class="ancho sub">Parámetros del apartamento</h4>
+    <label class="campo">Noches mínimas<input id="h-min" type="number" min="0" max="365" inputmode="numeric" placeholder="Sin mínimo"></label>
+    <label class="campo">Noches máximas<input id="h-maxn" type="number" min="0" max="365" inputmode="numeric" placeholder="Sin máximo"></label>
+    <label class="campo">Huéspedes máximos<input id="h-maxh" type="number" min="0" max="50" inputmode="numeric"><span class="ayuda" id="h-cap"></span></label>
+    <label class="campo">Mascotas<select id="h-mascotas"><option value="">Sin indicar</option><option value="SI">Se permiten</option><option value="NO">No se permiten</option></select></label>
+    <label class="campo">Fumar<select id="h-fumar"><option value="">Sin indicar</option><option value="SI">Se permite</option><option value="NO">Prohibido</option></select></label>
+    <label class="campo">Fiestas o reuniones<select id="h-fiestas"><option value="">Sin indicar</option><option value="SI">Se permiten</option><option value="NO">Prohibidas</option></select></label>
+    <p class="ancho" style="margin:0;color:var(--muted);font-size:13px">El bot no deja registrar reservas que no cumplan las noches ni el número de huéspedes. Las normas y estos parámetros se muestran al huésped en su enlace.</p>
+    <h4 class="ancho sub">Llegada y acceso</h4>
     <label class="campo">Hora de entrada<input id="h-entrada" type="text" placeholder="15:00" inputmode="numeric"></label>
     <label class="campo">Hora de salida<input id="h-salida" type="text" placeholder="11:00" inputmode="numeric"></label>
     <label class="campo">Código de la puerta <span class="sensible">Solo lo ve el huésped durante su estadía</span><input id="h-puerta" type="text" autocomplete="off"></label>
@@ -126,7 +139,7 @@ details.norma p { margin: 6px 0 0; white-space: pre-line; color: var(--fg); line
     <label class="campo">Clave del wifi <span class="sensible">Solo lo ve el huésped después de ingresar</span><input id="h-clave" type="text" autocomplete="off"></label>
     <label class="campo ancho">Ubicación (dirección)<input id="h-ubicacion" type="text"></label>
     <label class="campo ancho">Enlace del mapa (https://…)<input id="h-mapa" type="url" placeholder="https://maps.app.goo.gl/…"></label>
-    <label class="campo ancho">Normas del apartamento<textarea id="h-normas" placeholder="No fumar dentro. Silencio desde las 10 p. m. Máximo 4 huéspedes."></textarea></label>
+    <label class="campo ancho">Normas de la casa (se envían al huésped)<textarea id="h-normas" placeholder="No fumar dentro. Silencio desde las 10 p. m. Máximo 4 huéspedes."></textarea></label>
     <p class="ancho" style="margin:0;color:var(--muted);font-size:13px">El portero nunca ve el código de la puerta ni la clave del wifi. Si cambia la cerradura, actualícela aquí antes de la próxima llegada.</p>
     <div class="pie ancho"><button class="btn" value="cancelar" formnovalidate>Cancelar</button><button class="btn primario" id="h-guardar" value="guardar">Guardar ficha</button></div>
   </form>
@@ -172,8 +185,9 @@ function pintar() {
       '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-size:13px"><span>Ocupación del mes</span><span class="m"><i style="width:' + u.ocupacion_mes + '%"></i></span><span class="mono">' + u.ocupacion_mes + '%</span></div>' +
       '<div style="font-size:14px;color:var(--muted)">Entrada ' + esc(f.hora_entrada || '—') + ' · salida ' + esc(f.hora_salida || '—') + ' · wifi ' + esc(f.wifi_red || '—') + ' · parqueo ' + esc(f.parqueo || '—') +
         ' · <b style="color:var(--fg)">capacidad ' + (u.ocupacion_maxima ? u.ocupacion_maxima + ' personas' : 'sin límite') + '</b></div>' +
+      '<div class="params">' + resumenParams(f, u.ocupacion_maxima) + '</div>' +
       (faltan.length ? '<div class="falta">Falta: ' + faltan.join(', ') + '. Sus huéspedes no lo verán hasta que lo complete.</div>' : '') +
-      '<div><button class="btn primario" data-editar="' + i + '"' + (u.estado === 'en_revision' ? ' disabled' : '') + '>Editar ficha</button></div></div>';
+      '<div><button class="btn primario" data-editar="' + i + '"' + (u.estado === 'en_revision' ? ' disabled' : '') + '>Editar ficha y parámetros</button></div></div>';
   }).join('') || '<div class="card">No tiene unidades asignadas.</div>';
   const fila = r => '<li><span class="f">' + fmtFecha(r.llegada) + '</span><span><b>' + esc(r.huesped || 'Sin nombre') + '</b> · ' + r.personas + ' pers. · <span class="mono">' + esc(r.unidad) + '</span></span><span class="chip ' + (r.estatus === 'ingresado' ? 'oro' : r.estatus === 'finalizado' ? 'ok' : '') + '">' + esc(r.estatus) + '</span></li>';
   $('#proximas').innerHTML = D.proximas.map(fila).join('') || '<li style="display:block;color:var(--muted)">No hay llegadas registradas. Use «➕ Nueva reserva» en el bot.</li>';
@@ -182,19 +196,36 @@ function pintar() {
   $('#regl-caja').hidden = !torres.some(t => regl[t].length);
   $('#reglamento').innerHTML = torres.map(t => (torres.length > 1 ? '<h3 style="font-size:16px;margin:12px 0 4px">' + esc(t) + '</h3>' : '') + regl[t].map(n => '<details class="norma"' + (n.tema === 'salida_huesped' ? ' open' : '') + '><summary>' + esc(n.articulo) + ' · ' + esc((D.temas || {})[n.tema] || n.tema) + ' <span style="color:var(--muted);font-weight:500">— ' + esc(n.documento) + '</span></summary><p>' + esc(n.texto) + '</p></details>').join('')).join('');
 }
+function resumenParams(f, cap) {
+  const si = { SI: 'Sí', NO: 'No' }, out = [];
+  out.push(f.minimo_noches ? 'Mín. ' + f.minimo_noches + ' noche(s)' : 'Sin mínimo de noches');
+  if (f.maximo_noches) out.push('Máx. ' + f.maximo_noches + ' noches');
+  const lim = Number(f.max_huespedes) && cap ? Math.min(Number(f.max_huespedes), cap) : (Number(f.max_huespedes) || cap);
+  out.push(lim ? 'Hasta ' + lim + ' huésped(es)' : 'Huéspedes sin límite');
+  if (f.mascotas) out.push('🐾 Mascotas: ' + si[f.mascotas]);
+  if (f.fumar) out.push('🚬 Fumar: ' + si[f.fumar]);
+  if (f.fiestas) out.push('🎉 Fiestas: ' + si[f.fiestas]);
+  return out.map(x => '<span>' + esc(x) + '</span>').join('');
+}
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-editar]'); if (!b) return;
   actual = D.unidades[Number(b.dataset.editar)]; const f = actual.ficha;
   $('#dlg-titulo').textContent = 'Ficha · ' + actual.torre + ' · Apto ' + actual.apto;
-  [['h-entrada', 'hora_entrada'], ['h-salida', 'hora_salida'], ['h-puerta', 'codigo_puerta'], ['h-parqueo', 'parqueo'], ['h-wifi', 'wifi_red'], ['h-clave', 'wifi_clave'], ['h-ubicacion', 'ubicacion'], ['h-mapa', 'mapa_url'], ['h-normas', 'normas']]
+  [['h-entrada', 'hora_entrada'], ['h-salida', 'hora_salida'], ['h-puerta', 'codigo_puerta'], ['h-parqueo', 'parqueo'], ['h-wifi', 'wifi_red'], ['h-clave', 'wifi_clave'], ['h-ubicacion', 'ubicacion'], ['h-mapa', 'mapa_url'], ['h-normas', 'normas'],
+    ['h-min', 'minimo_noches'], ['h-maxn', 'maximo_noches'], ['h-maxh', 'max_huespedes'], ['h-mascotas', 'mascotas'], ['h-fumar', 'fumar'], ['h-fiestas', 'fiestas']]
     .forEach(([id, k]) => { $('#' + id).value = f[k] || ''; });
+  const cap = actual.ocupacion_maxima;
+  $('#h-maxh').max = cap || 50; $('#h-maxh').placeholder = cap ? 'Hasta ' + cap : 'Sin límite';
+  $('#h-cap').textContent = cap ? 'La administración permite hasta ' + cap + ' personas en este apartamento.' : '';
   $('#dlg').showModal();
 });
 $('#f-ficha').addEventListener('submit', async e => {
   if (e.submitter && e.submitter.value === 'cancelar') return;
   e.preventDefault();
   const ficha = { hora_entrada: $('#h-entrada').value.trim(), hora_salida: $('#h-salida').value.trim(), codigo_puerta: $('#h-puerta').value.trim(), parqueo: $('#h-parqueo').value.trim(), wifi_red: $('#h-wifi').value.trim(),
-    wifi_clave: $('#h-clave').value.trim(), ubicacion: $('#h-ubicacion').value.trim(), mapa_url: $('#h-mapa').value.trim(), normas: $('#h-normas').value.trim() };
+    wifi_clave: $('#h-clave').value.trim(), ubicacion: $('#h-ubicacion').value.trim(), mapa_url: $('#h-mapa').value.trim(), normas: $('#h-normas').value.trim(),
+    minimo_noches: $('#h-min').value.trim(), maximo_noches: $('#h-maxn').value.trim(), max_huespedes: $('#h-maxh').value.trim(),
+    mascotas: $('#h-mascotas').value, fumar: $('#h-fumar').value, fiestas: $('#h-fiestas').value };
   try { const r = await api('unidad_guardar', { codigo_unidad: actual.codigo, ficha }); actual.ficha = r.ficha; $('#dlg').close(); pintar(); toast('Ficha guardada. Sus huéspedes verán los cambios al abrir su enlace.'); }
   catch (err) { toast(err.message, 'error'); }
 });
@@ -204,7 +235,8 @@ function demo(accion, d) {
   if (!demo.D) demo.D = { host: { nombre: 'Carlos Peña', id: 'H004' }, generado: new Date().toISOString(),
     unidades: [
       { codigo: 'ESP17-5D', torre: 'Torre Esperilla 17', apto: '5D', estado: 'ocupada', huesped: 'PEDRO ALMONTE', personas: 2, sale: dia(2), noches_mes: 17, ocupacion_mes: 55, ocupacion_maxima: 4,
-        ficha: { hora_entrada: '15:00', hora_salida: '11:00', codigo_puerta: '4826#', wifi_red: 'Apto5D', wifi_clave: 'mar-azul-2026', parqueo: 'P2-14', ubicacion: 'Av. Anacaona 17, Santo Domingo', mapa_url: 'https://maps.google.com/?q=18.45,-69.95', normas: 'No fumar dentro del apartamento.\nSilencio desde las 10 p. m.\nMáximo 4 huéspedes.' } },
+        ficha: { hora_entrada: '15:00', hora_salida: '11:00', codigo_puerta: '4826#', wifi_red: 'Apto5D', wifi_clave: 'mar-azul-2026', parqueo: 'P2-14', ubicacion: 'Av. Anacaona 17, Santo Domingo', mapa_url: 'https://maps.google.com/?q=18.45,-69.95', normas: 'No fumar dentro del apartamento.\nSilencio desde las 10 p. m.\nMáximo 4 huéspedes.',
+          minimo_noches: '2', maximo_noches: '30', max_huespedes: '4', mascotas: 'NO', fumar: 'NO', fiestas: 'NO' } },
       { codigo: 'NIZA7-8B', torre: 'Torre Niza 7', apto: '8B', estado: 'libre', huesped: '', personas: 0, sale: '', noches_mes: 9, ocupacion_mes: 29, ocupacion_maxima: 2,
         ficha: { hora_entrada: '', hora_salida: '12:00', codigo_puerta: '', wifi_red: '', wifi_clave: '', parqueo: '', ubicacion: '', mapa_url: '', normas: '' } }],
     proximas: [{ codigo: 'STL-9MX3T', unidad: 'NIZA7-8B', huesped: 'EMMA JOHNSON', personas: 3, llegada: dia(1), salida: dia(4), estatus: 'pendiente' }, { codigo: 'STL-2HQ8R', unidad: 'ESP17-5D', huesped: 'KENJI SATO', personas: 2, llegada: dia(3), salida: dia(7), estatus: 'pendiente' }],
@@ -219,7 +251,10 @@ function demo(accion, d) {
   if (accion === 'unidad_guardar') {
     const f = d.ficha; for (const k of ['hora_entrada', 'hora_salida']) if (f[k] && !/^\d{1,2}:\d{2}$/.test(f[k])) return Promise.reject(new Error('La hora debe tener el formato 15:00.'));
     if (f.mapa_url && !/^https:\/\//i.test(f.mapa_url)) return Promise.reject(new Error('El enlace del mapa debe empezar con https://'));
-    const u = demo.D.unidades.find(x => x.codigo === d.codigo_unidad); u.ficha = Object.assign({}, f); return Promise.resolve({ guardado: true, ficha: u.ficha });
+    const u = demo.D.unidades.find(x => x.codigo === d.codigo_unidad);
+    if (Number(f.max_huespedes) > u.ocupacion_maxima) return Promise.reject(new Error('La administración fijó para esta unidad un máximo de ' + u.ocupacion_maxima + ' personas. Su límite debe ser ' + u.ocupacion_maxima + ' o menos.'));
+    if (Number(f.minimo_noches) && Number(f.maximo_noches) && Number(f.minimo_noches) > Number(f.maximo_noches)) return Promise.reject(new Error('Las noches mínimas no pueden ser más que las máximas.'));
+    u.ficha = Object.assign({}, f); return Promise.resolve({ guardado: true, ficha: u.ficha });
   }
   return Promise.reject(new Error('No disponible en demostración.'));
 }

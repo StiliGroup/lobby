@@ -119,7 +119,7 @@ h3 { margin: 0 0 6px; font-size: 18px; }
 .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; align-items: end; }
 label.campo { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
 label.campo.ancho { grid-column: 1 / -1; }
-input[type=text], input[type=search], input[type=password], input[type=date], input[type=url], select, textarea {
+input[type=text], input[type=search], input[type=password], input[type=date], input[type=url], input[type=tel], input[type=email], input[type=number], select, textarea {
   border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 11px; font-size: 15px; color: var(--fg); min-width: 0; width: 100%; }
 textarea { min-height: 110px; resize: vertical; line-height: 1.45; }
 .check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--fg); font-weight: 500; }
@@ -128,6 +128,7 @@ textarea { min-height: 110px; resize: vertical; line-height: 1.45; }
 .btn.oro { background: var(--gold); border-color: var(--gold); color: #13293D; }
 .btn.peligro { background: var(--crit); border-color: var(--crit); color: #fff; }
 .btn.chico { padding: 6px 11px; font-size: 13px; }
+.chip .x { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 0 0 4px; font-size: 12px; font-weight: 700; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .acciones { display: flex; flex-wrap: wrap; gap: 8px; }
 .tabla { overflow-x: auto; }
@@ -196,6 +197,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-al
     <button class="tab" role="tab" data-v="apto" aria-selected="false">Apartamento</button>
     <button class="tab" role="tab" data-v="documentos" aria-selected="false">Documentos y normas</button>
     <button class="tab" role="tab" data-v="encuestas" aria-selected="false">Encuestas <span class="n" id="n-enc" hidden>0</span></button>
+    <button class="tab" role="tab" data-v="hosts" aria-selected="false">Hosts y propietarios</button>
     <button class="tab" role="tab" data-v="torres" aria-selected="false">Cargar torre</button>
     <button class="tab" role="tab" data-v="conflictos" aria-selected="false">Conflictos <span class="n" id="n-conf" hidden>0</span></button>
     <button class="tab" role="tab" data-v="negra" aria-selected="false">Lista negra <span class="n" id="n-sol" hidden>0</span></button>
@@ -347,6 +349,53 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-al
     </div>
   </section>
 
+  <!-- HOSTS Y PROPIETARIOS -->
+  <section id="v-hosts" hidden>
+    <div class="grid g2">
+      <div class="card">
+        <header style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:10px">
+          <h2 style="margin:0 auto 0 0">Hosts y propietarios</h2>
+          <label class="campo" style="width:220px">Buscar<input type="search" id="hs-buscar" placeholder="Nombre, teléfono o apto"></label>
+        </header>
+        <p class="nota" style="margin-top:0">Cada host maneja sus apartamentos de renta corta desde el bot y su panel: noches mínimas, huéspedes máximos, normas de la casa, wifi y código de puerta. Un teléfono = un host. Un apartamento = un solo host activo.</p>
+        <div class="tabla"><table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Apartamentos</th><th>Estado</th></tr></thead><tbody id="hosts"></tbody></table></div>
+      </div>
+      <div class="grid">
+        <div class="card" id="hs-editor">
+          <h2 id="hs-titulo">Nuevo host o propietario</h2>
+          <form class="form" id="f-host">
+            <input type="hidden" id="hs-id">
+            <label class="campo">Tipo<select id="hs-tipo"><option value="host">Host (administra la renta)</option><option value="propietario">Propietario</option></select></label>
+            <label class="campo">Nombre completo<input type="text" id="hs-nombre" autocomplete="off"></label>
+            <label class="campo">Teléfono (el de su Telegram)<input type="tel" id="hs-tel" placeholder="809-555-0000" autocomplete="off"></label>
+            <label class="campo">Correo<input type="email" id="hs-correo" autocomplete="off"></label>
+            <label class="campo">Cédula o pasaporte<input type="text" id="hs-doc" autocomplete="off"></label>
+            <label class="campo" id="hs-estado-c" hidden>Estado<select id="hs-estatus"><option value="aprobado">Activo</option><option value="suspendido">Suspendido</option></select></label>
+            <label class="campo ancho">Notas internas<input type="text" id="hs-notas" placeholder="Opcional"></label>
+            <div class="ancho" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primario" type="submit" id="hs-guardar">Crear</button><button class="btn" type="button" id="hs-nuevo" hidden>Cancelar edición</button></div>
+          </form>
+        </div>
+        <div class="card" id="hs-asignar">
+          <h2>Asignar apartamento</h2>
+          <form class="form" id="f-asignar">
+            <label class="campo ancho">Host<select id="as-host"></select></label>
+            <label class="campo">Torre<select id="as-torre"></select></label>
+            <label class="campo">Apartamento<input type="text" id="as-apto" placeholder="5D" autocomplete="off"></label>
+            <label class="campo ancho" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="as-transferir" style="width:auto"> Si ya tiene otro host, transferirlo a este (el anterior pierde el acceso)</label>
+            <div><button class="btn primario" type="submit">Asignar</button></div>
+          </form>
+          <p class="nota">El apartamento debe existir en «Cargar torre». La ocupación máxima la fija Stili en «Apartamento»; el host puede poner un límite menor, nunca mayor.</p>
+        </div>
+        <div class="card" id="hs-invitar" hidden>
+          <h2>Invitación para <span id="inv-nombre"></span></h2>
+          <p class="nota" style="margin-top:0">Envíele este mensaje. Cuando comparta su número en el bot, quedará vinculado y podrá registrar huéspedes y abrir su panel con /panel.</p>
+          <textarea id="inv-texto" rows="7" readonly style="width:100%"></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn" id="inv-copiar" type="button">Copiar</button><a class="btn primario" id="inv-wa" target="_blank" rel="noopener">Enviar por WhatsApp</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- PERSONAL -->
   <section id="v-personal" hidden>
     <div class="grid g2">
@@ -432,7 +481,7 @@ function vista(v) {
   $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.v === v)));
   $$('main > section').forEach(s => { s.hidden = s.id !== 'v-' + v; });
   CFG.vista = v; guardarCfg();
-  ({ tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, personal: cargarPersonal, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
+  ({ tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => vista(t.dataset.v)));
 
@@ -535,6 +584,9 @@ function pintarFicha(f) {
     h += '<div class="card"><h2>Renta corta · <span class="mono">' + esc(rc.codigo_unidad) + '</span></h2>' + (rc.en_conflicto ? '<div class="chip rojo" style="margin-bottom:10px">R3 · dos hosts activos: unidad bloqueada</div>' : '') +
       '<dl class="dl"><dt>Host</dt><dd>' + (rc.hosts.map(x => esc(x.nombre) + ' <span class="mono nota">' + esc(x.id) + ' · ' + esc(x.telefono) + '</span>').join('<br>') || '—') + '</dd>' +
       '<dt>Horario</dt><dd>Entrada ' + val(fi.hora_entrada) + ' · salida ' + val(fi.hora_salida) + '</dd>' +
+      '<dt>Parámetros del host</dt><dd>' + (fi.minimo_noches ? 'Mín. ' + esc(fi.minimo_noches) + ' noche(s)' : 'Sin mínimo') + (fi.maximo_noches ? ' · máx. ' + esc(fi.maximo_noches) : '') +
+        ' · ' + (fi.max_huespedes ? 'hasta ' + esc(fi.max_huespedes) + ' huésped(es)' : 'huéspedes: el máximo de Stili') +
+        ['mascotas', 'fumar', 'fiestas'].filter(k => fi[k]).map(k => ' · ' + k + ': ' + (fi[k] === 'SI' ? 'sí' : 'no')).join('') + '</dd>' +
       '<dt>Código puerta</dt><dd class="mono">' + val(fi.codigo_puerta) + '</dd><dt>Wifi</dt><dd>' + val(fi.wifi_red) + ' · clave <span class="mono">' + val(fi.wifi_clave) + '</span></dd>' +
       '<dt>Parqueo</dt><dd>' + val(fi.parqueo) + '</dd><dt>Ubicación</dt><dd>' + val(fi.ubicacion) + '</dd><dt>Normas</dt><dd style="white-space:pre-line">' + val(fi.normas) + '</dd></dl></div>';
   }
@@ -768,6 +820,84 @@ $('#f-negra').addEventListener('submit', async e => { e.preventDefault();
   try { const r = await api('lista_negra_agregar', { documento: $('#n-doc').value.trim(), nombre: $('#n-nombre').value.trim(), motivo: $('#n-motivo').value.trim(), torre: $('#n-torre').value });
     pintarNegra(r); $('#f-negra').reset(); toast('Agregado a la lista negra.' + (r.empleado_desactivado ? ' Era empleado: quedó inactivo.' : '')); } catch (err) { toast(err.message, 'error'); } });
 
+// ------------------------------------------------------------------ Hosts y propietarios
+async function cargarHosts() {
+  try { S.hosts = await api('hosts'); pintarHosts(); } catch (e) { $('#hosts').innerHTML = '<tr><td colspan="4">' + esc(e.message) + '</td></tr>'; }
+}
+function pintarHosts() {
+  const r = S.hosts; if (!r) return;
+  const g = r.gerente, q = ($('#hs-buscar').value || '').trim().toLowerCase();
+  $('#hs-editor').hidden = !g; $('#hs-asignar').hidden = !g;
+  const lista = r.hosts.filter(h => !q || [h.nombre, h.telefono, h.id_host].concat(h.unidades.map(u => u.apto + ' ' + u.codigo + ' ' + u.torre)).join(' ').toLowerCase().includes(q));
+  $('#hosts').innerHTML = lista.map(h => '<tr><td><b>' + esc(h.nombre) + '</b><br><span class="nota mono">' + esc(h.id_host) + '</span> <span class="chip ' + (h.tipo === 'propietario' ? 'oro' : 'teal') + '">' + (h.tipo === 'propietario' ? 'Propietario' : 'Host') + '</span>' +
+    (g ? '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn chico" data-editar-host="' + esc(h.id_host) + '">Editar</button>' + (h.estatus !== 'suspendido' ? '<button class="btn chico" data-invitar="' + esc(h.id_host) + '">Invitar</button>' : '') + '</div>' : '') + '</td>' +
+    '<td class="mono">' + esc(h.telefono) + '</td><td>' + (h.unidades.map(u => '<span class="chip">' + esc((u.torre ? u.torre.replace(/^Torre\s+/i, '') + ' · ' : '') + u.apto) +
+      (g ? ' <button class="x" title="Quitar" data-quitar="' + esc(h.id_host) + '|' + esc(u.codigo) + '">✕</button>' : '') + '</span>').join(' ') || '<span class="nota">Ninguno</span>') + '</td>' +
+    '<td>' + (h.estatus === 'suspendido' ? '<span class="chip rojo">Suspendido</span>' : '<span class="chip verde">Activo</span>') + '<br>' +
+      (h.vinculado ? '<span class="chip verde" style="margin-top:6px">Telegram ✓</span>' : '<span class="chip ambar" style="margin-top:6px" title="Aún no compartió su número en el bot">Sin Telegram</span>') + '</td></tr>').join('')
+    || '<tr><td colspan="4" class="nota">' + (q ? 'Nadie coincide con la búsqueda.' : 'Todavía no hay hosts. Cree el primero a la derecha.') + '</td></tr>';
+  const activos = r.hosts.filter(h => h.estatus !== 'suspendido');
+  const prev = $('#as-host').value;
+  $('#as-host').innerHTML = activos.map(h => '<option value="' + esc(h.id_host) + '">' + esc(h.nombre) + ' (' + esc(h.id_host) + ')</option>').join('');
+  if (prev) $('#as-host').value = prev;
+  const torres = S.tablero ? S.tablero.torres.map(t => t.torre) : [];
+  const pt = $('#as-torre').value; $('#as-torre').innerHTML = torres.map(t => '<option>' + esc(t) + '</option>').join(''); if (pt) $('#as-torre').value = pt;
+}
+function editarHost(h) {
+  $('#hs-id').value = h ? h.id_host : ''; $('#hs-tipo').value = h ? h.tipo : 'host'; $('#hs-nombre').value = h ? h.nombre : ''; $('#hs-tel').value = h ? h.telefono : '';
+  $('#hs-correo').value = h ? h.correo : ''; $('#hs-doc').value = h ? h.documento : ''; $('#hs-notas').value = h ? h.notas : ''; $('#hs-estatus').value = h ? (h.estatus === 'suspendido' ? 'suspendido' : 'aprobado') : 'aprobado';
+  $('#hs-estado-c').hidden = !h; $('#hs-nuevo').hidden = !h; $('#hs-guardar').textContent = h ? 'Guardar cambios' : 'Crear';
+  $('#hs-titulo').textContent = h ? 'Editar · ' + h.nombre : 'Nuevo host o propietario';
+  if (h) $('#hs-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function invitarHost(h) {
+  const r = S.hosts, bot = r.bot ? 'https://t.me/' + r.bot : '(enlace del bot)';
+  const aptos = h.unidades.map(u => (u.torre ? u.torre + ' · ' : '') + 'Apto ' + u.apto).join(', ');
+  const txt = 'Hola ' + h.nombre.split(' ')[0] + ', le saluda ' + (r.empresa || 'Stili Group') + '. Le registramos como ' + (h.tipo === 'propietario' ? 'propietario' : 'host') + (aptos ? ' de ' + aptos : '') + '.\n\n' +
+    '1) Abra nuestro bot: ' + bot + '\n2) Pulse «Iniciar» y luego «📱 Compartir mi número» (use este mismo número: ' + h.telefono + ').\n' +
+    '3) Escriba /panel para abrir su panel y configurar su apartamento: noches mínimas, huéspedes máximos, normas de la casa, wifi y código de puerta.\n\n' +
+    'Desde el bot registra a sus huéspedes y les envía su QR de entrada. Todo huésped se registra en el lobby con su documento.';
+  $('#inv-nombre').textContent = h.nombre; $('#inv-texto').value = txt; $('#hs-invitar').hidden = false;
+  let tel = (h.telefono || '').replace(/\D/g, ''); if (tel.length === 10) tel = '1' + tel;
+  $('#inv-wa').href = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(txt);
+  $('#hs-invitar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+$('#hs-buscar').addEventListener('input', pintarHosts);
+$('#hs-nuevo').addEventListener('click', () => editarHost(null));
+$('#inv-copiar').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#inv-texto').value); toast('Mensaje copiado.'); } catch (e) { $('#inv-texto').select(); toast('Selecciónelo y cópielo con Ctrl+C.'); } });
+$('#hosts').addEventListener('click', async e => {
+  const ed = e.target.closest('[data-editar-host]'), inv = e.target.closest('[data-invitar]'), qu = e.target.closest('[data-quitar]');
+  const buscar = id => S.hosts.hosts.find(h => h.id_host === id);
+  if (ed) return editarHost(buscar(ed.dataset.editarHost));
+  if (inv) return invitarHost(buscar(inv.dataset.invitar));
+  if (qu) {
+    const [id, cod] = qu.dataset.quitar.split('|');
+    if (!confirmarSuave(qu, '¿Quitar ' + cod + '?')) return;
+    try { await api('host_unidad', { id_host: id, codigo_unidad: cod, operacion: 'quitar' }); toast('Apartamento ' + cod + ' retirado. El host ya no puede registrar reservas ahí.'); cargarHosts(); } catch (err) { toast(err.message, 'error'); }
+  }
+});
+function confirmarSuave(btn, txt) { if (btn.dataset.ok) return true; btn.dataset.ok = '1'; btn.textContent = 'Confirmar'; btn.title = txt; setTimeout(() => { delete btn.dataset.ok; btn.textContent = '✕'; }, 4000); return false; }
+$('#f-host').addEventListener('submit', async e => {
+  e.preventDefault();
+  const host = { id_host: $('#hs-id').value, tipo: $('#hs-tipo').value, nombre: $('#hs-nombre').value.trim(), telefono: $('#hs-tel').value.trim(), correo: $('#hs-correo').value.trim(),
+    documento: $('#hs-doc').value.trim(), notas: $('#hs-notas').value.trim(), estatus: $('#hs-estatus').value };
+  try {
+    const r = await api('host_guardar', { host });
+    toast(r.nuevo ? 'Creado ' + r.host.id_host + '. Ahora asígnele su apartamento.' : 'Cambios guardados.');
+    await cargarHosts(); editarHost(null);
+    if (r.nuevo) { $('#as-host').value = r.host.id_host; $('#as-apto').focus(); }
+  } catch (err) { toast(err.message, 'error'); }
+});
+$('#f-asignar').addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const r = await api('host_unidad', { id_host: $('#as-host').value, torre: $('#as-torre').value, apartamento: $('#as-apto').value.trim(), transferir: $('#as-transferir').checked, operacion: 'asignar' });
+    toast('Asignado ' + r.codigo_unidad + (r.desactivados && r.desactivados.length ? '. Perdió el acceso: ' + r.desactivados.join(', ') : '.'));
+    $('#as-apto').value = ''; $('#as-transferir').checked = false; await cargarHosts();
+    const h = S.hosts.hosts.find(x => x.id_host === $('#as-host').value); if (h && !h.vinculado) invitarHost(h);
+  } catch (err) { toast(err.message + (err.codigo === 'CONFLICTO' ? ' Marque «transferir» si corresponde.' : ''), 'error'); }
+});
+
 // ------------------------------------------------------------------ Personal
 async function cargarPersonal() {
   try {
@@ -864,7 +994,7 @@ const Demo = (() => {
       ocupacion: { total: esEsp ? 4 : cap.res + 1, max: cap.max, residentes: esEsp ? 0 : cap.res, visitas: esEsp ? 2 : 1, huespedes: esEsp ? 2 : 0 },
       residente: esEsp ? 'JOSÉ RAMÍREZ' : 'FAM. PÉREZ', telefono: md('809-555-0177'), instrucciones: 'Llamar antes de dejar subir. Delivery hasta el lobby.',
       renta_corta: esEsp || apto === '8B' ? { codigo_unidad: (esEsp ? 'ESP17-' : 'NIZA7-') + apto, estatus: 'activa', en_conflicto: false, hosts: [{ id: 'H004', nombre: 'Carlos Peña', telefono: md('829-555-2020') }],
-        ficha: { hora_entrada: '15:00', hora_salida: '11:00', codigo_puerta: m('4826#'), wifi_red: 'Apto' + apto, wifi_clave: m('mar-azul-2026'), parqueo: 'P2-14', ubicacion: 'Av. Anacaona 17, Santo Domingo', normas: 'No fumar dentro del apartamento.\nSilencio desde las 10 p. m.\nMáximo 4 huéspedes.' },
+        ficha: { hora_entrada: '15:00', hora_salida: '11:00', codigo_puerta: m('4826#'), wifi_red: 'Apto' + apto, wifi_clave: m('mar-azul-2026'), parqueo: 'P2-14', ubicacion: 'Av. Anacaona 17, Santo Domingo', normas: 'No fumar dentro del apartamento.\nSilencio desde las 10 p. m.\nMáximo 4 huéspedes.', minimo_noches: '2', maximo_noches: '30', max_huespedes: '4', mascotas: 'NO', fumar: 'NO', fiestas: 'NO' },
         reservas: [{ codigo: 'STL-7K2PQ', huesped: 'PEDRO ALMONTE', llegada: H(30), salida: H(-40), estatus: 'ingresado', personas: [{ nombre: 'PEDRO ALMONTE', documento: md('X99887766'), foto: g ? 'https://drive.google.com/' : '' }, { nombre: 'LUISA ALMONTE', documento: md('Y11223344'), foto: g ? 'https://drive.google.com/' : '' }] },
           { codigo: 'STL-9MX3T', huesped: 'EMMA JOHNSON', llegada: H(-120), salida: H(-190), estatus: 'pendiente', personas: [] }] } : null,
       visitas: [{ entrada: H(2), categoria: 'VIS', nombre: 'ANA RUIZ', documento: md('402-9876543-2'), foto: g ? 'https://drive.google.com/' : '' }, { entrada: H(26), categoria: 'DEL', nombre: 'PEDIDOSYA', documento: md('001-4455667-8'), foto: '' }],
@@ -881,12 +1011,20 @@ const Demo = (() => {
     return { documentos: JSON.parse(JSON.stringify(docs)), temas: TEMAS, tipos: TIPOS, torres: torres.map(t => t.torre), temas_cubiertos: cub, puede_editar: g, faltan: ['salida_huesped', 'horario_trabajo'].filter(k => !cub[k]) };
   }
   const err = (m, c) => { const e = new Error(m); e.codigo = c; return e; };
+  const hostsD = [
+    { id_host: 'H004', nombre: 'Carlos Peña', tipo: 'host', telefono: '829-555-2020', correo: 'carlos@correo.do', documento: '402-1234567-8', notas: '', estatus: 'aprobado', vinculado: true,
+      unidades: [{ codigo: 'ESP17-5D', torre: 'Torre Esperilla 17', apto: '5D' }, { codigo: 'NIZA7-8B', torre: 'Torre Niza 7', apto: '8B' }] },
+    { id_host: 'H007', nombre: 'Laura Castillo', tipo: 'propietario', telefono: '809-555-0141', correo: 'laura@correo.do', documento: '001-7654321-0', notas: 'Dueña del 9C', estatus: 'aprobado', vinculado: false,
+      unidades: [{ codigo: 'ESP17-9C', torre: 'Torre Esperilla 17', apto: '9C' }] },
+    { id_host: 'H002', nombre: 'Miguel Torres', tipo: 'host', telefono: '849-555-3030', correo: '', documento: '', notas: 'Suspendido por deuda', estatus: 'suspendido', vinculado: true, unidades: [] }];
+  const vistaHosts = g => ({ gerente: g, bot: 'CustomerServiceStili_bot', empresa: 'Stili Group', hosts: hostsD.map(h => Object.assign({}, h, { unidades: h.unidades.slice(),
+    telefono: g ? h.telefono : '•••' + h.telefono.slice(-4), documento: g ? h.documento : (h.documento ? '•••' + h.documento.slice(-4) : ''), correo: g ? h.correo : '', notas: g ? h.notas : '' })) });
   async function llamar(accion, d) {
     await new Promise(r => setTimeout(r, 120));
     const g = CFG.demoRol !== 'equipo';
     const soloG = () => { if (!g) throw err('Solo el Gerente puede cambiar los documentos y normas.', 'SOLO_GERENTE'); };
     switch (accion) {
-      case 'sistema': return { version: '1.4.0', checkin: true, rol: g ? 'gerente' : 'equipo', nombre: g ? 'Ronald Larrauri' : 'Equipo Stili' };
+      case 'sistema': return { version: '1.6.0', checkin: true, rol: g ? 'gerente' : 'equipo', nombre: g ? 'Ronald Larrauri' : 'Equipo Stili' };
       case 'tablero': return { torres: JSON.parse(JSON.stringify(torres)), categorias: cats, conflictos, actividad, checkin_conectado: true };
       case 'conflictos': return { conflictos };
       case 'apartamento_guardar': { const max = d.ocupacion_maxima, res = d.residentes_habituales;
@@ -922,6 +1060,25 @@ const Demo = (() => {
         const r = () => Math.random().toString(36).slice(2, 8).toUpperCase();
         return { torre: d.torre, prefijo: pref, apartamentos_nuevos: n, ya_existian: 0, codigo_encuesta: pref.slice(0, 6) + '-' + r(), codigo_lobby: pref.slice(0, 6) + '-' + r() }; }
       case 'transferir': { const i = conflictos.findIndex(c => c.unidad === d.codigo_unidad); const des = i >= 0 ? conflictos[i].ids.filter(x => x !== d.id_host) : []; if (i >= 0) conflictos.splice(i, 1); return { desactivados: des }; }
+      case 'hosts': return vistaHosts(g);
+      case 'host_guardar': { if (!g) throw err('Solo el Gerente puede hacer este cambio.', 'SOLO_GERENTE'); const h = d.host;
+        if (!h.nombre || h.nombre.length < 3) throw err('Escriba el nombre completo.'); if (h.telefono.replace(/\D/g, '').length < 10) throw err('Escriba el teléfono con código de área (10 dígitos o más). Debe ser el mismo de su Telegram.');
+        const tel = h.telefono.replace(/\D/g, '').slice(-10); const otro = hostsD.find(x => x.id_host !== h.id_host && x.telefono.replace(/\D/g, '').slice(-10) === tel && x.estatus !== 'suspendido');
+        if (otro && h.estatus !== 'suspendido') throw err('Ese teléfono ya pertenece a ' + otro.nombre + ' (' + otro.id_host + '). Un teléfono = un host (R1).', 'CONFLICTO');
+        let x = hostsD.find(y => y.id_host === h.id_host); const nuevo = !x;
+        if (!x) { x = { id_host: 'H' + String(hostsD.length + 5).padStart(3, '0'), unidades: [], vinculado: false }; hostsD.push(x); }
+        Object.assign(x, { nombre: h.nombre, tipo: h.tipo, telefono: h.telefono, correo: h.correo, documento: h.documento, notas: h.notas, estatus: h.estatus || 'aprobado' });
+        return { host: JSON.parse(JSON.stringify(x)), nuevo }; }
+      case 'host_unidad': { if (!g) throw err('Solo el Gerente puede hacer este cambio.', 'SOLO_GERENTE'); const h = hostsD.find(x => x.id_host === d.id_host);
+        if (d.operacion === 'quitar') { h.unidades = h.unidades.filter(u => u.codigo !== d.codigo_unidad); return { quitado: d.codigo_unidad }; }
+        if (!d.apartamento) throw err('Elija la torre y el apartamento.'); const apto = d.apartamento.toUpperCase();
+        const previa = hostsD.flatMap(x => x.unidades).find(u => u.torre === d.torre && u.apto === apto);
+        const cod = previa ? previa.codigo : d.torre.replace(/^torre\s+/i, '').toUpperCase().replace(/[^A-Z0-9]/g, '') + '-' + apto;
+        const otro = hostsD.find(x => x !== h && x.unidades.some(u => u.codigo === cod));
+        if (otro && !d.transferir) throw err('La unidad ' + cod + ' ya tiene otro host activo. Use «Transferir».', 'CONFLICTO');
+        if (otro) otro.unidades = otro.unidades.filter(u => u.codigo !== cod);
+        if (!h.unidades.some(u => u.codigo === cod)) h.unidades.push({ codigo: cod, torre: d.torre, apto });
+        return { codigo_unidad: cod, desactivados: otro ? [otro.id_host] : [] }; }
       case 'empleados': return { empleados, de_turno: { 'Torre Niza 7': [{ id: 'EMP-001', nombre: 'JUAN PÉREZ', desde: turnos[0].entrada }] } };
       case 'empleado_guardar': { const e = d.empleado; if (!e.nombre || !e.documento) throw err('Escriba nombre y cédula del empleado.'); if (e.pin && !/^\d{4,6}$/.test(e.pin)) throw err('El PIN debe tener de 4 a 6 números.');
         empleados.push({ id: 'EMP-00' + (empleados.length + 1), nombre: e.nombre.toUpperCase(), documento: '•••' + e.documento.replace(/\D/g, '').slice(-4), torre: e.torre, rol: e.rol, activo: true, tiene_pin: !!e.pin }); return { id: 'EMP' }; }

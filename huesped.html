@@ -76,6 +76,7 @@ main { max-width: 560px; margin: -52px auto 0; padding-block: 0 48px; display: f
 .copiar { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 700; color: var(--fg); }
 a.mapa { color: var(--teal); font-weight: 700; }
 .normas p { margin: 0; white-space: pre-line; }
+.reglas { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 6px; font-weight: 600; }
 .respaldo { border-left: 4px solid var(--hue); background: var(--hue-suave); border-radius: 0 10px 10px 0; padding: 10px 14px; font-size: 15px; }
 .respaldo b { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--hue); margin-bottom: 2px; }
 details.art { border-top: 1px solid var(--line); padding: 8px 0; }
@@ -2403,19 +2404,19 @@ const T = {
     antes: 'Su apartamento estará listo el {f} a partir de las {h}. Antes de esa hora el código no da acceso.', puede_llegar: 'Ya puede llegar. Muestre el código en la portería; el código de la puerta y la clave del wifi aparecen aquí cuando el portero confirma su ingreso.',
     en_estadia: 'Su ingreso está confirmado. Disfrute su estadía.', terminada: 'Su estadía terminó. El código ya no da acceso. Gracias por su visita.',
     datos: 'Su apartamento', puerta: 'Código de la puerta', wifi: 'Wifi', clave: 'Clave del wifi', parqueo: 'Parqueo', ubicacion: 'Ubicación', mapa: 'Abrir en el mapa', tras: 'Aparece después de su ingreso en la portería',
-    copiar: 'Copiar', copiado: 'Copiado', normasApto: 'Normas del apartamento', capacidad: 'Capacidad máxima: {n} personas. Cada persona se registra en la portería con su documento, también quien llegue más tarde.', normasCondo: 'Normas del condominio', salidaTit: 'Hora de salida', salidaTxt: 'Debe dejar el apartamento el {f} a las {h}.',
+    copiar: 'Copiar', copiado: 'Copiado', normasApto: 'Normas del apartamento', mascotas: ['🐾 Se permiten mascotas', '🐾 No se permiten mascotas'], fumar: ['🚬 Se permite fumar', '🚭 Prohibido fumar'], fiestas: ['🎉 Se permiten reuniones', '🔇 Prohibidas las fiestas y reuniones'], noches: 'Estadía mínima: {n} noche(s)', capacidad: 'Capacidad máxima: {n} personas. Cada persona se registra en la portería con su documento, también quien llegue más tarde.', normasCondo: 'Normas del condominio', salidaTit: 'Hora de salida', salidaTxt: 'Debe dejar el apartamento el {f} a las {h}.',
     pie: 'Enlace personal de su reserva. No lo comparta.', error: 'Enlace no válido', demo: 'Demostración con datos de ejemplo. Ver etapa:' },
   en: { hola: 'Welcome, ', apto: 'Apartment', llegada: 'Check-in', salida: 'Check-out', desde: 'from', hasta: 'by', qr: 'Show this code at the front desk. The doorman will check each guest’s ID.',
     antes: 'Your apartment will be ready on {f} from {h}. The code does not give access before then.', puede_llegar: 'You can arrive now. Show the code at the front desk; the door code and wifi password appear here once the doorman confirms your check-in.',
     en_estadia: 'Your check-in is confirmed. Enjoy your stay.', terminada: 'Your stay has ended. The code no longer gives access. Thank you for visiting.',
     datos: 'Your apartment', puerta: 'Door code', wifi: 'Wifi', clave: 'Wifi password', parqueo: 'Parking', ubicacion: 'Location', mapa: 'Open in maps', tras: 'Shown after check-in at the front desk',
-    copiar: 'Copy', copiado: 'Copied', normasApto: 'House rules', capacidad: 'Maximum occupancy: {n} people. Every person registers at the front desk with their own ID, including late arrivals.', normasCondo: 'Building rules', salidaTit: 'Check-out time', salidaTxt: 'Please leave the apartment on {f} by {h}.',
+    copiar: 'Copy', copiado: 'Copied', normasApto: 'House rules', mascotas: ['🐾 Pets allowed', '🐾 No pets'], fumar: ['🚬 Smoking allowed', '🚭 No smoking'], fiestas: ['🎉 Gatherings allowed', '🔇 No parties or events'], noches: 'Minimum stay: {n} night(s)', capacidad: 'Maximum occupancy: {n} people. Every person registers at the front desk with their own ID, including late arrivals.', normasCondo: 'Building rules', salidaTit: 'Check-out time', salidaTxt: 'Please leave the apartment on {f} by {h}.',
     pie: 'Personal link for your booking. Do not share it.', error: 'Invalid link', demo: 'Demo with sample data. Show stage:' },
   fr: { hola: 'Bienvenue, ', apto: 'Appartement', llegada: 'Arrivée', salida: 'Départ', desde: 'dès', hasta: 'avant', qr: 'Présentez ce code à la réception. Le concierge vérifiera la pièce d’identité de chaque personne.',
     antes: 'Votre appartement sera prêt le {f} à partir de {h}. Avant cette heure, le code ne donne pas accès.', puede_llegar: 'Vous pouvez arriver. Présentez le code à la réception ; le code de la porte et le mot de passe wifi apparaîtront ici après la confirmation du concierge.',
     en_estadia: 'Votre arrivée est confirmée. Bon séjour.', terminada: 'Votre séjour est terminé. Le code ne donne plus accès. Merci de votre visite.',
     datos: 'Votre appartement', puerta: 'Code de la porte', wifi: 'Wifi', clave: 'Mot de passe wifi', parqueo: 'Parking', ubicacion: 'Adresse', mapa: 'Ouvrir la carte', tras: 'Affiché après votre arrivée à la réception',
-    copiar: 'Copier', copiado: 'Copié', normasApto: 'Règles du logement', capacidad: 'Capacité maximale : {n} personnes. Chaque personne s’enregistre à la réception avec sa pièce d’identité, y compris en arrivant plus tard.', normasCondo: 'Règlement de la résidence', salidaTit: 'Heure de départ', salidaTxt: 'Merci de quitter l’appartement le {f} avant {h}.',
+    copiar: 'Copier', copiado: 'Copié', normasApto: 'Règles du logement', mascotas: ['🐾 Animaux acceptés', '🐾 Animaux non acceptés'], fumar: ['🚬 Fumeurs acceptés', '🚭 Non-fumeur'], fiestas: ['🎉 Réunions acceptées', '🔇 Fêtes et événements interdits'], noches: 'Séjour minimum : {n} nuit(s)', capacidad: 'Capacité maximale : {n} personnes. Chaque personne s’enregistre à la réception avec sa pièce d’identité, y compris en arrivant plus tard.', normasCondo: 'Règlement de la résidence', salidaTit: 'Heure de départ', salidaTxt: 'Merci de quitter l’appartement le {f} avant {h}.',
     pie: 'Lien personnel de votre réservation. Ne le partagez pas.', error: 'Lien non valide', demo: 'Démo avec données d’exemple. Étape :' },
 };
 let L = (() => { try { return localStorage.getItem('stili-lang') || ''; } catch (e) { return ''; } })() || ((navigator.language || 'es').slice(0, 2) in T ? (navigator.language || 'es').slice(0, 2) : 'es');
@@ -2447,6 +2448,8 @@ function pintar() {
   if (f.ubicacion || f.mapa_url) datos.push(dato('📍', t.ubicacion, '<b>' + esc(f.ubicacion || '') + '</b>' + (f.mapa_url && /^https:\/\//.test(f.mapa_url) ? '<br><a class="mapa" href="' + esc(f.mapa_url) + '" target="_blank" rel="noopener">' + t.mapa + ' ↗</a>' : '')));
   const resp = D.respaldo_salida;
   const condo = (D.normas_condominio || []);
+  const reglas = ['mascotas', 'fumar', 'fiestas'].filter(k => f[k] === 'SI' || f[k] === 'NO').map(k => t[k][f[k] === 'SI' ? 0 : 1]);
+  if (Number(f.minimo_noches) > 1) reglas.push(t.noches.replace('{n}', f.minimo_noches));
   document.getElementById('app').innerHTML =
     (DEMO ? '<div class="demo">' + t.demo + ' ' + ['antes', 'puede_llegar', 'en_estadia', 'terminada'].map(e => '<button data-etapa="' + e + '">' + e.replace('_', ' ') + '</button>').join('') + '</div>' : '') +
     '<div class="pase"><div class="cab"><h1>' + t.hola + esc(titulo(D.huesped)) + '</h1><div class="lugar">' + esc(D.torre) + ' · ' + t.apto + ' ' + esc(D.apto) + '</div></div>' +
@@ -2457,7 +2460,8 @@ function pintar() {
     (datos.length ? '<div class="card"><h2>' + t.datos + '</h2>' + datos.join('') + '</div>' : '') +
     '<div class="card"><h2>' + t.salidaTit + '</h2><p style="margin:0 0 10px;font-weight:600">' + esc(t.salidaTxt.replace('{f}', fFecha(D.fin || D.salida)).replace('{h}', D.hora_salida || fHora(D.fin))) + '</p>' +
       (resp ? '<div class="respaldo"><b>📜 ' + esc(resp.documento) + ' · ' + esc(resp.articulo) + '</b>' + esc(resp.texto) + '</div>' : '') + '</div>' +
-    (f.normas || D.ocupacion_maxima ? '<div class="card normas"><h2>' + t.normasApto + '</h2>' + (D.ocupacion_maxima ? '<p style="font-weight:600;margin-bottom:8px">👥 ' + esc(t.capacidad.replace('{n}', D.ocupacion_maxima)) + '</p>' : '') + (f.normas ? '<p>' + esc(f.normas) + '</p>' : '') + '</div>' : '') +
+    (f.normas || D.ocupacion_maxima || reglas.length ? '<div class="card normas"><h2>' + t.normasApto + '</h2>' + (D.ocupacion_maxima ? '<p style="font-weight:600;margin-bottom:8px">👥 ' + esc(t.capacidad.replace('{n}', D.ocupacion_maxima)) + '</p>' : '') +
+      (reglas.length ? '<ul class="reglas">' + reglas.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '') + (f.normas ? '<p>' + esc(f.normas) + '</p>' : '') + '</div>' : '') +
     (condo.length ? '<div class="card"><h2>' + t.normasCondo + '</h2>' + condo.map(n => '<details class="art"><summary>' + esc(n.articulo) + ' · <span style="font-weight:500;color:var(--muted)">' + esc(n.documento) + '</span></summary><p>' + esc(n.texto) + '</p></details>').join('') + '</div>' : '') +
     '<p class="pie">' + t.pie + '</p>';
   if (D.etapa !== 'terminada' && window.qrcode) {
@@ -2479,7 +2483,7 @@ function demo(etapa) {
   const fin = { antes: dia(4, '11:00'), puede_llegar: dia(3, '11:00'), en_estadia: dia(2, '11:00'), terminada: dia(-1, '11:00') }[etapa];
   return { ok: true, empresa: 'Stili Group', torre: 'Torre Esperilla 17', apto: '5D', codigo_reserva: 'STL-7K2PQ', huesped: 'SOPHIE MARTIN', llegada: ini, salida: fin, inicio: ini, fin, hora_entrada: '15:00', hora_salida: '11:00', etapa, ocupacion_maxima: 4,
     ficha: { codigo_puerta: en ? '4826#' : '', wifi_red: 'Apto5D', wifi_clave: en ? 'mar-azul-2026' : (etapa === 'terminada' ? '' : 'despues_ingreso'), parqueo: 'P2-14', ubicacion: 'Av. Anacaona 17, Santo Domingo', mapa_url: 'https://maps.google.com/?q=18.45,-69.95',
-      normas: 'No fumar dentro del apartamento.\nSilencio desde las 10 p. m.\nMáximo 4 huéspedes.' },
+      normas: 'Silencio desde las 10 p. m.\nDeje la basura en el ducto del piso.', mascotas: 'NO', fumar: 'NO', fiestas: 'NO', minimo_noches: '2' },
     respaldo_salida: { documento: 'Reglamento de convivencia', articulo: 'Artículo 4', texto: 'Los huéspedes de alquileres de corta estadía deberán desalojar la unidad a la hora de salida pactada. Pasada esa hora el acceso queda suspendido y la administración podrá solicitar el desalojo.' },
     normas_condominio: [
       { documento: 'Reglamento de convivencia', articulo: 'Artículo 2', texto: 'Toda persona que no resida en el condominio debe identificarse y registrarse en la portería antes de subir.' },
