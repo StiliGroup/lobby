@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mi panel de host</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#13293D">
+<meta name="robots" content="noindex">
+<link rel="icon" href="icono-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: panel personal del host — resumen del mes, una tarjeta por unidad con su ficha editable, reservas y reglamento. Identidad Stili (navy, dorado). */
+:root {
+  --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
+  --navy: #13293D; --teal: #0F7C7A; --teal-suave: #DCEFEE; --gold: #B8913A; --gold-suave: #F6EDD6; --hue: #A8681A;
+  --ok: #1E7D4F; --ok-suave: #DDF1E6; --warn: #A86500; --warn-suave: #FCEBCF; --crit: #B3261E; --crit-suave: #FBE3E1;
+  --sombra: 0 1px 2px rgba(19, 41, 61, .06), 0 4px 16px rgba(19, 41, 61, .06);
+  --f-ui: "Archivo", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace; --r: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+    --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A; --hue: #E0A55A;
+    --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18;
+    --sombra: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+  --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A; --hue: #E0A55A;
+  --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18;
+  --sombra: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--f-ui); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--navy); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.barra { background: var(--navy); color: #fff; }
+header.barra .in { max-width: 1100px; margin: 0 auto; padding-block: 18px 20px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: end; justify-content: space-between; }
+header.barra small { color: #C9A54C; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; display: block; }
+header.barra h1 { margin: 2px 0 0; font-size: 26px; text-wrap: balance; }
+header.barra .act { color: rgba(255,255,255,.7); font-size: 13px; }
+main { max-width: 1100px; margin: 0 auto; padding-block: 18px 60px; display: flex; flex-direction: column; gap: 18px; }
+.aviso { background: var(--warn-suave); color: var(--warn); border-radius: var(--r); padding: 10px 14px; font-weight: 600; font-size: 14px; }
+.error { background: var(--crit-suave); color: var(--crit); border-radius: var(--r); padding: 16px; font-weight: 600; }
+h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--sombra); min-width: 0; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+.kpi span { display: block; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.kpi b { font-family: var(--f-mono); font-size: 28px; font-variant-numeric: tabular-nums; }
+.kpi small { color: var(--muted); font-size: 13px; display: block; }
+.unidades { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.unidad { display: flex; flex-direction: column; gap: 10px; }
+.unidad header { display: flex; gap: 12px; align-items: center; }
+.unidad .apto { width: 56px; height: 56px; border-radius: 10px; background: var(--hue); color: #fff; display: grid; place-items: center; font-family: var(--f-mono); font-weight: 700; font-size: 18px; flex: none; }
+.unidad h3 { margin: 0; font-size: 17px; }
+.unidad .cod { font-family: var(--f-mono); color: var(--muted); font-size: 13px; }
+.estado { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+.estado.libre { background: var(--ok-suave); color: var(--ok); }
+.estado.ocupada { background: var(--gold-suave); color: var(--warn); }
+.estado.bloqueada_deuda, .estado.en_revision { background: var(--crit-suave); color: var(--crit); }
+.m { height: 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.m i { display: block; height: 100%; background: var(--gold); }
+.falta { color: var(--crit); font-size: 13px; font-weight: 600; }
+.lista { list-style: none; margin: 0; padding: 0; }
+.lista li { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); align-items: center; font-size: 14px; }
+.lista li:first-child { border-top: 0; }
+.lista .f { font-family: var(--f-mono); color: var(--muted); font-size: 13px; }
+.chip { display: inline-block; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; background: var(--panel-2); border: 1px solid var(--line); }
+.chip.ok { background: var(--ok-suave); color: var(--ok); border-color: transparent; }
+.chip.oro { background: var(--gold-suave); color: var(--warn); border-color: transparent; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 9px 14px; font-weight: 700; }
+.btn.primario { background: var(--teal); border-color: var(--teal); color: #fff; }
+/* Editor de la ficha */
+dialog { border: 0; border-radius: var(--r); padding: 0; width: min(640px, calc(100% - 24px)); background: var(--panel); color: var(--fg); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+dialog::backdrop { background: rgba(8, 18, 27, .6); }
+dialog form { padding: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+dialog h3 { grid-column: 1 / -1; margin: 0; font-size: 19px; }
+label.campo { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--muted); }
+label.campo.ancho, .ancho { grid-column: 1 / -1; }
+input, textarea { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 11px; font-size: 15px; width: 100%; min-width: 0; color: var(--fg); }
+textarea { min-height: 110px; resize: vertical; }
+.sensible { font-weight: 600; color: var(--warn); font-size: 12px; }
+.pie { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+details.norma { border-top: 1px solid var(--line); padding: 8px 0; }
+details.norma summary { cursor: pointer; font-weight: 600; }
+details.norma p { margin: 6px 0 0; white-space: pre-line; color: var(--fg); line-height: 1.5; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--navy); color: #fff; padding: 12px 18px; border-radius: 10px; font-weight: 600; z-index: 50; max-width: calc(100% - 32px); }
+.toast.error { background: var(--crit); }
+@media (max-width: 560px) { .lista li { grid-template-columns: 78px minmax(0, 1fr); } .lista li > :last-child { grid-column: 2; } }
+</style>
+</head>
+<body>
+<header class="barra"><div class="in gutter"><div><small>Stili Group · Panel del host</small><h1 id="titulo">Mi panel</h1></div><span class="act" id="act"></span></div></header>
+<main class="gutter">
+  <div class="aviso" id="aviso-demo" hidden>Demostración con datos de ejemplo. Su enlace personal llega por el bot con /panel.</div>
+  <div class="error" id="error" hidden></div>
+  <div class="kpis" id="kpis"></div>
+  <section><h2>Mis unidades</h2><div class="unidades" id="unidades"></div></section>
+  <div class="grid2">
+    <div class="card"><h2>Próximas llegadas</h2><ul class="lista" id="proximas"></ul></div>
+    <div class="card"><h2>Últimos 60 días</h2><ul class="lista" id="historial"></ul></div>
+  </div>
+  <div class="card" id="regl-caja"><h2>Reglamento del condominio</h2><p style="margin-top:0;color:var(--muted);font-size:14px">Estas normas aplican a sus huéspedes. Cada persona se registra en la portería con su documento; no pueden entrar más personas que las de la reserva ni pasar la capacidad del apartamento. Si el portero reporta una falta de su huésped, usted la recibe por Telegram.</p><div id="reglamento"></div></div>
+</main>
+
+<dialog id="dlg">
+  <form id="f-ficha" method="dialog">
+    <h3 id="dlg-titulo">Ficha de la unidad</h3>
+    <label class="campo">Hora de entrada<input id="h-entrada" type="text" placeholder="15:00" inputmode="numeric"></label>
+    <label class="campo">Hora de salida<input id="h-salida" type="text" placeholder="11:00" inputmode="numeric"></label>
+    <label class="campo">Código de la puerta <span class="sensible">Solo lo ve el huésped durante su estadía</span><input id="h-puerta" type="text" autocomplete="off"></label>
+    <label class="campo">Parqueo<input id="h-parqueo" type="text" placeholder="P2-14"></label>
+    <label class="campo">Red wifi<input id="h-wifi" type="text"></label>
+    <label class="campo">Clave del wifi <span class="sensible">Solo lo ve el huésped después de ingresar</span><input id="h-clave" type="text" autocomplete="off"></label>
+    <label class="campo ancho">Ubicación (dirección)<input id="h-ubicacion" type="text"></label>
+    <label class="campo ancho">Enlace del mapa (https://…)<input id="h-mapa" type="url" placeholder="https://maps.app.goo.gl/…"></label>
+    <label class="campo ancho">Normas del apartamento<textarea id="h-normas" placeholder="No fumar dentro. Silencio desde las 10 p. m. Máximo 4 huéspedes."></textarea></label>
+    <p class="ancho" style="margin:0;color:var(--muted);font-size:13px">El portero nunca ve el código de la puerta ni la clave del wifi. Si cambia la cerradura, actualícela aquí antes de la próxima llegada.</p>
+    <div class="pie ancho"><button class="btn" value="cancelar" formnovalidate>Cancelar</button><button class="btn primario" id="h-guardar" value="guardar">Guardar ficha</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast" hidden role="status"></div>
+<script src="config.js"></script>
+<script>
+'use strict';
+const TZ = 'America/Santo_Domingo';
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtFecha = d => d ? new Date(d).toLocaleDateString('es-DO', { timeZone: TZ, weekday: 'short', day: '2-digit', month: 'short' }) : '';
+const SERVICIO = (window.STILI && window.STILI.servicio) || '';
+const K = new URLSearchParams(location.search).get('k') || '';
+const DEMO = !SERVICIO || !K;
+let D = null, actual = null;
+const ESTADOS = { libre: 'Libre', ocupada: 'Ocupada', bloqueada_deuda: 'Bloqueada · balance vencido', en_revision: 'En revisión' };
+function toast(t, tipo) { const e = $('#toast'); e.textContent = t; e.className = 'toast' + (tipo ? ' ' + tipo : ''); e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => e.hidden = true, 4000); }
+async function api(accion, datos) {
+  if (DEMO) return demo(accion, datos || {});
+  const r = await fetch(SERVICIO, { method: 'POST', body: JSON.stringify(Object.assign({ accion, k: K }, datos || {})) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error); return j;
+}
+async function cargar() {
+  try { D = await api('panel_host'); pintar(); }
+  catch (e) { $('#error').hidden = false; $('#error').textContent = e.message; }
+}
+function pintar() {
+  $('#aviso-demo').hidden = !DEMO;
+  $('#titulo').textContent = 'Hola, ' + D.host.nombre.split(' ')[0];
+  $('#act').textContent = 'Actualizado ' + new Date(D.generado).toLocaleTimeString('es-DO', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
+  const R = D.resumen, ocup = D.unidades.length ? Math.round(100 * R.noches_mes / (R.dias_mes * D.unidades.length)) : 0;
+  $('#kpis').innerHTML = [['Reservas del mes', R.reservas_mes, 'en ' + D.unidades.length + ' unidad(es)'], ['Ocupación del mes', ocup + '%', R.noches_mes + ' noches de ' + R.dias_mes * D.unidades.length],
+    ['Valoración que da', R.valoraciones ? R.promedio_estrellas.toFixed(1) + '★' : '—', R.valoraciones + ' huéspedes valorados'], ['Por valorar', R.por_valorar, R.por_valorar ? 'Use «⭐ Valorar huésped» en el bot' : 'Al día']]
+    .map(([a, b, c]) => '<div class="kpi"><span>' + a + '</span><b>' + b + '</b><small>' + c + '</small></div>').join('');
+  $('#unidades').innerHTML = D.unidades.map((u, i) => {
+    const f = u.ficha, faltan = [];
+    if (!f.codigo_puerta) faltan.push('código de puerta'); if (!f.wifi_red) faltan.push('wifi'); if (!f.hora_entrada) faltan.push('hora de entrada');
+    return '<div class="card unidad"><header><span class="apto">' + esc(u.apto) + '</span><div style="min-width:0"><h3>' + esc(u.torre) + '</h3><span class="cod">' + esc(u.codigo) + '</span></div><span class="estado ' + esc(u.estado) + '" style="margin-left:auto">' + esc(ESTADOS[u.estado] || u.estado) + '</span></header>' +
+      (u.estado === 'ocupada' ? '<div>👤 <b>' + esc(u.huesped) + '</b> · ' + u.personas + ' pers. · sale ' + fmtFecha(u.sale) + '</div>' : '') +
+      (u.estado === 'en_revision' ? '<div class="falta">Otro número tiene acceso a esta unidad. Stili lo está revisando (C-25); mientras tanto no se pueden crear reservas.</div>' : '') +
+      (u.estado === 'bloqueada_deuda' ? '<div class="falta">Balance vencido: contacte a Cuentas por Cobrar.</div>' : '') +
+      '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-size:13px"><span>Ocupación del mes</span><span class="m"><i style="width:' + u.ocupacion_mes + '%"></i></span><span class="mono">' + u.ocupacion_mes + '%</span></div>' +
+      '<div style="font-size:14px;color:var(--muted)">Entrada ' + esc(f.hora_entrada || '—') + ' · salida ' + esc(f.hora_salida || '—') + ' · wifi ' + esc(f.wifi_red || '—') + ' · parqueo ' + esc(f.parqueo || '—') +
+        ' · <b style="color:var(--fg)">capacidad ' + (u.ocupacion_maxima ? u.ocupacion_maxima + ' personas' : 'sin límite') + '</b></div>' +
+      (faltan.length ? '<div class="falta">Falta: ' + faltan.join(', ') + '. Sus huéspedes no lo verán hasta que lo complete.</div>' : '') +
+      '<div><button class="btn primario" data-editar="' + i + '"' + (u.estado === 'en_revision' ? ' disabled' : '') + '>Editar ficha</button></div></div>';
+  }).join('') || '<div class="card">No tiene unidades asignadas.</div>';
+  const fila = r => '<li><span class="f">' + fmtFecha(r.llegada) + '</span><span><b>' + esc(r.huesped || 'Sin nombre') + '</b> · ' + r.personas + ' pers. · <span class="mono">' + esc(r.unidad) + '</span></span><span class="chip ' + (r.estatus === 'ingresado' ? 'oro' : r.estatus === 'finalizado' ? 'ok' : '') + '">' + esc(r.estatus) + '</span></li>';
+  $('#proximas').innerHTML = D.proximas.map(fila).join('') || '<li style="display:block;color:var(--muted)">No hay llegadas registradas. Use «➕ Nueva reserva» en el bot.</li>';
+  $('#historial').innerHTML = D.historial.map(fila).join('') || '<li style="display:block;color:var(--muted)">Sin estadías recientes.</li>';
+  const regl = D.reglamentos || {}, torres = Object.keys(regl);
+  $('#regl-caja').hidden = !torres.some(t => regl[t].length);
+  $('#reglamento').innerHTML = torres.map(t => (torres.length > 1 ? '<h3 style="font-size:16px;margin:12px 0 4px">' + esc(t) + '</h3>' : '') + regl[t].map(n => '<details class="norma"' + (n.tema === 'salida_huesped' ? ' open' : '') + '><summary>' + esc(n.articulo) + ' · ' + esc((D.temas || {})[n.tema] || n.tema) + ' <span style="color:var(--muted);font-weight:500">— ' + esc(n.documento) + '</span></summary><p>' + esc(n.texto) + '</p></details>').join('')).join('');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-editar]'); if (!b) return;
+  actual = D.unidades[Number(b.dataset.editar)]; const f = actual.ficha;
+  $('#dlg-titulo').textContent = 'Ficha · ' + actual.torre + ' · Apto ' + actual.apto;
+  [['h-entrada', 'hora_entrada'], ['h-salida', 'hora_salida'], ['h-puerta', 'codigo_puerta'], ['h-parqueo', 'parqueo'], ['h-wifi', 'wifi_red'], ['h-clave', 'wifi_clave'], ['h-ubicacion', 'ubicacion'], ['h-mapa', 'mapa_url'], ['h-normas', 'normas']]
+    .forEach(([id, k]) => { $('#' + id).value = f[k] || ''; });
+  $('#dlg').showModal();
+});
+$('#f-ficha').addEventListener('submit', async e => {
+  if (e.submitter && e.submitter.value === 'cancelar') return;
+  e.preventDefault();
+  const ficha = { hora_entrada: $('#h-entrada').value.trim(), hora_salida: $('#h-salida').value.trim(), codigo_puerta: $('#h-puerta').value.trim(), parqueo: $('#h-parqueo').value.trim(), wifi_red: $('#h-wifi').value.trim(),
+    wifi_clave: $('#h-clave').value.trim(), ubicacion: $('#h-ubicacion').value.trim(), mapa_url: $('#h-mapa').value.trim(), normas: $('#h-normas').value.trim() };
+  try { const r = await api('unidad_guardar', { codigo_unidad: actual.codigo, ficha }); actual.ficha = r.ficha; $('#dlg').close(); pintar(); toast('Ficha guardada. Sus huéspedes verán los cambios al abrir su enlace.'); }
+  catch (err) { toast(err.message, 'error'); }
+});
+// ---- Demostración
+function demo(accion, d) {
+  const dia = n => new Date(Date.now() + n * 86400000).toISOString();
+  if (!demo.D) demo.D = { host: { nombre: 'Carlos Peña', id: 'H004' }, generado: new Date().toISOString(),
+    unidades: [
+      { codigo: 'ESP17-5D', torre: 'Torre Esperilla 17', apto: '5D', estado: 'ocupada', huesped: 'PEDRO ALMONTE', personas: 2, sale: dia(2), noches_mes: 17, ocupacion_mes: 55, ocupacion_maxima: 4,
+        ficha: { hora_entrada: '15:00', hora_salida: '11:00', codigo_puerta: '4826#', wifi_red: 'Apto5D', wifi_clave: 'mar-azul-2026', parqueo: 'P2-14', ubicacion: 'Av. Anacaona 17, Santo Domingo', mapa_url: 'https://maps.google.com/?q=18.45,-69.95', normas: 'No fumar dentro del apartamento.\nSilencio desde las 10 p. m.\nMáximo 4 huéspedes.' } },
+      { codigo: 'NIZA7-8B', torre: 'Torre Niza 7', apto: '8B', estado: 'libre', huesped: '', personas: 0, sale: '', noches_mes: 9, ocupacion_mes: 29, ocupacion_maxima: 2,
+        ficha: { hora_entrada: '', hora_salida: '12:00', codigo_puerta: '', wifi_red: '', wifi_clave: '', parqueo: '', ubicacion: '', mapa_url: '', normas: '' } }],
+    proximas: [{ codigo: 'STL-9MX3T', unidad: 'NIZA7-8B', huesped: 'EMMA JOHNSON', personas: 3, llegada: dia(1), salida: dia(4), estatus: 'pendiente' }, { codigo: 'STL-2HQ8R', unidad: 'ESP17-5D', huesped: 'KENJI SATO', personas: 2, llegada: dia(3), salida: dia(7), estatus: 'pendiente' }],
+    historial: [{ codigo: 'STL-7K2PQ', unidad: 'ESP17-5D', huesped: 'PEDRO ALMONTE', personas: 2, llegada: dia(-2), salida: dia(2), estatus: 'ingresado' }, { codigo: 'STL-4HD8W', unidad: 'NIZA7-8B', huesped: 'SOPHIE MARTIN', personas: 2, llegada: dia(-9), salida: dia(-5), estatus: 'finalizado' }],
+    resumen: { reservas_mes: 5, noches_mes: 26, dias_mes: 31, valoraciones: 7, promedio_estrellas: 4.6, por_valorar: 1 },
+    temas: { salida_huesped: 'Salida de huéspedes y renta corta', ruido: 'Ruido y convivencia', visitas: 'Visitas y registro en portería', horario_trabajo: 'Horario del personal de trabajo' },
+    reglamentos: { 'Torre Esperilla 17': [
+      { documento: 'Reglamento de convivencia', articulo: 'Artículo 4', tema: 'salida_huesped', texto: 'Los huéspedes de alquileres de corta estadía deberán desalojar la unidad a la hora de salida pactada. Pasada esa hora el acceso queda suspendido y la administración podrá solicitar el desalojo.' },
+      { documento: 'Reglamento de convivencia', articulo: 'Artículo 3', tema: 'ruido', texto: 'Se prohíbe la música o el ruido a alto volumen desde las 10:00 p. m. hasta las 7:00 a. m.' },
+      { documento: 'Reglamento de convivencia', articulo: 'Artículo 2', tema: 'visitas', texto: 'Toda persona que no resida en el condominio debe identificarse y registrarse en la portería antes de subir.' }] } };
+  if (accion === 'panel_host') return Promise.resolve(JSON.parse(JSON.stringify(demo.D)));
+  if (accion === 'unidad_guardar') {
+    const f = d.ficha; for (const k of ['hora_entrada', 'hora_salida']) if (f[k] && !/^\d{1,2}:\d{2}$/.test(f[k])) return Promise.reject(new Error('La hora debe tener el formato 15:00.'));
+    if (f.mapa_url && !/^https:\/\//i.test(f.mapa_url)) return Promise.reject(new Error('El enlace del mapa debe empezar con https://'));
+    const u = demo.D.unidades.find(x => x.codigo === d.codigo_unidad); u.ficha = Object.assign({}, f); return Promise.resolve({ guardado: true, ficha: u.ficha });
+  }
+  return Promise.reject(new Error('No disponible en demostración.'));
+}
+cargar();
+</script>
+</body>
+</html>

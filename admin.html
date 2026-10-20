@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Panel Stili</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#13293D">
+<meta name="description" content="Panel de administración de Stili Group: ocupación por torre, apartamentos, documentos y normas, encuestas, conflictos y personal.">
+<link rel="icon" href="icono-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: consola de administración — barra navy fija con pestañas; resumen arriba y detalle por torre debajo. Misma identidad que la app del lobby. */
+:root {
+  --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
+  --navy: #13293D; --teal: #0F7C7A; --teal-suave: #DCEFEE; --gold: #B8913A; --gold-suave: #F6EDD6;
+  --ok: #1E7D4F; --ok-suave: #DDF1E6; --warn: #A86500; --warn-suave: #FCEBCF; --crit: #B3261E; --crit-suave: #FBE3E1;
+  --sobre-oscuro: #FFFFFF; --sombra: 0 1px 2px rgba(19, 41, 61, .06), 0 4px 16px rgba(19, 41, 61, .06);
+  --f-ui: "Archivo", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+    --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A;
+    --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .3); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+  --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A;
+  --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18;
+  --sombra: 0 1px 2px rgba(0, 0, 0, .3); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-ui); font-size: 15px; line-height: 1.45; margin: 0; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--navy); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+.barra { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--navy); color: var(--sobre-oscuro); }
+.barra .fila { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-block: 10px; max-width: 1360px; margin: 0 auto; }
+.marca { display: flex; flex-direction: column; line-height: 1.15; margin-right: auto; min-width: 0; }
+.marca small { color: #C9A54C; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.marca b { font-size: 19px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 4px 11px; font-size: 13px; background: transparent; color: #fff; }
+.pill .p { width: 8px; height: 8px; border-radius: 50%; background: #4CC08A; }
+.pill .p.demo { background: #E9A63A; }
+.pill.rol-gerente { border-color: #C9A54C; color: #F1DCA6; }
+.tabs { display: flex; gap: 2px; overflow-x: auto; max-width: 1360px; margin: 0 auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { background: none; border: 0; color: rgba(255,255,255,.72); padding: 10px 14px 12px; font-weight: 600; white-space: nowrap; border-bottom: 3px solid transparent; }
+.tab[aria-selected="true"] { color: #fff; border-bottom-color: #C9A54C; }
+.tab .n { font-family: var(--f-mono); font-size: 12px; background: #B3261E; color: #fff; border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+
+main { max-width: 1360px; margin: 0 auto; padding-block: 18px 60px; display: flex; flex-direction: column; gap: 18px; }
+.demo-aviso { background: var(--warn-suave); color: var(--warn); border-radius: var(--r); padding: 10px 14px; font-weight: 600; font-size: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--sombra); min-width: 0; }
+.card > h2:first-child, .card > header h2 { margin-top: 0; }
+h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+h3 { margin: 0 0 6px; font-size: 18px; }
+.nota { color: var(--muted); font-size: 14px; }
+.vacio { color: var(--muted); padding: 18px; text-align: center; border: 1px dashed var(--line); border-radius: var(--r); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+
+/* Resumen */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.kpi span { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.kpi b { font-family: var(--f-mono); font-size: 30px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi small { color: var(--muted); font-size: 13px; }
+.kpi.malo { border-color: var(--crit); background: var(--crit-suave); }
+.kpi.malo b, .kpi.malo span { color: var(--crit); }
+
+/* Torres */
+.torres { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.torre { display: flex; flex-direction: column; gap: 12px; cursor: pointer; text-align: left; border-left: 5px solid var(--teal); }
+.torre.alerta { border-left-color: var(--crit); }
+.torre header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.torre h3 { font-size: 17px; margin: 0; }
+.torre .total { font-family: var(--f-mono); font-size: 26px; font-weight: 600; }
+.torre .total small { font-family: var(--f-ui); font-size: 12px; color: var(--muted); margin-left: 4px; font-weight: 600; }
+.barra-tipos { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--panel-2); }
+.barra-tipos i { display: block; height: 100%; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--muted); }
+.leyenda span { display: inline-flex; align-items: center; gap: 5px; }
+.leyenda i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.ocup { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+.ocup .m { height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+.ocup .m i { display: block; height: 100%; background: var(--gold); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 600; background: var(--panel-2); border: 1px solid var(--line); }
+.chip.rojo { background: var(--crit-suave); color: var(--crit); border-color: transparent; }
+.chip.ambar { background: var(--warn-suave); color: var(--warn); border-color: transparent; }
+.chip.verde { background: var(--ok-suave); color: var(--ok); border-color: transparent; }
+.chip.teal { background: var(--teal-suave); color: var(--teal); border-color: transparent; }
+.chip.oro { background: var(--gold-suave); color: var(--warn); border-color: transparent; }
+.horas { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; align-items: end; height: 34px; }
+.horas i { display: block; background: var(--teal); opacity: .75; border-radius: 2px 2px 0 0; min-height: 1px; }
+.horas i.ahora { background: var(--gold); opacity: 1; }
+.feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.feed li { display: grid; grid-template-columns: 78px 80px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.feed li:first-child { border-top: 0; }
+.feed .h { font-family: var(--f-mono); color: var(--muted); }
+.feed .o { font-size: 12px; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: .04em; }
+.feed .d { min-width: 0; overflow-wrap: anywhere; }
+
+/* Formularios */
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; align-items: end; }
+label.campo { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+label.campo.ancho { grid-column: 1 / -1; }
+input[type=text], input[type=search], input[type=password], input[type=date], input[type=url], select, textarea {
+  border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 11px; font-size: 15px; color: var(--fg); min-width: 0; width: 100%; }
+textarea { min-height: 110px; resize: vertical; line-height: 1.45; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--fg); font-weight: 500; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 10px 16px; font-weight: 700; color: var(--fg); }
+.btn.primario { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn.oro { background: var(--gold); border-color: var(--gold); color: #13293D; }
+.btn.peligro { background: var(--crit); border-color: var(--crit); color: #fff; }
+.btn.chico { padding: 6px 11px; font-size: 13px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabla { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.mono { white-space: nowrap; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.dl { display: grid; grid-template-columns: minmax(110px, auto) minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 14px; }
+.dl dt { color: var(--muted); font-weight: 600; }
+.dl dd { margin: 0; overflow-wrap: anywhere; }
+.oculto { font-family: var(--f-mono); color: var(--muted); letter-spacing: .1em; }
+.banda-rol { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: var(--r); font-weight: 600; font-size: 14px; }
+.banda-rol.gerente { background: var(--gold-suave); color: var(--warn); }
+.banda-rol.equipo { background: var(--teal-suave); color: var(--teal); }
+
+/* Documentos y normas */
+.cobertura { display: flex; flex-wrap: wrap; gap: 8px; }
+.subida { border: 2px dashed var(--line); border-radius: var(--r); padding: 18px; text-align: center; background: var(--panel-2); }
+.subida.encima { border-color: var(--teal); background: var(--teal-suave); }
+.subida b { display: block; font-size: 16px; margin-bottom: 4px; }
+.doc { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
+.doc > summary { list-style: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; }
+.doc > summary::-webkit-details-marker { display: none; }
+.doc .ico { width: 44px; height: 52px; border-radius: 6px; background: var(--gold-suave); color: var(--warn); display: grid; place-items: center; font-weight: 800; font-size: 12px; border: 1px solid var(--line); }
+.doc.inactivo .ico { background: var(--panel-2); color: var(--muted); }
+.doc .tit { font-weight: 700; font-size: 16px; }
+.doc .meta { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.doc .cuerpo { border-top: 1px solid var(--line); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.art { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.art:first-of-type { border-top: 0; }
+.art h4 { margin: 0 0 4px; font-size: 14px; }
+.art p { margin: 0; font-size: 14px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+.art.apagado p, .art.apagado h4 { color: var(--muted); text-decoration: line-through; }
+.art .ctl { display: flex; flex-direction: column; gap: 6px; }
+.prev-art { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; background: var(--panel); text-align: left; }
+
+/* Encuestas */
+.enc { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+.enc:first-of-type { border-top: 0; }
+.enc .apto { font-family: var(--f-mono); font-weight: 700; background: var(--navy); color: #fff; border-radius: 6px; padding: 2px 8px; margin-right: 6px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--navy); color: #fff; padding: 12px 18px; border-radius: 10px; font-weight: 600; z-index: 50; box-shadow: var(--sombra); max-width: calc(100% - 32px); }
+.toast.error { background: var(--crit); }
+.cargando { opacity: .6; pointer-events: none; }
+
+@media (max-width: 640px) {
+  .art { grid-template-columns: 1fr; }
+  .feed li { grid-template-columns: 70px minmax(0, 1fr); }
+  .feed .o { display: none; }
+  .enc { grid-template-columns: 1fr; }
+  .kpi b { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<header class="barra">
+  <div class="fila gutter">
+    <div class="marca"><small>Stili Group · Administración</small><b>Panel Stili</b></div>
+    <span class="pill" id="pill-con"><span class="p"></span><span>…</span></span>
+    <span class="pill" id="pill-rol">…</span>
+  </div>
+  <nav class="tabs gutter" role="tablist" aria-label="Secciones">
+    <button class="tab" role="tab" data-v="tablero" aria-selected="true">Tablero</button>
+    <button class="tab" role="tab" data-v="apto" aria-selected="false">Apartamento</button>
+    <button class="tab" role="tab" data-v="documentos" aria-selected="false">Documentos y normas</button>
+    <button class="tab" role="tab" data-v="encuestas" aria-selected="false">Encuestas <span class="n" id="n-enc" hidden>0</span></button>
+    <button class="tab" role="tab" data-v="torres" aria-selected="false">Cargar torre</button>
+    <button class="tab" role="tab" data-v="conflictos" aria-selected="false">Conflictos <span class="n" id="n-conf" hidden>0</span></button>
+    <button class="tab" role="tab" data-v="negra" aria-selected="false">Lista negra <span class="n" id="n-sol" hidden>0</span></button>
+    <button class="tab" role="tab" data-v="personal" aria-selected="false">Personal</button>
+    <button class="tab" role="tab" data-v="ajustes" aria-selected="false">Ajustes</button>
+  </nav>
+</header>
+
+<main class="gutter">
+  <div class="demo-aviso" id="demo-aviso" hidden>Modo demostración: datos de ejemplo. Para usar los datos reales, entre en «Ajustes» y escriba la dirección del servicio y su código de administración.</div>
+
+  <!-- TABLERO -->
+  <section id="v-tablero">
+    <div class="kpis" id="kpis"></div>
+    <div style="height:18px"></div>
+    <div class="torres" id="torres"></div>
+    <div style="height:18px"></div>
+    <div class="grid g2">
+      <div class="card"><h2>Actividad reciente · lobby y check-in</h2><ul class="feed" id="feed"></ul></div>
+      <div class="card"><h2>Lo que requiere atención</h2><div id="atencion"></div></div>
+    </div>
+  </section>
+
+  <!-- APARTAMENTO -->
+  <section id="v-apto" hidden>
+    <div class="card">
+      <h2>Ficha del apartamento</h2>
+      <form class="form" id="f-apto">
+        <label class="campo">Torre<select id="a-torre"></select></label>
+        <label class="campo">Apartamento<input type="text" id="a-apto" placeholder="5D" autocomplete="off"></label>
+        <div><button class="btn primario" type="submit">Ver ficha</button></div>
+      </form>
+    </div>
+    <div id="ficha" class="grid" style="margin-top:16px"></div>
+  </section>
+
+  <!-- DOCUMENTOS -->
+  <section id="v-documentos" hidden>
+    <div class="grid g2">
+      <div class="card" id="doc-subir">
+        <h2>Subir documento</h2>
+        <p class="nota" style="margin-top:0">Normas de convivencia, régimen de condominio, circulares… El sistema separa los artículos y les asigna un tema. Los avisos de salida citan el artículo del tema «Salida de huéspedes» o «Horario del personal».</p>
+        <div class="subida" id="zona">
+          <b>Arrastre aquí el PDF o Word</b>
+          <span class="nota">o</span>
+          <label class="btn" style="display:inline-block;margin-top:6px">Elegir archivo<input type="file" id="d-archivo" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" hidden></label>
+          <div class="nota" id="d-archivo-nombre" style="margin-top:8px">PDF, Word (.docx) o texto · hasta 15 MB</div>
+        </div>
+        <form class="form" id="f-doc" style="margin-top:14px">
+          <label class="campo ancho">Título<input type="text" id="d-titulo" placeholder="Reglamento de convivencia 2026" maxlength="150"></label>
+          <label class="campo">Tipo<select id="d-tipo"></select></label>
+          <label class="campo">Aplica a<select id="d-torre"></select></label>
+          <label class="campo ancho">Texto del documento <span style="font-weight:500">(se llena solo al elegir el archivo; si es un escaneo, péguelo aquí)</span><textarea id="d-texto" placeholder="ARTÍCULO 1.- …"></textarea></label>
+          <div class="campo ancho" style="flex-direction:row;flex-wrap:wrap;gap:16px">
+            <label class="check"><input type="checkbox" id="d-porteria" checked> Lo ven los porteros (solo el texto)</label>
+            <label class="check"><input type="checkbox" id="d-huesped"> Lo ven los huéspedes en su página</label>
+          </div>
+          <div class="campo ancho" id="d-prev"></div>
+          <div class="acciones ancho" style="grid-column:1/-1"><button class="btn primario" type="submit" id="d-guardar">Guardar documento</button></div>
+        </form>
+      </div>
+      <div class="grid">
+        <div class="card"><h2>Cobertura de los avisos</h2><div class="cobertura" id="cobertura"></div><p class="nota" id="cob-nota"></p></div>
+        <div class="card"><h2>Documentos cargados</h2><div class="grid" id="docs" style="gap:10px"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ENCUESTAS -->
+  <section id="v-encuestas" hidden>
+    <div class="card">
+      <header style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px">
+        <h2 style="margin:0">Respuestas de la encuesta de inicio</h2>
+        <select id="e-filtro" style="width:auto"><option value="pendiente">Pendientes y con conflicto</option><option value="aprobada">Aprobadas</option><option value="rechazada">Rechazadas</option><option value="todas">Todas</option></select>
+      </header>
+      <div id="encuestas"></div>
+    </div>
+  </section>
+
+  <!-- CARGAR TORRE -->
+  <section id="v-torres" hidden>
+    <div class="grid g2">
+      <div class="card">
+        <h2>Cargar una torre</h2>
+        <form class="form" id="f-torre">
+          <label class="campo ancho">Nombre de la torre<input type="text" id="t-nombre" placeholder="Torre Mirador 3"></label>
+          <label class="campo">Prefijo de códigos<input type="text" id="t-prefijo" placeholder="MIR3" maxlength="10"></label>
+          <label class="campo">Piso desde<input type="text" id="t-desde" inputmode="numeric" value="1"></label>
+          <label class="campo">Piso hasta<input type="text" id="t-hasta" inputmode="numeric" placeholder="12"></label>
+          <label class="campo">Letras por piso<input type="text" id="t-letras" value="A,B,C,D"></label>
+          <label class="campo">Ocupación máxima por apartamento<input type="text" id="t-cap" inputmode="numeric" placeholder="6 (vacío = sin límite)"></label>
+          <label class="campo ancho">…o pegue la lista de apartamentos<textarea id="t-lista" placeholder="1A 1B 2A 2B PH1" style="min-height:70px"></textarea></label>
+          <div class="nota ancho" id="t-prev" style="grid-column:1/-1"></div>
+          <div class="acciones" style="grid-column:1/-1"><button class="btn primario" type="submit">Cargar torre</button></div>
+        </form>
+      </div>
+      <div class="card" id="t-resultado"><h2>Después de cargar</h2><ol class="nota" style="margin:0;padding-left:18px;line-height:1.7">
+        <li>Se crean los apartamentos, el código de la encuesta y el código del lobby.</li>
+        <li>Envíe el enlace de la encuesta a los propietarios (grupo de WhatsApp de la torre).</li>
+        <li>Revise las respuestas en «Encuestas»: al aprobar, se llena el directorio y, si el apartamento es de renta corta, se crea la unidad con su host exclusivo.</li>
+        <li>Escriba el código del lobby en la app del portero (⚙).</li></ol></div>
+    </div>
+  </section>
+
+  <!-- CONFLICTOS -->
+  <section id="v-conflictos" hidden>
+    <div class="grid g2">
+      <div class="card"><h2>Reglas contra conflictos entre hosts</h2><div id="conflictos"></div></div>
+      <div class="card">
+        <h2>Transferir un apartamento a otro host</h2>
+        <p class="nota" style="margin-top:0">Desactiva el acceso de cualquier otro host y deja al nuevo como único. Queda en la bitácora.</p>
+        <form class="form" id="f-transferir">
+          <label class="campo">Código de unidad<input type="text" id="x-unidad" placeholder="ESP17-5D"></label>
+          <label class="campo">ID del host nuevo<input type="text" id="x-host" placeholder="H007"></label>
+          <div><button class="btn oro" type="submit">Transferir</button></div>
+        </form>
+        <dl class="dl" style="margin-top:16px">
+          <dt>R1</dt><dd>Un teléfono pertenece a un solo host.</dd>
+          <dt>R2</dt><dd>Una cuenta de Telegram pertenece a un solo host.</dd>
+          <dt>R3</dt><dd>Cada apartamento tiene un solo host activo. Si aparecen dos, la unidad se bloquea en el bot.</dd>
+          <dt>R4</dt><dd>Los permisos apuntan a unidades y hosts que existen.</dd>
+          <dt>R5</dt><dd>Códigos de unidad y apartamentos sin repetir.</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- LISTA NEGRA -->
+  <section id="v-negra" hidden>
+    <div class="grid g2">
+      <div class="card">
+        <h2>Lista negra única</h2>
+        <p class="nota" style="margin-top:0">Una sola lista para huéspedes, visitas, contratistas y empleados. Quien está aquí no entra en ninguna categoría, el bot no acepta reservas con su documento y no puede marcar turno.</p>
+        <div class="tabla"><table><thead><tr><th>Persona</th><th>Documento</th><th>Motivo</th><th>Alcance</th><th>Estado</th><th></th></tr></thead><tbody id="negra"></tbody></table></div>
+      </div>
+      <div class="grid">
+        <div class="card" id="negra-agregar">
+          <h2>Vetar a una persona</h2>
+          <form class="form" id="f-negra">
+            <label class="campo">Documento<input type="text" id="n-doc" autocomplete="off"></label>
+            <label class="campo">Nombre<input type="text" id="n-nombre"></label>
+            <label class="campo ancho">Motivo<input type="text" id="n-motivo" placeholder="Daños en el apartamento 5D, 12/10/2026"></label>
+            <label class="campo">Alcance<select id="n-torre"></select></label>
+            <div><button class="btn peligro" type="submit">Agregar a la lista negra</button></div>
+          </form>
+        </div>
+        <div class="card"><h2>Solicitudes de los hosts</h2><div id="solicitudes"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERSONAL -->
+  <section id="v-personal" hidden>
+    <div class="grid g2">
+      <div class="card">
+        <h2>Empleados del ponchador</h2>
+        <div class="tabla"><table><thead><tr><th>Nombre</th><th>Cédula</th><th>Torre</th><th>Rol</th><th>Estado</th></tr></thead><tbody id="empleados"></tbody></table></div>
+        <h2 style="margin-top:18px">Agregar o cambiar PIN</h2>
+        <form class="form" id="f-emp">
+          <label class="campo">Nombre<input type="text" id="p-nombre"></label>
+          <label class="campo">Cédula<input type="text" id="p-doc" inputmode="numeric"></label>
+          <label class="campo">Torre<select id="p-torre"></select></label>
+          <label class="campo">Rol<select id="p-rol"><option>Portero</option><option>Supervisor</option><option>Conserje</option><option>Seguridad</option></select></label>
+          <label class="campo">PIN (4 a 6 números)<input type="password" id="p-pin" inputmode="numeric" maxlength="6" autocomplete="new-password"></label>
+          <div><button class="btn primario" type="submit">Guardar</button></div>
+        </form>
+      </div>
+      <div class="card">
+        <header style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:10px">
+          <h2 style="margin:0 auto 0 0">Asistencia</h2>
+          <label class="campo" style="width:150px">Desde<input type="date" id="as-desde"></label>
+          <label class="campo" style="width:150px">Hasta<input type="date" id="as-hasta"></label>
+          <button class="btn" id="as-ver">Ver</button>
+        </header>
+        <div class="chips" id="as-totales" style="margin-bottom:10px"></div>
+        <div class="tabla"><table><thead><tr><th>Empleado</th><th>Torre</th><th>Entrada</th><th>Salida</th><th style="text-align:right">Horas</th></tr></thead><tbody id="asistencia"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="v-ajustes" hidden>
+    <div class="grid g2">
+      <div class="card">
+        <h2>Conexión</h2>
+        <form class="form" id="f-ajustes">
+          <label class="campo ancho">Dirección del servicio (Apps Script)<input type="url" id="c-url" placeholder="https://script.google.com/macros/s/…/exec"></label>
+          <label class="campo ancho">Código de administración<input type="password" id="c-admin" placeholder="ADM-…" autocomplete="off"></label>
+          <label class="campo ancho">Dirección de las páginas (GitHub Pages)<input type="url" id="c-paginas" placeholder="https://stiligroup.github.io/visitantes/"></label>
+          <div class="acciones" style="grid-column:1/-1"><button class="btn primario" type="submit">Guardar y probar</button><button class="btn" type="button" id="c-demo">Usar demostración</button></div>
+        </form>
+        <p class="nota" id="c-estado"></p>
+      </div>
+      <div class="card" id="c-demo-rol">
+        <h2>Demostración: ver como</h2>
+        <p class="nota" style="margin-top:0">Compare lo que ve el Gerente con lo que ve el equipo de Stili en la ficha de un apartamento.</p>
+        <div class="acciones"><button class="btn" data-rol="gerente">Gerente (todo)</button><button class="btn" data-rol="equipo">Equipo (sin datos sensibles)</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="toast" class="toast" hidden role="status"></div>
+<script src="config.js"></script>
+<script>
+'use strict';
+const TZ = 'America/Santo_Domingo';
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtHora = d => d ? new Date(d).toLocaleTimeString('es-DO', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) : '';
+const fmtFecha = d => d ? new Date(d).toLocaleDateString('es-DO', { timeZone: TZ, day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+const fmtFH = d => d ? fmtFecha(d) + ' ' + fmtHora(d) : '';
+const diaClave = d => new Date(d).toLocaleDateString('en-CA', { timeZone: TZ });
+function leerCfg() { try { return JSON.parse(localStorage.getItem('stili-admin') || '{}'); } catch (e) { return {}; } }
+function guardarCfg() { try { localStorage.setItem('stili-admin', JSON.stringify(CFG)); } catch (e) { /* sin almacenamiento */ } }
+const CFG = Object.assign({ url: (window.STILI && window.STILI.servicio) || '', admin: '', paginas: '', demoRol: 'gerente', vista: 'tablero' }, leerCfg());
+const DEMO = () => !CFG.url;
+const S = { sistema: null, tablero: null, docs: null };
+
+function toast(t, tipo) {
+  const el = $('#toast'); el.textContent = t; el.className = 'toast' + (tipo ? ' ' + tipo : ''); el.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, tipo === 'error' ? 6000 : 3200);
+}
+async function api(accion, datos) {
+  if (DEMO()) return Demo.llamar(accion, datos || {});
+  const r = await fetch(CFG.url, { method: 'POST', body: JSON.stringify(Object.assign({ accion, admin: CFG.admin }, datos || {})) });
+  const j = await r.json();
+  if (!j.ok) { const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo; throw e; }
+  return j;
+}
+const BASE_PAGINAS = () => CFG.paginas || (location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host) ? location.href.replace(/[^/]*$/, '') : 'https://SU-USUARIO.github.io/visitantes/');
+
+// ------------------------------------------------------------------ Navegación
+function vista(v) {
+  $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.v === v)));
+  $$('main > section').forEach(s => { s.hidden = s.id !== 'v-' + v; });
+  CFG.vista = v; guardarCfg();
+  ({ tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, personal: cargarPersonal, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
+}
+$$('.tab').forEach(t => t.addEventListener('click', () => vista(t.dataset.v)));
+
+async function cargarSistema() {
+  try {
+    S.sistema = await api('sistema');
+    $('#pill-con').innerHTML = '<span class="p' + (DEMO() ? ' demo' : '') + '"></span><span>' + (DEMO() ? 'Demostración' : 'En línea · v' + esc(S.sistema.version)) + '</span>';
+    const g = S.sistema.rol === 'gerente';
+    $('#pill-rol').className = 'pill' + (g ? ' rol-gerente' : '');
+    $('#pill-rol').textContent = (g ? 'Gerente · ' : 'Equipo · ') + (S.sistema.nombre || '');
+  } catch (e) {
+    $('#pill-con').innerHTML = '<span class="p demo"></span><span>Sin acceso</span>'; $('#pill-rol').textContent = '—';
+    toast(e.message + ' Revise «Ajustes».', 'error');
+  }
+  $('#demo-aviso').hidden = !DEMO();
+}
+
+// ------------------------------------------------------------------ Tablero
+async function cargarTablero() {
+  try { S.tablero = await api('tablero'); pintarTablero(S.tablero); } catch (e) { $('#torres').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; }
+}
+function pintarTablero(r) {
+  const T = r.torres, sum = k => T.reduce((a, t) => a + (Number(t[k]) || 0), 0);
+  const adentro = T.reduce((a, t) => a + Object.values(t.dentro || {}).reduce((x, y) => x + y, 0), 0);
+  const conf = (r.conflictos || []).length, enc = sum('encuestas_pendientes');
+  $('#n-conf').hidden = !conf; $('#n-conf').textContent = conf; $('#n-enc').hidden = !enc; $('#n-enc').textContent = enc;
+  const k = (t, v, s, malo) => '<div class="kpi' + (malo ? ' malo' : '') + '"><span>' + t + '</span><b>' + v + '</b><small>' + s + '</small></div>';
+  $('#kpis').innerHTML =
+    k('Personas adentro', adentro, T.length + ' torres') +
+    k('Huéspedes', sum('huespedes_adentro'), sum('unidades_ocupadas') + ' de ' + sum('unidades_renta') + ' unidades ocupadas') +
+    k('Visitas', sum('visitas_adentro'), sum('entradas_hoy') + ' entradas hoy') +
+    k('Trabajadores', sum('trabajadores_adentro'), sum('trabajadores_tarde') + ' fuera de hora', sum('trabajadores_tarde') > 0) +
+    k('Salidas vencidas', sum('salidas_vencidas'), 'huéspedes que debían salir', sum('salidas_vencidas') > 0) +
+    k('Conflictos', conf, enc + ' encuestas por revisar', conf > 0);
+  const cats = r.categorias || {};
+  const hora = Number(new Date().toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false })) % 24;
+  $('#torres').innerHTML = T.length ? T.map(t => {
+    const total = Object.values(t.dentro || {}).reduce((a, b) => a + b, 0);
+    const partes = Object.keys(t.dentro || {}).filter(c => t.dentro[c]);
+    const alerta = t.salidas_vencidas || t.trabajadores_tarde || (t.aptos_capacidad || []).length;
+    const maxH = Math.max(1, ...t.por_hora);
+    const pct = t.unidades_renta ? Math.round(100 * t.unidades_ocupadas / t.unidades_renta) : 0;
+    return '<article class="card torre' + (alerta ? ' alerta' : '') + '" role="button" tabindex="0" data-torre="' + esc(t.torre) + '">' +
+      '<header><h3>' + esc(t.torre) + '</h3><span class="total">' + total + '<small>adentro</small></span></header>' +
+      '<div class="barra-tipos" aria-hidden="true">' + (total ? partes.map(c => '<i style="width:' + (100 * t.dentro[c] / total) + '%;background:' + esc((cats[c] || {}).color || '#5A6B78') + '"></i>').join('') : '') + '</div>' +
+      '<div class="leyenda">' + (partes.length ? partes.map(c => '<span><i style="background:' + esc((cats[c] || {}).color || '#5A6B78') + '"></i>' + esc((cats[c] || {}).nombre || c) + ' ' + t.dentro[c] + '</span>').join('') : '<span>Nadie adentro</span>') + '</div>' +
+      '<div class="ocup"><span>Renta corta</span><span class="m"><i style="width:' + pct + '%"></i></span><span class="mono">' + t.unidades_ocupadas + '/' + t.unidades_renta + '</span></div>' +
+      '<div class="chips">' +
+        (t.llegadas_hoy ? '<span class="chip teal">🏨 ' + t.llegadas_hoy + ' llegan hoy' + (t.llegadas_pendientes ? ' (' + t.llegadas_pendientes + ' por llegar)' : '') + '</span>' : '') +
+        (t.salidas_hoy ? '<span class="chip">🚪 ' + t.salidas_hoy + ' salen hoy</span>' : '') +
+        (t.salidas_vencidas ? '<span class="chip rojo">⏰ ' + t.salidas_vencidas + ' salida vencida</span>' : '') +
+        (t.trabajadores_tarde ? '<span class="chip rojo">👷 ' + t.trabajadores_tarde + ' fuera de hora</span>' : '') +
+        (t.faltas_7d ? '<span class="chip ambar">⚠ ' + t.faltas_7d + ' faltas (7 días)</span>' : '') +
+        (t.encuestas_pendientes ? '<span class="chip oro">📝 ' + t.encuestas_pendientes + ' encuestas</span>' : '') +
+        ((t.aptos_capacidad || []).length ? '<span class="chip rojo">🚫 ' + t.aptos_capacidad.map(a => esc(a.apartamento) + ' ' + a.total + '/' + a.max).join(' · ') + '</span>' : '') +
+      '</div>' +
+      '<div><div class="horas" title="Entradas por hora, hoy">' + t.por_hora.map((n, h) => '<i class="' + (h === hora ? 'ahora' : '') + '" style="height:' + Math.max(3, 100 * n / maxH) + '%"></i>').join('') + '</div>' +
+      '<div class="nota" style="display:flex;justify-content:space-between;font-size:12px"><span>0 h</span><span>Entradas hoy: ' + t.entradas_hoy + '</span><span>23 h</span></div></div>' +
+    '</article>';
+  }).join('') : '<div class="vacio">No hay torres cargadas todavía. Use «Cargar torre».</div>';
+  $$('#torres .torre').forEach(b => { const ir = () => { vista('apto'); $('#a-torre').value = b.dataset.torre; $('#a-apto').focus(); }; b.onclick = ir; b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } }; });
+  $('#feed').innerHTML = (r.actividad || []).slice(0, 18).map(a => '<li><span class="h">' + fmtHora(a.fecha) + '</span><span class="o">' + esc(a.origen) + '</span><span class="d"><b>' + esc(a.accion.replace(/_/g, ' ')) + '</b> · ' + esc(a.detalle) + (a.quien ? ' <span class="nota">(' + esc(a.quien) + ')</span>' : '') + '</span></li>').join('') || '<li class="nota">Sin actividad.</li>';
+  const at = [];
+  T.forEach(t => { if (t.salidas_vencidas) at.push(['rojo', t.torre + ': ' + t.salidas_vencidas + ' salida(s) de huéspedes vencida(s). El portero ya tiene el artículo del reglamento que lo respalda.']);
+    if (t.trabajadores_tarde) at.push(['rojo', t.torre + ': ' + t.trabajadores_tarde + ' trabajador(es) adentro después del cierre.']);
+    (t.aptos_capacidad || []).forEach(a => at.push(['rojo', t.torre + ': apto ' + a.apartamento + ' en capacidad máxima (' + a.total + ' de ' + a.max + (a.estado === 'excedida' ? ', excedida con autorización' : '') + ').'])); });
+  (r.conflictos || []).forEach(c => at.push(['ambar', c.regla + ' · ' + c.detalle]));
+  if (S.docs && S.docs.faltan && S.docs.faltan.length) at.push(['oro', 'Falta un reglamento para: ' + S.docs.faltan.map(k => S.docs.temas[k]).join(' y ') + '. Súbalo en «Documentos y normas».']);
+  $('#atencion').innerHTML = at.length ? '<div class="grid" style="gap:8px">' + at.map(([c, t]) => '<div class="chip ' + c + '" style="border-radius:8px;padding:8px 12px;font-weight:600;display:block">' + esc(t) + '</div>').join('') + '</div>' : '<div class="vacio">Todo en orden.</div>';
+}
+
+// ------------------------------------------------------------------ Ficha del apartamento
+function llenarTorres() {
+  const torres = (S.tablero ? S.tablero.torres.map(t => t.torre) : []);
+  const opc = torres.map(t => '<option>' + esc(t) + '</option>').join('');
+  const prev = $('#a-torre').value; $('#a-torre').innerHTML = opc; if (prev) $('#a-torre').value = prev;
+  if (!torres.length && !S.tablero) cargarTablero().then(llenarTorres);
+}
+$('#f-apto').addEventListener('submit', async e => {
+  e.preventDefault();
+  const caja = $('#ficha'); caja.classList.add('cargando');
+  try { pintarFicha(await api('ficha_apartamento', { torre: $('#a-torre').value, apartamento: $('#a-apto').value.trim().toUpperCase() })); }
+  catch (err) { caja.innerHTML = '<div class="vacio">' + esc(err.message) + '</div>'; }
+  caja.classList.remove('cargando');
+});
+const val = v => v === '••••' ? '<span class="oculto">•••• oculto</span>' : (v ? esc(v) : '<span class="nota">—</span>');
+function pintarFicha(f) {
+  const g = f.rol === 'gerente', rc = f.renta_corta;
+  let h = '<div class="banda-rol ' + (g ? 'gerente' : 'equipo') + '">' + (g ? '🔑 Vista completa del Gerente: incluye códigos, claves, documentos y fotos.' : '🛡 Vista del equipo: código de puerta, clave del wifi, documentos y fotos ocultos.') + '</div>';
+  const o = f.ocupacion || { total: 0, max: 0 };
+  h += '<div class="grid g2"><div class="card"><h2>' + esc(f.torre) + ' · Apto ' + esc(f.apartamento) + '</h2><dl class="dl">' +
+    '<dt>Residente</dt><dd>' + val(f.residente) + '</dd><dt>Teléfono</dt><dd class="mono">' + val(f.telefono) + '</dd><dt>Instrucciones</dt><dd>' + val(f.instrucciones) + '</dd>' +
+    '<dt>Ocupación ahora</dt><dd><b class="mono">' + o.total + (o.max ? ' / ' + o.max : '') + '</b> ' + (o.max && o.total >= o.max ? '<span class="chip rojo">Capacidad máxima</span>' : '') +
+      ' <span class="nota">(' + (o.residentes || 0) + ' residentes · ' + (o.visitas || 0) + ' visitas · ' + (o.huespedes || 0) + ' huéspedes)</span></dd></dl>' +
+    '<form class="form" id="f-cap" style="margin-top:14px"><label class="campo">Ocupación máxima<input type="text" id="c-max" inputmode="numeric" value="' + (f.ocupacion_maxima || '') + '" placeholder="vacío = sin límite"></label>' +
+    '<label class="campo">Residentes habituales<input type="text" id="c-res" inputmode="numeric" value="' + (f.residentes_habituales || '') + '"></label>' +
+    '<div><button class="btn primario" type="submit">Guardar capacidad</button></div></form></div>';
+  if (rc) {
+    const fi = rc.ficha || {};
+    h += '<div class="card"><h2>Renta corta · <span class="mono">' + esc(rc.codigo_unidad) + '</span></h2>' + (rc.en_conflicto ? '<div class="chip rojo" style="margin-bottom:10px">R3 · dos hosts activos: unidad bloqueada</div>' : '') +
+      '<dl class="dl"><dt>Host</dt><dd>' + (rc.hosts.map(x => esc(x.nombre) + ' <span class="mono nota">' + esc(x.id) + ' · ' + esc(x.telefono) + '</span>').join('<br>') || '—') + '</dd>' +
+      '<dt>Horario</dt><dd>Entrada ' + val(fi.hora_entrada) + ' · salida ' + val(fi.hora_salida) + '</dd>' +
+      '<dt>Código puerta</dt><dd class="mono">' + val(fi.codigo_puerta) + '</dd><dt>Wifi</dt><dd>' + val(fi.wifi_red) + ' · clave <span class="mono">' + val(fi.wifi_clave) + '</span></dd>' +
+      '<dt>Parqueo</dt><dd>' + val(fi.parqueo) + '</dd><dt>Ubicación</dt><dd>' + val(fi.ubicacion) + '</dd><dt>Normas</dt><dd style="white-space:pre-line">' + val(fi.normas) + '</dd></dl></div>';
+  }
+  h += '</div>';
+  if (rc) h += '<div class="card"><h2>Reservas</h2><div class="tabla"><table><thead><tr><th>Código</th><th>Huésped</th><th>Llega</th><th>Sale</th><th>Estado</th><th>Personas</th></tr></thead><tbody>' +
+    (rc.reservas.map(r => '<tr><td class="mono">' + esc(r.codigo) + '</td><td>' + esc(r.huesped) + '</td><td>' + fmtFecha(r.llegada) + '</td><td>' + fmtFecha(r.salida) + '</td><td>' + esc(r.estatus) + '</td><td>' +
+      r.personas.map(p => esc(p.nombre) + ' <span class="mono nota">' + esc(p.documento) + '</span>' + (p.foto ? ' · <a href="' + esc(p.foto) + '" target="_blank" rel="noopener">foto</a>' : '')).join('<br>') + '</td></tr>').join('') || '<tr><td colspan="6" class="nota">Sin reservas.</td></tr>') + '</tbody></table></div></div>';
+  h += '<div class="grid g2"><div class="card"><h2>Visitas recientes</h2><div class="tabla"><table><thead><tr><th>Entrada</th><th>Tipo</th><th>Nombre</th><th>Documento</th></tr></thead><tbody>' +
+    (f.visitas.map(v => '<tr><td class="mono">' + fmtFH(v.entrada) + '</td><td>' + esc(v.categoria) + '</td><td>' + esc(v.nombre) + (v.foto ? ' · <a href="' + esc(v.foto) + '" target="_blank" rel="noopener">foto</a>' : '') + '</td><td class="mono">' + esc(v.documento) + '</td></tr>').join('') || '<tr><td colspan="4" class="nota">Sin visitas.</td></tr>') + '</tbody></table></div></div>' +
+    '<div class="card"><h2>Faltas de sus visitantes</h2>' + (f.faltas.length ? f.faltas.map(x => '<div class="chip ' + (x.gravedad === 'grave' ? 'rojo' : 'ambar') + '" style="margin:0 6px 6px 0">' + fmtFecha(x.fecha) + ' · ' + esc(x.nombre) + ' · ' + esc(x.tipo) + '</div>').join('') : '<div class="vacio">Sin faltas.</div>') + '</div></div>';
+  $('#ficha').innerHTML = h;
+  $('#f-cap').onsubmit = async e => { e.preventDefault();
+    try { const r = await api('apartamento_guardar', { torre: f.torre, apartamento: f.apartamento, ocupacion_maxima: Number($('#c-max').value) || 0, residentes_habituales: Number($('#c-res').value) || 0 });
+      toast('Capacidad guardada: ocupación ' + r.ocupacion.total + (r.ocupacion.max ? ' de ' + r.ocupacion.max : '') + '. El bot y el lobby ya la aplican.'); }
+    catch (err) { toast(err.message, 'error'); } };
+}
+
+// ------------------------------------------------------------------ Documentos y normas
+const RE_TEMA = {
+  salida_huesped: /(alquiler|arrendamiento|renta corta|corta estad|hu[eé]sped|airbnb|plataforma|check.?out|desaloj|hora de salida|estad[ií]a)/gi,
+  horario_trabajo: /(contratista|trabajador|personal de (trabajo|servicio)|servicio dom[eé]stico|t[eé]cnico|jornada|horario de trabajo|obreros?)/gi,
+  visitas: /(visita|visitante|invitad|registro en (la )?porter|identificaci[oó]n)/gi,
+  ruido: /(ruido|m[uú]sica|sonido|esc[aá]ndalo|silencio|molest)/gi,
+  parqueo: /(parqueo|estacionamiento|veh[ií]culo|garaje|marquesina)/gi,
+  areas_comunes: /(piscina|gimnasio|[aá]reas? comun|sal[oó]n|terraza|ascensor|lobby)/gi,
+  mascotas: /(mascota|perro|gato|animal)/gi,
+  basura: /(basura|desecho|residuo|limpieza)/gi,
+  mudanzas: /(mudanza|remodelaci|obra|construcci|reparaci)/gi,
+  seguridad: /(seguridad|llave|acceso|port[oó]n|c[aá]mara|vigilan)/gi,
+  sanciones: /(sanci[oó]n|multa|amonestaci|penalidad|infracci)/gi,
+};
+function temaSugerido(t) { let m = 'otro', p = 0; Object.keys(RE_TEMA).forEach(k => { const n = (String(t).match(RE_TEMA[k]) || []).length; if (n > p) { p = n; m = k; } }); return m; }
+// Misma regla que el servicio (Code.gs → dividirArticulos_)
+function dividirArticulos(texto) {
+  const limpio = String(texto || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n');
+  const re = /(^|\n)\s*((?:art[íi]culo|art\.)\s*(\d+[a-z]?|[úu]nico|primero|segundo|tercero|cuarto|quinto|sexto|s[ée]ptimo|octavo|noveno|d[ée]cimo)\b\s*[º°o]?\s*[\.\-–:)]*)/gi;
+  const marcas = []; let m;
+  while ((m = re.exec(limpio))) marcas.push({ i: m.index + m[1].length, fin: re.lastIndex, etiqueta: 'Artículo ' + m[3].replace(/^./, c => c.toUpperCase()) });
+  const out = [];
+  if (marcas.length) marcas.forEach((mk, j) => { const c = limpio.slice(mk.fin, j + 1 < marcas.length ? marcas[j + 1].i : limpio.length).trim(); if (c) out.push({ articulo: mk.etiqueta, texto: c.slice(0, 4000) }); });
+  else limpio.split(/\n\s*\n/).map(x => x.trim()).filter(x => x.length > 20).forEach((p, j) => out.push({ articulo: 'Sección ' + (j + 1), texto: p.slice(0, 4000) }));
+  return out.slice(0, 400);
+}
+const ARCH = { base64: '', mime: '', nombre: '' };
+function cargarScript(src) { return new Promise((ok, no) => { if (document.querySelector('script[src="' + src + '"]')) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('No cargó ' + src)); document.head.appendChild(s); }); }
+async function textoPDF(buf) {
+  await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  const lib = window.pdfjsLib;
+  lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await lib.getDocument({ data: buf }).promise;
+  let out = '';
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const c = await (await pdf.getPage(p)).getTextContent();
+    let ultimaY = null;
+    c.items.forEach(it => { const y = it.transform[5]; if (ultimaY !== null && Math.abs(y - ultimaY) > 2) out += '\n'; out += it.str; if (it.hasEOL) out += '\n'; ultimaY = y; });
+    out += '\n\n';
+  }
+  return out;
+}
+async function textoDOCX(buf) {
+  await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
+  return (await window.mammoth.extractRawText({ arrayBuffer: buf })).value;
+}
+async function tomarArchivo(f) {
+  if (!f) return;
+  if (f.size > 15 * 1024 * 1024) { toast('El archivo pasa de 15 MB.', 'error'); return; }
+  $('#d-archivo-nombre').textContent = 'Leyendo ' + f.name + '…';
+  const buf = await f.arrayBuffer();
+  let bin = ''; const b = new Uint8Array(buf); for (let i = 0; i < b.length; i += 32768) bin += String.fromCharCode.apply(null, b.subarray(i, i + 32768));
+  Object.assign(ARCH, { base64: btoa(bin), mime: f.type || (/\.docx$/i.test(f.name) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : /\.txt$/i.test(f.name) ? 'text/plain' : 'application/pdf'), nombre: f.name });
+  if (!$('#d-titulo').value) $('#d-titulo').value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+  if (/convivencia/i.test(f.name)) $('#d-tipo').value = 'convivencia'; else if (/r[eé]gimen|reglamento/i.test(f.name)) $('#d-tipo').value = 'regimen';
+  let texto = '';
+  try {
+    if (/pdf/.test(ARCH.mime)) texto = await textoPDF(buf);
+    else if (/word|officedocument/.test(ARCH.mime)) texto = await textoDOCX(buf);
+    else texto = new TextDecoder().decode(buf);
+  } catch (e) { texto = ''; }
+  $('#d-texto').value = texto.trim();
+  $('#d-archivo-nombre').textContent = f.name + ' · ' + Math.round(f.size / 1024) + ' KB' + (texto.trim() ? '' : ' · no se pudo leer el texto aquí: el servicio intentará leerlo (escaneos) o péguelo abajo');
+  previa();
+}
+function previa() {
+  const arts = dividirArticulos($('#d-texto').value);
+  const temas = (S.docs && S.docs.temas) || {};
+  $('#d-prev').innerHTML = arts.length ? '<div class="nota" style="margin-bottom:6px"><b>' + arts.length + '</b> ' + (arts[0].articulo.startsWith('Sección') ? 'secciones' : 'artículos') + ' detectados. Podrá cambiar el tema de cada uno después de guardar.</div><div class="prev-art">' +
+    arts.slice(0, 60).map(a => { const t = temaSugerido(a.texto); return '<div class="art" style="grid-template-columns:1fr"><div><h4>' + esc(a.articulo) + ' <span class="chip ' + (t === 'salida_huesped' || t === 'horario_trabajo' ? 'oro' : 'teal') + '" style="font-size:12px;padding:1px 8px">' + esc(temas[t] || t) + '</span></h4><p>' + esc(a.texto.slice(0, 220)) + (a.texto.length > 220 ? '…' : '') + '</p></div></div>'; }).join('') + '</div>' : '';
+}
+$('#d-archivo').addEventListener('change', e => tomarArchivo(e.target.files[0]));
+['dragenter', 'dragover'].forEach(ev => $('#zona').addEventListener(ev, e => { e.preventDefault(); $('#zona').classList.add('encima'); }));
+['dragleave', 'drop'].forEach(ev => $('#zona').addEventListener(ev, e => { e.preventDefault(); $('#zona').classList.remove('encima'); }));
+$('#zona').addEventListener('drop', e => tomarArchivo(e.dataTransfer.files[0]));
+$('#d-texto').addEventListener('input', () => { clearTimeout(previa.t); previa.t = setTimeout(previa, 300); });
+$('#f-doc').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('#d-guardar'); btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const r = await api('documento_subir', { titulo: $('#d-titulo').value.trim(), tipo: $('#d-tipo').value, torre: $('#d-torre').value, texto: $('#d-texto').value,
+      base64: ARCH.base64 || undefined, mime: ARCH.mime || undefined, nombre_archivo: ARCH.nombre || undefined,
+      visible_porteria: $('#d-porteria').checked, visible_huesped: $('#d-huesped').checked });
+    S.docs = r; pintarDocs(); toast('Documento guardado. Revise los temas de sus artículos.');
+    Object.assign(ARCH, { base64: '', mime: '', nombre: '' }); $('#f-doc').reset(); $('#d-prev').innerHTML = ''; $('#d-archivo-nombre').textContent = 'PDF, Word (.docx) o texto · hasta 15 MB';
+  } catch (err) { toast(err.message, 'error'); }
+  btn.disabled = false; btn.textContent = 'Guardar documento';
+});
+async function cargarDocs() { try { S.docs = await api('documentos'); pintarDocs(); } catch (e) { $('#docs').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; } }
+function pintarDocs() {
+  const d = S.docs, edit = d.puede_editar;
+  $('#doc-subir').hidden = !edit;
+  $('#d-tipo').innerHTML = Object.keys(d.tipos).map(k => '<option value="' + k + '">' + esc(d.tipos[k]) + '</option>').join('');
+  const prevT = $('#d-torre').value;
+  $('#d-torre').innerHTML = '<option value="TODAS">Todas las torres</option>' + d.torres.map(t => '<option>' + esc(t) + '</option>').join(''); if (prevT) $('#d-torre').value = prevT;
+  const clave = ['salida_huesped', 'horario_trabajo'];
+  $('#cobertura').innerHTML = Object.keys(d.temas).filter(k => k !== 'otro').map(k => {
+    const n = d.temas_cubiertos[k] || 0, c = clave.includes(k) ? (n ? 'verde' : 'rojo') : (n ? 'teal' : '');
+    return '<span class="chip ' + c + '">' + (n ? '✓ ' : clave.includes(k) ? '✕ ' : '') + esc(d.temas[k]) + (n ? ' · ' + n : '') + '</span>';
+  }).join('');
+  $('#cob-nota').textContent = d.faltan.length ? 'Sin respaldo para: ' + d.faltan.map(k => d.temas[k]).join(' y ') + '. Los avisos de salida se enviarán sin citar norma hasta que suba un documento que lo cubra o asigne ese tema a un artículo.' : 'Los avisos de salida de huéspedes y del personal citan un artículo del reglamento.';
+  const opTema = sel => Object.keys(d.temas).map(k => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(d.temas[k]) + '</option>').join('');
+  $('#docs').innerHTML = d.documentos.length ? d.documentos.map(x => '<details class="doc' + (x.activo ? '' : ' inactivo') + '">' +
+    '<summary><span class="ico">' + (/pdf$/i.test(x.archivo_nombre) ? 'PDF' : /docx?$/i.test(x.archivo_nombre) ? 'DOC' : 'TXT') + '</span><span style="min-width:0"><span class="tit">' + esc(x.titulo) + '</span><span class="meta"><span>' + esc(d.tipos[x.tipo] || x.tipo) + '</span><span>' + esc(x.torre === 'TODAS' ? 'Todas las torres' : x.torre) + '</span><span>' + x.normas.length + ' artículos</span><span>' + fmtFecha(x.subido_en) + ' · ' + esc(x.subido_por) + '</span></span></span>' +
+    '<span class="chips">' + (x.activo ? '<span class="chip verde">Activo</span>' : '<span class="chip">Archivado</span>') + (x.visible_porteria ? '<span class="chip teal">Portería</span>' : '') + (x.visible_huesped ? '<span class="chip oro">Huésped</span>' : '') + '</span></summary>' +
+    '<div class="cuerpo">' + (edit ? '<div class="acciones">' + (x.archivo ? '<a class="btn chico" href="' + esc(x.archivo) + '" target="_blank" rel="noopener">Abrir archivo</a>' : '') +
+      '<button class="btn chico" data-doc="' + esc(x.id) + '" data-campo="activo" data-val="' + !x.activo + '">' + (x.activo ? 'Archivar' : 'Reactivar') + '</button>' +
+      '<button class="btn chico" data-doc="' + esc(x.id) + '" data-campo="visible_porteria" data-val="' + !x.visible_porteria + '">' + (x.visible_porteria ? 'Ocultar a porteros' : 'Mostrar a porteros') + '</button>' +
+      '<button class="btn chico" data-doc="' + esc(x.id) + '" data-campo="visible_huesped" data-val="' + !x.visible_huesped + '">' + (x.visible_huesped ? 'Ocultar a huéspedes' : 'Mostrar a huéspedes') + '</button></div>' : (x.archivo ? '<div><a class="btn chico" href="' + esc(x.archivo) + '" target="_blank" rel="noopener">Abrir archivo</a></div>' : '')) +
+    '<div>' + x.normas.map(n => '<div class="art' + (n.activo ? '' : ' apagado') + '"><div style="min-width:0"><h4>' + esc(n.articulo) + '</h4><p>' + esc(n.texto) + '</p></div><div class="ctl">' +
+      (edit ? '<select data-norma="' + esc(n.id) + '" aria-label="Tema de ' + esc(n.articulo) + '">' + opTema(n.tema) + '</select><label class="check" style="font-size:13px"><input type="checkbox" data-norma-act="' + esc(n.id) + '"' + (n.activo ? ' checked' : '') + '> Vigente</label>'
+        : '<span class="chip ' + (clave.includes(n.tema) ? 'oro' : 'teal') + '">' + esc(d.temas[n.tema] || n.tema) + '</span>') + '</div></div>').join('') + '</div></div></details>').join('')
+    : '<div class="vacio">Todavía no hay documentos. ' + (edit ? 'Suba el reglamento de convivencia para que los avisos de salida citen la norma.' : 'Solo el Gerente puede subirlos.') + '</div>';
+}
+$('#docs').addEventListener('click', async e => {
+  const b = e.target.closest('[data-doc]'); if (!b) return;
+  try { S.docs = await api('documento_estado', { id: b.dataset.doc, [b.dataset.campo]: b.dataset.val === 'true' }); pintarDocs(); toast('Cambio guardado.'); } catch (err) { toast(err.message, 'error'); }
+});
+$('#docs').addEventListener('change', async e => {
+  const s = e.target;
+  try {
+    if (s.dataset.norma) { S.docs = await api('norma_guardar', { id: s.dataset.norma, tema: s.value }); toast('Tema actualizado: ' + S.docs.temas[s.value]); }
+    else if (s.dataset.normaAct) { S.docs = await api('norma_guardar', { id: s.dataset.normaAct, activo: s.checked }); toast(s.checked ? 'Artículo vigente.' : 'Artículo desactivado.'); }
+    else return;
+    const abiertos = $$('#docs details').map(d => d.open); pintarDocs(); $$('#docs details').forEach((d, i) => { d.open = !!abiertos[i]; });
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+// ------------------------------------------------------------------ Encuestas
+async function cargarEncuestas() {
+  try {
+    const r = await api('encuestas', { estatus: $('#e-filtro').value });
+    $('#encuestas').innerHTML = r.encuestas.length ? r.encuestas.map(x => '<div class="enc"><div style="min-width:0"><div style="margin-bottom:4px"><span class="apto">' + esc(x.apartamento) + '</span><b>' + esc(x.torre) + '</b> · <span class="nota">' + fmtFH(x.fecha) + ' · ' + esc(x.id) + '</span></div>' +
+      '<dl class="dl"><dt>Propietario</dt><dd>' + esc(x.propietario) + ' · <span class="mono">' + esc(x.telefono) + '</span>' + (x.correo ? ' · ' + esc(x.correo) : '') + (x.vive_en_apto === 'SI' ? ' · vive en el apto' : '') + '</dd>' +
+      (x.es_renta_corta === 'SI' ? '<dt>Renta corta</dt><dd>Host: ' + esc(x.host_nombre) + ' · <span class="mono">' + esc(x.host_telefono) + '</span>' + (x.host_es_propietario === 'SI' ? ' (el propietario)' : '') + '</dd>' : '<dt>Renta corta</dt><dd>No</dd>') +
+      (x.autorizados ? '<dt>Autorizados</dt><dd>' + esc(x.autorizados) + '</dd>' : '') + (x.instrucciones ? '<dt>Instrucciones</dt><dd>' + esc(x.instrucciones) + '</dd>' : '') + '</dl>' +
+      ((x.avisos || []).length || x.conflicto ? '<div class="chips" style="margin-top:8px">' + (x.avisos || []).map(a => '<span class="chip ambar">' + esc(a) + '</span>').join('') + (x.conflicto ? '<span class="chip rojo">' + esc(x.conflicto) + '</span>' : '') + '</div>' : '') + '</div>' +
+      '<div class="acciones" style="align-content:start">' + (['pendiente', 'conflicto'].includes(x.estatus) ? '<button class="btn primario chico" data-enc="' + esc(x.id) + '" data-d="aprobar">Aprobar</button>' +
+        (x.estatus === 'conflicto' ? '<button class="btn oro chico" data-enc="' + esc(x.id) + '" data-d="transferir">Aprobar y transferir</button>' : '') + '<button class="btn chico" data-enc="' + esc(x.id) + '" data-d="rechazar">Rechazar</button>'
+        : '<span class="chip ' + (x.estatus === 'aprobada' ? 'verde' : '') + '">' + esc(x.estatus) + '</span>') + '</div></div>').join('') : '<div class="vacio">No hay respuestas en esta lista.</div>';
+  } catch (e) { $('#encuestas').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; }
+}
+$('#e-filtro').addEventListener('change', cargarEncuestas);
+$('#encuestas').addEventListener('click', async e => {
+  const b = e.target.closest('[data-enc]'); if (!b) return;
+  try { const r = await api('encuesta_decidir', { id: b.dataset.enc, decision: b.dataset.d === 'rechazar' ? 'rechazar' : 'aprobar', transferir: b.dataset.d === 'transferir' });
+    toast(r.estatus === 'rechazada' ? 'Respuesta rechazada.' : 'Aprobada' + (r.renta_corta ? ': unidad ' + r.codigo_unidad + ' asignada en exclusiva a ' + r.id_host + '.' : '.')); }
+  catch (err) { toast(err.message, 'error'); }
+  cargarEncuestas();
+});
+
+// ------------------------------------------------------------------ Cargar torre
+function previaTorre() {
+  const lista = $('#t-lista').value.trim();
+  let n = 0;
+  if (lista) n = new Set(lista.split(/[\s,;]+/).filter(Boolean)).size;
+  else { const d = Number($('#t-desde').value) || 1, h = Number($('#t-hasta').value) || 0, l = $('#t-letras').value.split(/[\s,;]+/).filter(Boolean).length; n = Math.max(0, h - d + 1) * l; }
+  const pref = ($('#t-prefijo').value || $('#t-nombre').value.replace(/^torre\s+/i, '')).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+  $('#t-prev').textContent = n ? n + ' apartamentos · códigos de renta corta como ' + (pref || 'PREFIJO') + '-' + (lista ? lista.split(/[\s,;]+/)[0].toUpperCase() : (Number($('#t-desde').value) || 1) + ($('#t-letras').value.split(/[\s,;]+/)[0] || 'A').toUpperCase()) : '';
+}
+['#t-nombre', '#t-prefijo', '#t-desde', '#t-hasta', '#t-letras', '#t-lista'].forEach(s => $(s).addEventListener('input', previaTorre));
+$('#f-torre').addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const r = await api('cargar_torre', { torre: $('#t-nombre').value.trim(), prefijo: $('#t-prefijo').value.trim(), piso_desde: $('#t-desde').value, piso_hasta: $('#t-hasta').value, letras: $('#t-letras').value, lista: $('#t-lista').value, ocupacion_maxima: $('#t-cap').value });
+    const enlace = BASE_PAGINAS() + 'encuesta.html?t=' + encodeURIComponent(r.codigo_encuesta);
+    $('#t-resultado').innerHTML = '<h2>' + esc(r.torre) + ' cargada</h2><dl class="dl"><dt>Apartamentos</dt><dd>' + r.apartamentos_nuevos + ' nuevos' + (r.ya_existian ? ' · ' + r.ya_existian + ' ya existían' : '') + '</dd>' +
+      '<dt>Prefijo</dt><dd class="mono">' + esc(r.prefijo) + '</dd><dt>Código del lobby</dt><dd class="mono" style="font-size:18px">' + esc(r.codigo_lobby) + '</dd>' +
+      '<dt>Encuesta</dt><dd><span class="mono" id="t-enlace">' + esc(enlace) + '</span><br><button class="btn chico" id="t-copiar" style="margin-top:6px">Copiar enlace</button></dd></dl>' +
+      '<p class="nota">Mensaje sugerido para el grupo de la torre: «Estimado propietario: para actualizar el directorio del lobby y el registro de renta corta, complete esta encuesta (2 minutos): ' + esc(enlace) + '»</p>';
+    $('#t-copiar').onclick = () => navigator.clipboard.writeText(enlace).then(() => toast('Enlace copiado.')).catch(() => { const r2 = document.createRange(); r2.selectNodeContents($('#t-enlace')); getSelection().removeAllRanges(); getSelection().addRange(r2); toast('Selecciónelo y cópielo.'); });
+    toast('Torre cargada.'); S.tablero = null;
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+// ------------------------------------------------------------------ Conflictos
+async function cargarConflictos() {
+  try {
+    const r = await api('conflictos');
+    $('#n-conf').hidden = !r.conflictos.length; $('#n-conf').textContent = r.conflictos.length;
+    $('#conflictos').innerHTML = r.conflictos.length ? '<div class="grid" style="gap:10px">' + r.conflictos.map(c => '<div class="card" style="box-shadow:none;border-left:5px solid var(--' + (c.gravedad === 'alta' ? 'crit' : 'warn') + ')"><div class="chips" style="margin-bottom:6px"><span class="chip ' + (c.gravedad === 'alta' ? 'rojo' : 'ambar') + '">' + esc(c.regla) + ' · ' + esc(c.tipo) + '</span></div>' + esc(c.detalle) +
+      (c.regla === 'R3' && c.unidad ? '<div class="acciones" style="margin-top:8px">' + (c.ids || []).map(id => '<button class="btn chico" data-unidad="' + esc(c.unidad) + '" data-host="' + esc(id) + '">Dejar solo a ' + esc(id) + '</button>').join('') + '</div>' : '') + '</div>').join('') + '</div>'
+      : '<div class="vacio">✓ Sin conflictos. Cada apartamento tiene un solo host y ningún número se repite.</div>';
+  } catch (e) { $('#conflictos').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; }
+}
+async function transferir(unidad, host) {
+  try { const r = await api('transferir', { codigo_unidad: unidad, id_host: host }); toast(unidad + ' queda solo con ' + host + (r.desactivados && r.desactivados.length ? ' · desactivados: ' + r.desactivados.join(', ') : '') + '.'); cargarConflictos(); }
+  catch (err) { toast(err.message, 'error'); }
+}
+$('#conflictos').addEventListener('click', e => { const b = e.target.closest('[data-unidad]'); if (b) transferir(b.dataset.unidad, b.dataset.host); });
+$('#f-transferir').addEventListener('submit', e => { e.preventDefault(); transferir($('#x-unidad').value.trim().toUpperCase(), $('#x-host').value.trim().toUpperCase()); });
+
+// ------------------------------------------------------------------ Lista negra
+async function cargarNegra() {
+  try { pintarNegra(await api('lista_negra')); } catch (e) { $('#negra').innerHTML = '<tr><td colspan="6">' + esc(e.message) + '</td></tr>'; }
+}
+function pintarNegra(r) {
+  const edit = r.puede_editar;
+  $('#negra-agregar').hidden = !edit;
+  const torres = S.tablero ? S.tablero.torres.map(t => t.torre) : [];
+  $('#n-torre').innerHTML = '<option value="">Todas las torres (también huéspedes)</option>' + torres.map(t => '<option>' + esc(t) + '</option>').join('');
+  $('#n-sol').hidden = !r.solicitudes.length; $('#n-sol').textContent = r.solicitudes.length;
+  $('#negra').innerHTML = r.lista.map(x => '<tr><td>' + esc(x.nombre || '—') + '</td><td class="mono">' + esc(x.documento) + '</td><td>' + esc(x.motivo) + '</td><td>' + esc(x.alcance === 'TODAS' ? 'Todas' : x.alcance) + '<br><span class="nota">' + x.origen.map(o => o === 'huespedes' ? 'huéspedes' : 'visitantes').join(' + ') + '</span></td><td>' +
+    (x.activo ? '<span class="chip rojo">Vetado</span>' : '<span class="chip">Retirado</span>') + '</td><td>' + (edit && x.activo && x.clave ? '<button class="btn chico" data-retirar="' + esc(x.clave) + '">Retirar</button>' : '') + '</td></tr>').join('') || '<tr><td colspan="6" class="nota">Nadie en la lista.</td></tr>';
+  $('#solicitudes').innerHTML = r.solicitudes.length ? r.solicitudes.map(s => '<div class="enc"><div><b>' + esc(s.nombre) + '</b> <span class="mono nota">' + esc(s.documento) + '</span><br><span class="nota">Host ' + esc(s.host) + ' · reserva ' + esc(s.reserva) + ' · ' + fmtFecha(s.fecha) + '</span><br>' + esc(s.motivo) + '</div>' +
+    (edit ? '<div class="acciones"><button class="btn peligro chico" data-sol="' + esc(s.id) + '" data-d="aceptar">Vetar</button><button class="btn chico" data-sol="' + esc(s.id) + '" data-d="rechazar">Rechazar</button></div>' : '<span></span>') + '</div>').join('')
+    : '<div class="vacio">Sin solicitudes pendientes.</div>';
+}
+$('#negra').addEventListener('click', async e => { const b = e.target.closest('[data-retirar]'); if (!b) return;
+  try { pintarNegra(await api('lista_negra_retirar', { documento: b.dataset.retirar })); toast('Retirado de la lista negra.'); } catch (err) { toast(err.message, 'error'); } });
+$('#solicitudes').addEventListener('click', async e => { const b = e.target.closest('[data-sol]'); if (!b) return;
+  try { pintarNegra(await api('solicitud_ln_decidir', { id: b.dataset.sol, decision: b.dataset.d })); toast(b.dataset.d === 'aceptar' ? 'Persona vetada en todas las torres.' : 'Solicitud rechazada.'); } catch (err) { toast(err.message, 'error'); } });
+$('#f-negra').addEventListener('submit', async e => { e.preventDefault();
+  try { const r = await api('lista_negra_agregar', { documento: $('#n-doc').value.trim(), nombre: $('#n-nombre').value.trim(), motivo: $('#n-motivo').value.trim(), torre: $('#n-torre').value });
+    pintarNegra(r); $('#f-negra').reset(); toast('Agregado a la lista negra.' + (r.empleado_desactivado ? ' Era empleado: quedó inactivo.' : '')); } catch (err) { toast(err.message, 'error'); } });
+
+// ------------------------------------------------------------------ Personal
+async function cargarPersonal() {
+  try {
+    const r = await api('empleados');
+    const torres = S.tablero ? S.tablero.torres.map(t => t.torre) : Object.keys(r.de_turno || {});
+    $('#p-torre').innerHTML = '<option value="TODAS">Todas (rota)</option>' + torres.map(t => '<option>' + esc(t) + '</option>').join('');
+    const turno = {}; Object.values(r.de_turno || {}).flat().forEach(t => { turno[t.id] = t; });
+    $('#empleados').innerHTML = r.empleados.map(e => '<tr><td>' + esc(e.nombre) + '</td><td class="mono">' + esc(e.documento) + '</td><td>' + esc(e.torre || 'TODAS') + '</td><td>' + esc(e.rol) + '</td><td>' +
+      (turno[e.id] ? '<span class="chip verde">De turno desde ' + fmtHora(turno[e.id].desde) + '</span>' : e.activo ? '<span class="chip">Fuera</span>' : '<span class="chip">Inactivo</span>') + (e.tiene_pin ? '' : ' <span class="chip rojo">Sin PIN</span>') + '</td></tr>').join('') || '<tr><td colspan="5" class="nota">Sin empleados.</td></tr>';
+  } catch (e) { $('#empleados').innerHTML = '<tr><td colspan="5">' + esc(e.message) + '</td></tr>'; }
+  cargarAsistencia();
+}
+async function cargarAsistencia() {
+  try {
+    const r = await api('asistencia', { desde: $('#as-desde').value, hasta: $('#as-hasta').value });
+    $('#as-totales').innerHTML = r.totales.map(t => '<span class="chip teal">' + esc(t.nombre) + ' · <span class="mono">' + t.horas.toFixed(1) + ' h</span></span>').join('');
+    $('#asistencia').innerHTML = r.turnos.map(t => '<tr><td>' + esc(t.nombre) + '</td><td>' + esc(t.torre) + '</td><td class="mono">' + fmtFH(t.entrada) + '</td><td class="mono">' + (t.salida ? fmtFH(t.salida) : '<span class="chip verde">En turno</span>') + '</td><td class="num">' + (t.horas == null ? '—' : t.horas.toFixed(2)) + '</td></tr>').join('') || '<tr><td colspan="5" class="nota">Sin ponches en el período.</td></tr>';
+  } catch (e) { $('#asistencia').innerHTML = '<tr><td colspan="5">' + esc(e.message) + '</td></tr>'; }
+}
+$('#as-ver').addEventListener('click', cargarAsistencia);
+$('#f-emp').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { await api('empleado_guardar', { empleado: { nombre: $('#p-nombre').value.trim(), documento: $('#p-doc').value.trim(), torre: $('#p-torre').value, rol: $('#p-rol').value, pin: $('#p-pin').value.trim() } });
+    toast('Empleado guardado. El PIN se guarda cifrado.'); $('#f-emp').reset(); cargarPersonal(); } catch (err) { toast(err.message, 'error'); }
+});
+
+// ------------------------------------------------------------------ Ajustes
+function pintarAjustes() {
+  $('#c-url').value = CFG.url; $('#c-admin').value = CFG.admin; $('#c-paginas').value = CFG.paginas;
+  $('#c-demo-rol').hidden = !DEMO();
+  $$('#c-demo-rol [data-rol]').forEach(b => { b.className = 'btn' + (b.dataset.rol === CFG.demoRol ? ' primario' : ''); });
+}
+$('#f-ajustes').addEventListener('submit', async e => {
+  e.preventDefault();
+  CFG.url = $('#c-url').value.trim(); CFG.admin = $('#c-admin').value.trim(); CFG.paginas = $('#c-paginas').value.trim(); guardarCfg();
+  await cargarSistema(); $('#c-estado').textContent = S.sistema ? 'Conectado como ' + (S.sistema.rol === 'gerente' ? 'Gerente' : 'equipo') + ' · servicio v' + S.sistema.version + (S.sistema.checkin ? ' · hoja del Check-in enlazada' : ' · falta CHECKIN_SHEET_ID') : ''; pintarAjustes();
+});
+$('#c-demo').addEventListener('click', () => { CFG.url = ''; guardarCfg(); cargarSistema(); pintarAjustes(); toast('Modo demostración.'); });
+$('#c-demo-rol').addEventListener('click', e => { const b = e.target.closest('[data-rol]'); if (!b) return; CFG.demoRol = b.dataset.rol; guardarCfg(); cargarSistema(); pintarAjustes(); toast('Ahora ve como ' + (CFG.demoRol === 'gerente' ? 'Gerente' : 'equipo') + '.'); });
+
+// ------------------------------------------------------------------ Demostración (datos de ejemplo)
+const Demo = (() => {
+  const H = h => new Date(Date.now() - h * 3600000).toISOString();
+  const cats = { VIS: { nombre: 'Visita', letra: 'V', color: '#1F6FB2', trabajo: false }, DEL: { nombre: 'Delivery', letra: 'D', color: '#C2410C', trabajo: false },
+    PRO: { nombre: 'Proveedor o técnico', letra: 'P', color: '#7C3AED', trabajo: true }, DOM: { nombre: 'Servicio doméstico', letra: 'S', color: '#0F766E', trabajo: true }, HUE: { nombre: 'Huésped renta corta', letra: 'H', color: '#A8681A', trabajo: false } };
+  const curva = (pico) => Array.from({ length: 24 }, (_, h) => h < 6 ? 0 : Math.round(pico * Math.exp(-Math.pow((h - 11) / 4, 2)) + pico * 0.6 * Math.exp(-Math.pow((h - 18) / 2.5, 2))));
+  const torres = [
+    { torre: 'Torre Arpel 07', dentro: { VIS: 4, DEL: 1, PRO: 2, DOM: 3, HUE: 5 }, visitas_adentro: 5, trabajadores_adentro: 5, trabajadores_tarde: 0, huespedes_adentro: 5, unidades_ocupadas: 3, unidades_renta: 6, llegadas_hoy: 2, llegadas_pendientes: 1, salidas_hoy: 1, salidas_vencidas: 0, entradas_hoy: 46, faltas_7d: 1, apartamentos: 40, encuestas_pendientes: 0, por_hora: curva(6) },
+    { torre: 'Torre Esperilla 17', dentro: { VIS: 2, PRO: 1, HUE: 6 }, visitas_adentro: 2, trabajadores_adentro: 1, trabajadores_tarde: 1, huespedes_adentro: 6, unidades_ocupadas: 4, unidades_renta: 5, llegadas_hoy: 1, llegadas_pendientes: 0, salidas_hoy: 2, salidas_vencidas: 1, entradas_hoy: 31, faltas_7d: 3, apartamentos: 48, encuestas_pendientes: 2, por_hora: curva(4), aptos_capacidad: [{ apartamento: '5D', total: 4, max: 4, estado: 'llena' }] },
+    { torre: 'Torre Mirador 3', dentro: { VIS: 1, DOM: 2 }, visitas_adentro: 1, trabajadores_adentro: 2, trabajadores_tarde: 0, huespedes_adentro: 0, unidades_ocupadas: 0, unidades_renta: 2, llegadas_hoy: 0, llegadas_pendientes: 0, salidas_hoy: 0, salidas_vencidas: 0, entradas_hoy: 12, faltas_7d: 0, apartamentos: 36, encuestas_pendientes: 1, por_hora: curva(2) },
+    { torre: 'Torre Niza 7', dentro: { VIS: 3, DEL: 2, PRO: 3, DOM: 1, HUE: 4 }, visitas_adentro: 5, trabajadores_adentro: 4, trabajadores_tarde: 2, huespedes_adentro: 4, unidades_ocupadas: 2, unidades_renta: 4, llegadas_hoy: 2, llegadas_pendientes: 2, salidas_hoy: 0, salidas_vencidas: 1, entradas_hoy: 58, faltas_7d: 2, apartamentos: 52, encuestas_pendientes: 0, por_hora: curva(7), aptos_capacidad: [{ apartamento: '8B', total: 3, max: 2, estado: 'excedida' }] },
+  ];
+  const conflictos = [{ regla: 'R3', tipo: 'Apartamento con dos hosts', gravedad: 'alta', detalle: 'NIZA7-4F tiene acceso activo de H003 y H011. La unidad queda bloqueada en el bot hasta resolverlo.', unidad: 'NIZA7-4F', ids: ['H003', 'H011'] }];
+  const actividad = [
+    [0.1, 'Lobby', 'Juan Pérez', 'entrada', 'Torre Niza 7 · VIS · ANA RUIZ → 2D'], [0.3, 'Check-in', 'portero', 'checkin_confirmado', 'STL-7K2PQ · Esperilla 5D · 2 personas'],
+    [0.6, 'Lobby', 'María Gil', 'alerta_cierre', 'Torre Niza 7 · LUIS MÉNDEZ (técnico) sigue adentro'], [0.9, 'Check-in', 'bot', 'salida_vencida', 'STL-4HD8W · Niza 7 · 8B · Reglamento de convivencia, Art. 4'],
+    [1.2, 'Lobby', 'Juan Pérez', 'falta', 'RUIDOSO · Ruido o escándalo (grave)'], [1.6, 'Check-in', 'Carlos Peña', 'reserva_creada', 'STL-9MX3T · Arpel 2C · llega mañana 15:00'],
+    [2.4, 'Lobby', 'sistema', 'relevo', 'Torre Esperilla 17 · entra MARÍA GIL · 3 puntos por atender'], [3.1, 'Lobby', 'admin', 'documento_subido', 'Reglamento de convivencia · 24 artículos']]
+    .map(([h, o, q, a, d]) => ({ fecha: H(h), origen: o, quien: q, accion: a, detalle: d }));
+  let docs = [
+    { id: 'DOC-A1B2C3', torre: 'TODAS', titulo: 'Reglamento de convivencia', tipo: 'convivencia', archivo: 'https://drive.google.com/', archivo_nombre: 'reglamento-convivencia.pdf', visible_porteria: true, visible_huesped: true, activo: true, subido_por: 'Ronald Larrauri', subido_en: H(72),
+      normas: [
+        ['Artículo 1', 'otro', 'Este reglamento regula la convivencia de propietarios, inquilinos, huéspedes y visitantes del condominio.'],
+        ['Artículo 2', 'visitas', 'Toda persona que no resida en el condominio debe identificarse y registrarse en la portería antes de subir. El residente autoriza la entrada de sus visitas.'],
+        ['Artículo 3', 'ruido', 'Se prohíbe la música o el ruido a alto volumen desde las 10:00 p. m. hasta las 7:00 a. m.'],
+        ['Artículo 4', 'salida_huesped', 'Los huéspedes de alquileres de corta estadía deberán desalojar la unidad a la hora de salida pactada. Pasada esa hora el acceso queda suspendido y la administración podrá solicitar el desalojo.'],
+        ['Artículo 5', 'horario_trabajo', 'El personal de servicio doméstico, contratistas y técnicos solo podrán permanecer en el condominio dentro del horario de trabajo autorizado. Al cierre deberán retirarse.'],
+        ['Artículo 7', 'mascotas', 'Las mascotas deben circular con correa por las áreas comunes. Sus dueños recogerán sus desechos.'],
+        ['Artículo 9', 'sanciones', 'El incumplimiento de este reglamento será sancionado con amonestación escrita y, si se repite, con la multa que fije la asamblea.']].map(([a, t, x], i) => ({ id: 'DOC-A1B2C3-00' + (i + 1), articulo: a, tema: t, texto: x, activo: true })) },
+    { id: 'DOC-Q9W8E7', torre: 'Torre Niza 7', titulo: 'Régimen de condominio Niza 7', tipo: 'regimen', archivo: 'https://drive.google.com/', archivo_nombre: 'regimen-niza-7.pdf', visible_porteria: true, visible_huesped: false, activo: true, subido_por: 'Ronald Larrauri', subido_en: H(200),
+      normas: [['Artículo 12', 'parqueo', 'Cada unidad usa solo el parqueo asignado. Las visitas estacionan en las plazas marcadas «Visitas» por un máximo de 4 horas.'],
+        ['Artículo 15', 'mudanzas', 'Las mudanzas y obras se hacen de lunes a sábado de 8:00 a. m. a 5:00 p. m., con aviso previo a la administración.']].map(([a, t, x], i) => ({ id: 'DOC-Q9W8E7-00' + (i + 1), articulo: a, tema: t, texto: x, activo: true })) },
+  ];
+  const TEMAS = { salida_huesped: 'Salida de huéspedes y renta corta', horario_trabajo: 'Horario del personal de trabajo', visitas: 'Visitas y registro en portería', ruido: 'Ruido y convivencia', parqueo: 'Parqueo y vehículos',
+    areas_comunes: 'Áreas comunes', mascotas: 'Mascotas', basura: 'Basura y limpieza', mudanzas: 'Mudanzas y obras', seguridad: 'Seguridad y accesos', sanciones: 'Faltas y sanciones', otro: 'Otro' };
+  const TIPOS = { convivencia: 'Normas de convivencia', regimen: 'Régimen / Reglamento de condominio', aviso: 'Aviso o circular', otro: 'Otro' };
+  let encuestas = [
+    { id: 'ENC-261019-K3P2', fecha: H(5), torre: 'Torre Esperilla 17', apartamento: '9C', propietario: 'LAURA CASTILLO', telefono: '809-555-0141', correo: 'laura@correo.do', vive_en_apto: 'NO', es_renta_corta: 'SI', host_es_propietario: 'NO', host_nombre: 'PEDRO ALMONTE', host_telefono: '829-555-0199', autorizados: 'Hermana: Ana Castillo', instrucciones: 'Llamar antes de subir', estatus: 'pendiente', conflicto: '', avisos: [] },
+    { id: 'ENC-261018-Z8M1', fecha: H(26), torre: 'Torre Esperilla 17', apartamento: '5D', propietario: 'JOSÉ RAMÍREZ', telefono: '809-555-0177', vive_en_apto: 'NO', es_renta_corta: 'SI', host_es_propietario: 'NO', host_nombre: 'LUIS TAVERAS', host_telefono: '849-555-0112', estatus: 'conflicto', conflicto: 'ESP17-5D ya tiene host activo (H004 · Carlos Peña).', avisos: ['El apartamento ya tiene host de renta corta'] },
+    { id: 'ENC-261017-B2V6', fecha: H(50), torre: 'Torre Mirador 3', apartamento: '2A', propietario: 'FAM. DE LOS SANTOS', telefono: '809-555-0101', vive_en_apto: 'SI', es_renta_corta: 'NO', estatus: 'pendiente', conflicto: '', avisos: [] },
+  ];
+  const empleados = [{ id: 'EMP-001', nombre: 'JUAN PÉREZ', documento: '•••1111', torre: 'Torre Niza 7', rol: 'Portero', activo: true, tiene_pin: true },
+    { id: 'EMP-002', nombre: 'MARÍA GIL', documento: '•••2222', torre: 'TODAS', rol: 'Supervisor', activo: true, tiene_pin: true },
+    { id: 'EMP-003', nombre: 'RAFAEL SOTO', documento: '•••3333', torre: 'Torre Esperilla 17', rol: 'Portero', activo: true, tiene_pin: true }];
+  const turnos = [];
+  [['JUAN PÉREZ', 'Torre Niza 7'], ['MARÍA GIL', 'Torre Esperilla 17'], ['RAFAEL SOTO', 'Torre Esperilla 17']].forEach(([n, t], j) => {
+    for (let d = 0; d < 5; d++) { const ent = Date.now() - (d * 24 + 2 + j * 3) * 3600000; const sal = d === 0 && j === 0 ? '' : new Date(ent + (8 + (j + d) % 3 * 0.5) * 3600000).toISOString();
+      turnos.push({ nombre: n, torre: t, entrada: new Date(ent).toISOString(), salida: sal, horas: sal ? Math.round((new Date(sal) - ent) / 36000) / 100 : null }); } });
+  function fichaDemo(torre, apto, g) {
+    const m = v => g ? v : '••••', md = v => g ? v : '•••' + v.slice(-4);
+    const esEsp = /esperilla/i.test(torre) && apto === '5D';
+    const cap = capDemo[torre + '|' + apto] || { max: 6, res: 2 };
+    return { torre, apartamento: apto, rol: g ? 'gerente' : 'equipo', ocupacion_maxima: cap.max, residentes_habituales: cap.res,
+      ocupacion: { total: esEsp ? 4 : cap.res + 1, max: cap.max, residentes: esEsp ? 0 : cap.res, visitas: esEsp ? 2 : 1, huespedes: esEsp ? 2 : 0 },
+      residente: esEsp ? 'JOSÉ RAMÍREZ' : 'FAM. PÉREZ', telefono: md('809-555-0177'), instrucciones: 'Llamar antes de dejar subir. Delivery hasta el lobby.',
+      renta_corta: esEsp || apto === '8B' ? { codigo_unidad: (esEsp ? 'ESP17-' : 'NIZA7-') + apto, estatus: 'activa', en_conflicto: false, hosts: [{ id: 'H004', nombre: 'Carlos Peña', telefono: md('829-555-2020') }],
+        ficha: { hora_entrada: '15:00', hora_salida: '11:00', codigo_puerta: m('4826#'), wifi_red: 'Apto' + apto, wifi_clave: m('mar-azul-2026'), parqueo: 'P2-14', ubicacion: 'Av. Anacaona 17, Santo Domingo', normas: 'No fumar dentro del apartamento.\nSilencio desde las 10 p. m.\nMáximo 4 huéspedes.' },
+        reservas: [{ codigo: 'STL-7K2PQ', huesped: 'PEDRO ALMONTE', llegada: H(30), salida: H(-40), estatus: 'ingresado', personas: [{ nombre: 'PEDRO ALMONTE', documento: md('X99887766'), foto: g ? 'https://drive.google.com/' : '' }, { nombre: 'LUISA ALMONTE', documento: md('Y11223344'), foto: g ? 'https://drive.google.com/' : '' }] },
+          { codigo: 'STL-9MX3T', huesped: 'EMMA JOHNSON', llegada: H(-120), salida: H(-190), estatus: 'pendiente', personas: [] }] } : null,
+      visitas: [{ entrada: H(2), categoria: 'VIS', nombre: 'ANA RUIZ', documento: md('402-9876543-2'), foto: g ? 'https://drive.google.com/' : '' }, { entrada: H(26), categoria: 'DEL', nombre: 'PEDIDOSYA', documento: md('001-4455667-8'), foto: '' }],
+      faltas: esEsp ? [{ fecha: H(30), tipo: 'Ruido o escándalo', gravedad: 'grave', nombre: 'RUIDOSO' }] : [] };
+  }
+  const capDemo = { 'Torre Esperilla 17|5D': { max: 4, res: 0 } };
+  let negra = [
+    { documento: '001-9999999-9', nombre: 'PERSONA VETADA (EJEMPLO)', motivo: 'Agresión al personal de seguridad', alcance: 'TODAS', fecha: H(400), activo: true, origen: ['visitantes', 'huespedes'] },
+    { documento: 'Z7777777', nombre: 'HUÉSPED VETADO (EJEMPLO)', motivo: 'Daños en el apartamento NIZA7-8B', alcance: 'TODAS', fecha: H(200), activo: true, origen: ['huespedes'] }];
+  let solicitudes = [{ id: 'SLN-0412', reserva: 'STL-4HD8W', documento: 'Y5544332', nombre: 'MARK DAVIS', host: 'H004', motivo: 'Fiesta con 15 personas y daños en el sofá', fecha: H(30) }];
+  const vistaNegra = g => ({ lista: negra.map(x => Object.assign({}, x, { documento: g ? x.documento : '•••' + x.documento.slice(-4), clave: g ? x.documento : '' })), solicitudes: solicitudes.map(s => Object.assign({}, s, { documento: g ? s.documento : '•••' + s.documento.slice(-4) })), puede_editar: g });
+  function vistaDocs(g) {
+    const cub = {}; docs.filter(d => d.activo).forEach(d => d.normas.filter(n => n.activo).forEach(n => { cub[n.tema] = (cub[n.tema] || 0) + 1; }));
+    return { documentos: JSON.parse(JSON.stringify(docs)), temas: TEMAS, tipos: TIPOS, torres: torres.map(t => t.torre), temas_cubiertos: cub, puede_editar: g, faltan: ['salida_huesped', 'horario_trabajo'].filter(k => !cub[k]) };
+  }
+  const err = (m, c) => { const e = new Error(m); e.codigo = c; return e; };
+  async function llamar(accion, d) {
+    await new Promise(r => setTimeout(r, 120));
+    const g = CFG.demoRol !== 'equipo';
+    const soloG = () => { if (!g) throw err('Solo el Gerente puede cambiar los documentos y normas.', 'SOLO_GERENTE'); };
+    switch (accion) {
+      case 'sistema': return { version: '1.4.0', checkin: true, rol: g ? 'gerente' : 'equipo', nombre: g ? 'Ronald Larrauri' : 'Equipo Stili' };
+      case 'tablero': return { torres: JSON.parse(JSON.stringify(torres)), categorias: cats, conflictos, actividad, checkin_conectado: true };
+      case 'conflictos': return { conflictos };
+      case 'apartamento_guardar': { const max = d.ocupacion_maxima, res = d.residentes_habituales;
+        if (max && res > max) throw err('Revise los números: la capacidad va de 0 (sin límite) a 50 y no puede ser menor que los residentes.');
+        capDemo[d.torre + '|' + d.apartamento] = { max, res }; return { ocupacion: { total: res + 1, max } }; }
+      case 'lista_negra': return vistaNegra(g);
+      case 'lista_negra_agregar': { if (!g) throw err('Solo el Gerente puede cambiar la lista negra.', 'SOLO_GERENTE'); if (!d.documento || !d.motivo) throw err('Escriba el documento y el motivo.');
+        negra.unshift({ documento: d.documento.toUpperCase(), nombre: (d.nombre || '').toUpperCase(), motivo: d.motivo, alcance: d.torre || 'TODAS', fecha: new Date().toISOString(), activo: true, origen: d.torre ? ['visitantes'] : ['visitantes', 'huespedes'] });
+        const emp = empleados.find(e => e.documento.slice(-4) === d.documento.replace(/\D/g, '').slice(-4)); if (emp) emp.activo = false;
+        return Object.assign(vistaNegra(g), { empleado_desactivado: !!emp }); }
+      case 'lista_negra_retirar': { negra.forEach(x => { if (x.documento === d.documento) x.activo = false; }); return vistaNegra(g); }
+      case 'solicitud_ln_decidir': { const s = solicitudes.find(x => x.id === d.id); solicitudes = solicitudes.filter(x => x.id !== d.id);
+        if (d.decision === 'aceptar') negra.unshift({ documento: s.documento, nombre: s.nombre, motivo: s.motivo, alcance: 'TODAS', fecha: new Date().toISOString(), activo: true, origen: ['visitantes', 'huespedes'] });
+        return vistaNegra(g); }
+      case 'ficha_apartamento': if (!d.apartamento) throw err('Indique torre y apartamento.'); return fichaDemo(d.torre, d.apartamento, g);
+      case 'documentos': return vistaDocs(g);
+      case 'documento_subir': { soloG(); if (!d.titulo) throw err('Escriba el título del documento.'); const arts = dividirArticulos(d.texto);
+        if (!arts.length) throw err('No se pudo leer texto del documento. Si es un escaneo, pegue el texto en la casilla «Texto del documento».', 'DOC_SIN_TEXTO');
+        const id = 'DOC-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+        docs.unshift({ id, torre: d.torre || 'TODAS', titulo: d.titulo, tipo: d.tipo, archivo: d.base64 ? 'https://drive.google.com/' : '', archivo_nombre: d.nombre_archivo || 'texto.txt', visible_porteria: d.visible_porteria !== false, visible_huesped: !!d.visible_huesped, activo: true, subido_por: 'Ronald Larrauri', subido_en: new Date().toISOString(),
+          normas: arts.map((a, i) => ({ id: id + '-' + String(i + 1).padStart(3, '0'), articulo: a.articulo, tema: temaSugerido(a.texto), texto: a.texto, activo: true })) });
+        return vistaDocs(g); }
+      case 'documento_estado': { soloG(); const x = docs.find(z => z.id === d.id); ['activo', 'visible_porteria', 'visible_huesped'].forEach(k => { if (typeof d[k] === 'boolean') x[k] = d[k]; }); return vistaDocs(g); }
+      case 'norma_guardar': { soloG(); docs.forEach(x => x.normas.forEach(n => { if (n.id === d.id) { if (d.tema) n.tema = d.tema; if (typeof d.activo === 'boolean') n.activo = d.activo; } })); return vistaDocs(g); }
+      case 'encuestas': return { encuestas: encuestas.filter(e => d.estatus === 'todas' || e.estatus === d.estatus || (d.estatus === 'pendiente' && e.estatus === 'conflicto')) };
+      case 'encuesta_decidir': { const e = encuestas.find(x => x.id === d.id);
+        if (d.decision === 'rechazar') { e.estatus = 'rechazada'; return { estatus: 'rechazada' }; }
+        if (e.estatus === 'conflicto' && !d.transferir) throw err(e.conflicto + ' Si corresponde, apruebe con «Transferir».', 'CONFLICTO');
+        e.estatus = 'aprobada'; return { estatus: 'aprobada', renta_corta: e.es_renta_corta === 'SI', codigo_unidad: (e.torre.includes('Esperilla') ? 'ESP17-' : 'MIR3-') + e.apartamento, id_host: 'H0' + (12 + encuestas.indexOf(e)) }; }
+      case 'cargar_torre': { if (!d.torre) throw err('Escriba el nombre de la torre.'); const pref = (d.prefijo || d.torre.replace(/^torre\s+/i, '')).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+        const n = d.lista ? new Set(d.lista.split(/[\s,;]+/).filter(Boolean)).size : Math.max(0, (Number(d.piso_hasta) || 0) - (Number(d.piso_desde) || 1) + 1) * d.letras.split(/[\s,;]+/).filter(Boolean).length;
+        if (!n) throw err('No hay apartamentos para cargar. Indique pisos y letras, o pegue la lista.');
+        const r = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+        return { torre: d.torre, prefijo: pref, apartamentos_nuevos: n, ya_existian: 0, codigo_encuesta: pref.slice(0, 6) + '-' + r(), codigo_lobby: pref.slice(0, 6) + '-' + r() }; }
+      case 'transferir': { const i = conflictos.findIndex(c => c.unidad === d.codigo_unidad); const des = i >= 0 ? conflictos[i].ids.filter(x => x !== d.id_host) : []; if (i >= 0) conflictos.splice(i, 1); return { desactivados: des }; }
+      case 'empleados': return { empleados, de_turno: { 'Torre Niza 7': [{ id: 'EMP-001', nombre: 'JUAN PÉREZ', desde: turnos[0].entrada }] } };
+      case 'empleado_guardar': { const e = d.empleado; if (!e.nombre || !e.documento) throw err('Escriba nombre y cédula del empleado.'); if (e.pin && !/^\d{4,6}$/.test(e.pin)) throw err('El PIN debe tener de 4 a 6 números.');
+        empleados.push({ id: 'EMP-00' + (empleados.length + 1), nombre: e.nombre.toUpperCase(), documento: '•••' + e.documento.replace(/\D/g, '').slice(-4), torre: e.torre, rol: e.rol, activo: true, tiene_pin: !!e.pin }); return { id: 'EMP' }; }
+      case 'asistencia': { const tot = {}; turnos.forEach(t => { tot[t.nombre] = (tot[t.nombre] || 0) + (t.horas || 0); });
+        return { turnos, totales: Object.keys(tot).map(n => ({ nombre: n, horas: Math.round(tot[n] * 100) / 100 })) }; }
+    }
+    throw err('Acción no disponible en demostración.');
+  }
+  return { llamar };
+})();
+
+// ------------------------------------------------------------------ Inicio
+(async () => {
+  await cargarSistema();
+  try { S.docs = await api('documentos'); } catch (e) { /* sin documentos */ }
+  await cargarTablero();
+  const inicial = (location.hash || '').slice(1);
+  vista(['tablero', 'apto', 'documentos', 'encuestas', 'torres', 'conflictos', 'negra', 'personal', 'ajustes'].includes(inicial) ? inicial : (CFG.vista || 'tablero'));
+  setInterval(() => { if (!$('#v-tablero').hidden && !document.hidden) cargarTablero(); }, 60000);
+})();
+</script>
+</body>
+</html>

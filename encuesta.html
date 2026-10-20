@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Encuesta de propietarios</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#13293D">
+<link rel="icon" href="icono-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: formulario de una columna para el teléfono del propietario; tres bloques (apartamento, renta corta, lobby) y aviso de privacidad. */
+:root {
+  --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
+  --navy: #13293D; --teal: #0F7C7A; --teal-suave: #DCEFEE; --gold: #B8913A; --ok: #1E7D4F; --ok-suave: #DDF1E6; --crit: #B3261E; --crit-suave: #FBE3E1;
+  --f-ui: "Archivo", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; --r: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A; --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --ok: #4CC08A; --ok-suave: #143024; --crit: #F07C73; --crit-suave: #3A1A18; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A; --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --ok: #4CC08A; --ok-suave: #143024; --crit: #F07C73; --crit-suave: #3A1A18; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--f-ui); font-size: 16px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--navy); }
+input, select, textarea, button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.top { background: var(--navy); color: #fff; }
+.top .in { max-width: 620px; margin: 0 auto; padding-block: 20px 22px; }
+.top small { color: #C9A54C; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.top h1 { margin: 4px 0 4px; font-size: 25px; text-wrap: balance; }
+.top p { margin: 0; color: rgba(255,255,255,.78); font-size: 15px; }
+main { max-width: 620px; margin: 0 auto; padding-block: 18px 60px; }
+form { display: flex; flex-direction: column; gap: 14px; }
+fieldset { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); padding: 16px 18px; margin: 0; display: grid; gap: 12px; min-width: 0; }
+legend { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 0 6px; }
+label.campo { display: flex; flex-direction: column; gap: 5px; font-size: 14px; font-weight: 600; }
+label.campo small { color: var(--muted); font-weight: 500; }
+input[type=text], input[type=tel], input[type=email], select, textarea { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 11px 12px; font-size: 16px; width: 100%; min-width: 0; }
+textarea { min-height: 80px; resize: vertical; }
+.si-no { display: flex; gap: 8px; flex-wrap: wrap; }
+.si-no label { flex: 1 1 120px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; gap: 8px; align-items: center; font-weight: 600; cursor: pointer; background: var(--panel-2); }
+.si-no label:has(input:checked) { border-color: var(--teal); background: var(--teal-suave); color: var(--teal); }
+.pregunta { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+.privacidad { font-size: 13px; color: var(--muted); background: var(--panel-2); border-radius: 8px; padding: 10px 12px; }
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; font-weight: 600; }
+.btn { border: 0; background: var(--teal); color: #fff; border-radius: 10px; padding: 14px 18px; font-weight: 800; font-size: 17px; cursor: pointer; }
+.btn:disabled { opacity: .6; }
+.error { background: var(--crit-suave); color: var(--crit); border-radius: 8px; padding: 12px 14px; font-weight: 600; }
+.listo { background: var(--ok-suave); color: var(--ok); border-radius: var(--r); padding: 24px; text-align: center; }
+.listo h2 { margin: 0 0 6px; }
+.demo { background: #FCEBCF; color: #8A5300; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div class="top"><div class="in gutter"><small id="empresa">Stili Group</small><h1 id="titulo">Encuesta de propietarios</h1><p>Dos minutos para actualizar el directorio del lobby y el registro de renta corta de su apartamento.</p></div></div>
+<main class="gutter">
+  <div class="demo" id="demo" hidden>Demostración: las respuestas no se guardan.</div>
+  <div class="error" id="err-carga" hidden></div>
+  <form id="f" novalidate>
+    <fieldset>
+      <legend>Su apartamento</legend>
+      <label class="campo">Apartamento<select id="apto" required><option value="">Elija…</option></select></label>
+      <label class="campo">Nombre del propietario<input type="text" id="prop" autocomplete="name" required></label>
+      <label class="campo">Teléfono <small>10 dígitos, con WhatsApp si es posible</small><input type="tel" id="tel" autocomplete="tel" inputmode="tel" placeholder="809-555-0000" required></label>
+      <label class="campo">Correo <small>(opcional)</small><input type="email" id="correo" autocomplete="email"></label>
+      <label class="campo">Personas que viven en el apartamento <small>0 si está vacío o es solo de renta corta</small><input type="text" id="viven" inputmode="numeric" maxlength="2" placeholder="3"></label>
+      <div><p class="pregunta">¿Vive usted en el apartamento?</p><div class="si-no"><label><input type="radio" name="vive" value="SI"> Sí</label><label><input type="radio" name="vive" value="NO"> No</label></div></div>
+    </fieldset>
+    <fieldset>
+      <legend>Renta corta (Airbnb y similares)</legend>
+      <div><p class="pregunta">¿El apartamento se alquila por días o semanas?</p><div class="si-no"><label><input type="radio" name="renta" value="SI"> Sí</label><label><input type="radio" name="renta" value="NO" checked> No</label></div></div>
+      <div id="bloque-renta" hidden>
+        <p class="pregunta">¿Quién registra a los huéspedes en el bot de Telegram?</p>
+        <div class="si-no"><label><input type="radio" name="hostprop" value="SI" checked> Yo, el propietario</label><label><input type="radio" name="hostprop" value="NO"> Un administrador o co-host</label></div>
+        <div id="bloque-host" hidden style="display:grid;gap:12px;margin-top:12px">
+          <label class="campo">Nombre de quien administra<input type="text" id="h-nombre"></label>
+          <label class="campo">Teléfono de quien administra <small>Con este número entrará al bot. Cada apartamento tiene un solo número autorizado.</small><input type="tel" id="h-tel" inputmode="tel"></label>
+          <label class="campo">Correo de quien administra <small>(opcional)</small><input type="email" id="h-correo"></label>
+        </div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Para la portería</legend>
+      <label class="campo">Personas autorizadas a entrar sin llamar <small>Nombre y parentesco (opcional)</small><textarea id="autorizados" maxlength="500"></textarea></label>
+      <label class="campo">Instrucciones para el portero <small>Ej.: «Llamar antes de dejar subir», «Delivery solo hasta el lobby»</small><textarea id="instr" maxlength="300"></textarea></label>
+    </fieldset>
+    <div class="privacidad">Aviso de privacidad (Ley 172-13): Stili Group usará estos datos solo para la seguridad y administración del condominio. No se comparten con terceros. Puede pedir su corrección o eliminación a la administración.</div>
+    <label class="check"><input type="checkbox" id="acepto"> Acepto el aviso de privacidad y confirmo que los datos son correctos.</label>
+    <div class="error" id="err" hidden role="alert"></div>
+    <button class="btn" id="enviar" type="submit">Enviar encuesta</button>
+  </form>
+  <div class="listo" id="listo" hidden><h2>¡Gracias!</h2><p style="margin:0">Recibimos su respuesta (<span id="folio"></span>). La administración la revisará; si su apartamento es de renta corta, quien administra recibirá acceso al bot.</p></div>
+</main>
+<script src="config.js"></script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const SERVICIO = (window.STILI && window.STILI.servicio) || '';
+const CODIGO = new URLSearchParams(location.search).get('t') || '';
+const DEMO = !SERVICIO || !CODIGO;
+async function api(accion, datos) {
+  if (DEMO) { await new Promise(r => setTimeout(r, 200));
+    if (accion === 'encuesta_info') return { torre: 'Torre Mirador 3', empresa: 'Stili Group', apartamentos: ['1A', '1B', '1C', '2A', '2B', '2C', '3A', '3B', '3C', 'PH1'] };
+    return { id: 'ENC-DEMO-' + Math.random().toString(36).slice(2, 6).toUpperCase() }; }
+  const r = await fetch(SERVICIO, { method: 'POST', body: JSON.stringify(Object.assign({ accion, codigo: CODIGO }, datos)) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error); return j;
+}
+const radio = n => (document.querySelector('input[name="' + n + '"]:checked') || {}).value || '';
+function mostrar() { $('#bloque-renta').hidden = radio('renta') !== 'SI'; $('#bloque-host').hidden = radio('hostprop') !== 'NO'; }
+document.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', mostrar));
+(async () => {
+  $('#demo').hidden = !DEMO;
+  try {
+    const r = await api('encuesta_info', {});
+    $('#titulo').textContent = 'Encuesta · ' + r.torre; $('#empresa').textContent = r.empresa || 'Stili Group'; document.title = 'Encuesta ' + r.torre;
+    $('#apto').innerHTML = '<option value="">Elija…</option>' + r.apartamentos.map(a => '<option>' + a.replace(/[<>&"]/g, '') + '</option>').join('');
+  } catch (e) { $('#err-carga').hidden = false; $('#err-carga').textContent = e.message; $('#f').hidden = true; }
+})();
+$('#f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = m => { $('#err').hidden = false; $('#err').textContent = m; };
+  $('#err').hidden = true;
+  const tel = $('#tel').value.replace(/\D/g, '');
+  if (!$('#apto').value) return err('Elija su apartamento.');
+  if (!$('#prop').value.trim() || tel.length < 10) return err('Escriba el nombre del propietario y un teléfono de 10 dígitos.');
+  if (radio('renta') === 'SI' && radio('hostprop') === 'NO' && ($('#h-nombre').value.trim() === '' || $('#h-tel').value.replace(/\D/g, '').length < 10)) return err('Indique el nombre y el teléfono de quien administra la renta corta.');
+  if (!$('#acepto').checked) return err('Debe aceptar el aviso de privacidad para enviar la encuesta.');
+  $('#enviar').disabled = true; $('#enviar').textContent = 'Enviando…';
+  try {
+    const r = await api('encuesta_enviar', { respuesta: { apartamento: $('#apto').value, propietario: $('#prop').value.trim(), telefono: $('#tel').value.trim(), correo: $('#correo').value.trim(),
+      vive_en_apto: radio('vive'), personas_viven: Number($('#viven').value.replace(/\D/g, '')) || 0, es_renta_corta: radio('renta'), host_es_propietario: radio('hostprop'), host_nombre: $('#h-nombre').value.trim(), host_telefono: $('#h-tel').value.trim(),
+      host_correo: $('#h-correo').value.trim(), autorizados: $('#autorizados').value.trim(), instrucciones: $('#instr').value.trim(), acepta_privacidad: 'SI' } });
+    $('#folio').textContent = r.id; $('#f').hidden = true; $('#listo').hidden = false; window.scrollTo(0, 0);
+  } catch (x) { err(x.message); }
+  $('#enviar').disabled = false; $('#enviar').textContent = 'Enviar encuesta';
+});
+</script>
+</body>
+</html>
