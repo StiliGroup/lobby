@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Portal Stili</title>
+<meta name="description" content="Entrada única del equipo de Stili Group: Panel, Nómina y bots de Telegram.">
+<meta name="theme-color" content="#13293D">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="icono-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
+<script src="../config.js"></script>
+<style>
+:root {
+  --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
+  --navy: #13293D; --teal: #0F7C7A; --teal-suave: #DCEFEE; --gold: #B8913A; --gold-suave: #F6EDD6; --crit: #B3261E; --crit-suave: #FBE3E1;
+  --r: 14px; --sombra: 0 1px 2px rgba(19,41,61,.06), 0 4px 16px rgba(19,41,61,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+    --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18;
+    --sombra: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+  --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18; --sombra: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: Archivo, system-ui, sans-serif; font-size: 15px; line-height: 1.45; min-height: 100vh; }
+button, input { font: inherit; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+header.barra { background: #13293D; color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #C9A54C; }
+header.barra img { width: 34px; height: 34px; border-radius: 8px; }
+header.barra b { font-size: 17px; letter-spacing: .02em; }
+header.barra span { color: #C9D3DF; font-size: 13px; }
+header.barra .der { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.btn-barra { background: transparent; border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-barra.oro { border-color: #C9A54C; color: #F1DCA6; }
+main { max-width: 860px; margin: 0 auto; padding: 22px 16px 40px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; box-shadow: var(--sombra); }
+h1 { font-size: 24px; margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 18px; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+input { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--fg); width: 100%; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--fg); border-radius: 9px; padding: 11px 18px; font-weight: 700; cursor: pointer; }
+.btn.primario { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn:disabled { opacity: .55; cursor: wait; }
+.msg { min-height: 1.4em; color: var(--crit); font-size: 14px; }
+.msg.ok { color: var(--teal); }
+#login .card { max-width: 420px; margin: 6vh auto 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.tile { display: flex; gap: 14px; align-items: flex-start; text-align: left; text-decoration: none; color: var(--fg); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 16px; box-shadow: var(--sombra); cursor: pointer; width: 100%; transition: border-color .15s, transform .15s; }
+.tile:hover { border-color: var(--teal); transform: translateY(-1px); }
+.tile .ic { flex: 0 0 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; font-size: 21px; background: var(--teal-suave); }
+.tile.oro .ic { background: var(--gold-suave); }
+.tile.rojo .ic { background: var(--crit-suave); }
+.tile b { display: block; font-size: 16px; margin-bottom: 2px; }
+.tile small { color: var(--muted); font-size: 13px; }
+h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 26px 0 10px; font-weight: 700; }
+.instalar { margin-top: 26px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--gold-suave); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+.instalar p { margin: 0; flex: 1 1 260px; }
+.nota { color: var(--muted); font-size: 13px; }
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #13293D; color: #fff; padding: 10px 16px; border-radius: 10px; max-width: calc(100% - 32px); z-index: 9; }
+.toast.error { background: #B3261E; }
+[hidden] { display: none !important; }
+@media (max-width: 520px) { header.barra span { display: none; } h1 { font-size: 21px; } }
+</style>
+</head>
+<body>
+<header class="barra">
+  <img src="icono-192.png" alt="">
+  <div><b>Portal Stili</b><br><span>Stili Group · un solo usuario para todo</span></div>
+  <div class="der"><button class="btn-barra" id="b-salir" hidden>Salir</button></div>
+</header>
+
+<main>
+  <section id="login" hidden>
+    <div class="card">
+      <h1>Entrar</h1>
+      <p class="sub">Use su correo de Stili y su clave (la misma del Panel y la Nómina).</p>
+      <form id="f-login">
+        <label>Correo<input type="email" id="l-correo" autocomplete="username" required></label>
+        <label>Clave<input type="password" id="l-clave" autocomplete="current-password" required></label>
+        <button class="btn primario" id="l-entrar" style="width:100%">Entrar</button>
+        <p class="msg" id="l-msg" role="status"></p>
+      </form>
+      <p class="nota" id="l-portero" hidden></p>
+    </div>
+  </section>
+
+  <section id="clave" hidden>
+    <div class="card" style="max-width:420px;margin:6vh auto 0">
+      <h1>Cree su clave personal</h1>
+      <p class="sub">Es su primera entrada o le restablecieron la clave. Mínimo 8 caracteres, con letras y números.</p>
+      <form id="f-clave">
+        <label>Clave nueva<input type="password" id="k-nueva" autocomplete="new-password" required minlength="8"></label>
+        <label>Repita la clave<input type="password" id="k-repite" autocomplete="new-password" required minlength="8"></label>
+        <button class="btn primario" style="width:100%">Guardar</button>
+        <p class="msg" id="k-msg" role="status"></p>
+      </form>
+    </div>
+  </section>
+
+  <section id="inicio" hidden>
+    <h1 id="saludo">Hola</h1>
+    <p class="sub" id="perfil"></p>
+    <div class="tiles" id="tiles"></div>
+    <div id="bots-c" hidden><h2>Bots de Telegram</h2><div class="tiles" id="bots"></div></div>
+    <div class="instalar" id="instalar">
+      <p><b>Instale el Portal en esta computadora</b><br><span class="nota" id="inst-texto">Queda como una aplicación con su ícono en el escritorio y en el menú Inicio.</span></p>
+      <button class="btn primario" id="b-instalar" hidden>Instalar</button>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// La sesión se guarda donde la busca el Panel Stili (misma dirección), así el Panel abre sin pedir clave otra vez.
+const CLAVE_LS = 'stili-admin';
+function leerCfg() { try { return JSON.parse(localStorage.getItem(CLAVE_LS) || '{}'); } catch (e) { return {}; } }
+function guardarCfg(c) { try { localStorage.setItem(CLAVE_LS, JSON.stringify(Object.assign(leerCfg(), c))); } catch (e) { /* sin almacenamiento */ } }
+const SERVICIO = () => leerCfg().url || (window.STILI && window.STILI.servicio) || '';
+let sesion = leerCfg().sesion || '';
+
+function toast(t, tipo) {
+  const el = $('#toast'); el.textContent = t; el.className = 'toast' + (tipo ? ' ' + tipo : ''); el.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, tipo === 'error' ? 6000 : 3000);
+}
+async function api(accion, datos) {
+  if (!SERVICIO()) throw new Error('Falta la dirección del servicio (config.js).');
+  const r = await fetch(SERVICIO(), { method: 'POST', body: JSON.stringify(Object.assign({ accion, sesion }, datos || {})) });
+  const j = await r.json();
+  if (!j.ok) {
+    const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo;
+    if (['SESION', 'SESION_VENCIDA'].includes(j.codigo)) { salir(j.error); }
+    throw e;
+  }
+  return j;
+}
+function ver(id) { ['login', 'clave', 'inicio'].forEach(x => { $('#' + x).hidden = x !== id; }); $('#b-salir').hidden = id === 'login'; }
+function salir(msg) { sesion = ''; guardarCfg({ sesion: '' }); ver('login'); $('#l-msg').textContent = msg || ''; setTimeout(() => $('#l-correo').focus(), 50); }
+
+$('#f-login').addEventListener('submit', async e => {
+  e.preventDefault(); $('#l-entrar').disabled = true; $('#l-msg').className = 'msg'; $('#l-msg').textContent = 'Entrando…'; $('#l-portero').hidden = true;
+  try {
+    const r = await fetch(SERVICIO(), { method: 'POST', body: JSON.stringify({ accion: 'login', correo: $('#l-correo').value.trim(), clave: $('#l-clave').value, origen: 'portal' }) }).then(x => x.json());
+    if (!r.ok) throw new Error(r.error);
+    if (r.portero) {
+      $('#l-msg').textContent = '';
+      $('#l-portero').hidden = false;
+      $('#l-portero').innerHTML = esc(r.mensaje) + ' <a href="' + esc(r.url_lobby || '../index.html') + '">Abrir la app del lobby</a>';
+      return;
+    }
+    sesion = r.sesion; guardarCfg({ sesion: r.sesion, admin: '' }); $('#l-clave').value = ''; $('#l-msg').textContent = '';
+    if (r.usuario.debe_cambiar) return ver('clave');
+    cargar();
+  } catch (err) { $('#l-msg').textContent = err.message; } finally { $('#l-entrar').disabled = false; }
+});
+$('#f-clave').addEventListener('submit', async e => {
+  e.preventDefault();
+  if ($('#k-nueva').value !== $('#k-repite').value) { $('#k-msg').textContent = 'Las dos claves no coinciden.'; return; }
+  try { const r = await api('cambiar_clave', { nueva: $('#k-nueva').value }); sesion = r.sesion; guardarCfg({ sesion }); $('#f-clave').reset(); cargar(); toast('Clave guardada.'); }
+  catch (err) { $('#k-msg').textContent = err.message; }
+});
+$('#b-salir').addEventListener('click', () => salir('Sesión cerrada.'));
+
+function tile(icono, titulo, texto, attrs, clase) {
+  return '<a class="tile ' + (clase || '') + '" ' + attrs + '><span class="ic" aria-hidden="true">' + icono + '</span><span><b>' + esc(titulo) + '</b><small>' + esc(texto) + '</small></span></a>';
+}
+async function cargar() {
+  ver('inicio');
+  $('#tiles').innerHTML = '<p class="nota">Cargando…</p>';
+  try {
+    const r = await api('portal');
+    const u = r.usuario, a = r.accesos;
+    if (u.debe_cambiar) return ver('clave');
+    $('#saludo').textContent = 'Hola, ' + (u.nombre || '').split(' ')[0];
+    $('#perfil').textContent = u.segmento_nombre + ' · ' + u.correo;
+    let h = '';
+    if (a.panel) h += tile('🖥', 'Panel Stili', 'Torres, visitantes, hosts, lista negra, personal y documentos.', 'href="../admin.html" data-vista="tablero"');
+    if (a.nomina) h += tile('💼', 'Nómina y RRHH', 'Empleados, novedades, nóminas, licencias, vacaciones y reportes legales.', 'href="#" data-nomina="1"', 'oro');
+    if (a.papelera) h += tile('🗑', 'Eliminar y papelera', 'Solo Gerente: eliminar datos del Panel y restaurar lo eliminado (30 días).', 'href="../admin.html" data-vista="papelera"', 'rojo');
+    $('#tiles').innerHTML = h || '<p class="nota">Su usuario todavía no tiene secciones asignadas. Pídalas al Gerente General.</p>';
+    const bots = [[a.bot_torres, '🏢', 'Bot de Torres', 'Ficha de cada torre, proveedores, contratos, reclamaciones y comunicados.'],
+      [a.bot_nomina, '🤖', 'Bot de Nómina y RRHH', 'Reportar novedades, licencias y vacaciones desde el teléfono.'],
+      [a.bot_checkin, '🛎', 'Bot de Check-in', 'Hosts y huéspedes de renta corta (administración).']].filter(b => b[0]);
+    $('#bots').innerHTML = bots.map(b => tile(b[1], b[2], b[3], 'href="' + esc(b[0]) + '" target="_blank" rel="noopener"')).join('');
+    $('#bots-c').hidden = !bots.length;
+  } catch (err) { $('#tiles').innerHTML = '<p class="msg">' + esc(err.message) + '</p>'; }
+}
+document.addEventListener('click', async e => {
+  const t = e.target.closest('.tile'); if (!t) return;
+  if (t.dataset.vista) guardarCfg({ vista: t.dataset.vista });   // el Panel abre en esa sección
+  if (t.dataset.nomina) {
+    e.preventDefault();
+    const ventana = window.open('', '_blank');   // se abre ya, para que el navegador no la bloquee
+    try {
+      const r = await api('sso_ticket');
+      if (!r.url_nomina) throw new Error('La dirección de la Nómina no está configurada (URL_NOMINA en la pestaña Config).');
+      const url = r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket);
+      if (ventana) ventana.location = url; else location.href = url;
+    } catch (err) { if (ventana) ventana.close(); toast(err.message, 'error'); }
+  }
+});
+
+// ---------------------------------------------------------------- Instalar como aplicación
+let aviso = null;
+const instalada = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); aviso = e; $('#b-instalar').hidden = false; });
+window.addEventListener('appinstalled', () => { $('#instalar').hidden = true; toast('Portal Stili instalado.'); });
+$('#b-instalar').addEventListener('click', async () => { if (!aviso) return; aviso.prompt(); await aviso.userChoice; aviso = null; $('#b-instalar').hidden = true; });
+(function textoInstalar() {
+  if (instalada()) { $('#instalar').hidden = true; return; }
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad/.test(ua)) $('#inst-texto').textContent = 'En el iPhone: botón Compartir → «Agregar a pantalla de inicio».';
+  else if (/Edg\//.test(ua)) $('#inst-texto').textContent = 'Toque «Instalar». Si no aparece: menú ⋯ → Aplicaciones → «Instalar este sitio como aplicación».';
+  else if (/Chrome\//.test(ua)) $('#inst-texto').textContent = 'Toque «Instalar». Si no aparece: menú ⋮ → «Transmitir, guardar y compartir» → «Instalar página como aplicación».';
+  else $('#inst-texto').textContent = 'Para instalarlo, ábralo en Google Chrome o Microsoft Edge.';
+})();
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+if (sesion) cargar(); else salir('');
+</script>
+</body>
+</html>

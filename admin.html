@@ -224,6 +224,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
     <button class="tab" role="tab" data-v="negra" aria-selected="false">Lista negra <span class="n" id="n-sol" hidden>0</span></button>
     <button class="tab" role="tab" data-v="personal" aria-selected="false">Personal</button>
     <button class="tab" role="tab" data-v="usuarios" aria-selected="false" hidden>Usuarios y accesos</button>
+    <button class="tab" role="tab" data-v="papelera" aria-selected="false" hidden>Eliminar y papelera</button>
     <button class="tab" role="tab" data-v="ajustes" aria-selected="false">Ajustes</button>
   </nav>
 </header>
@@ -488,6 +489,27 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
     </div>
   </section>
 
+  <!-- ELIMINAR Y PAPELERA (v1.8, solo Gerente General) -->
+  <section id="v-papelera" hidden>
+    <div class="card">
+      <h2>Eliminar datos</h2>
+      <p class="nota" style="margin-top:0">Solo el Gerente General. Lo eliminado va a la papelera con sus registros relacionados (por ejemplo, un documento con sus artículos o un host con sus permisos) y se puede restaurar durante <b id="pap-dias">30</b> días. Después se borra solo.</p>
+      <form class="form" id="f-datos">
+        <label class="campo">Qué datos<select id="d-tabla"></select></label>
+        <label class="campo">Buscar<input type="search" id="d-texto" placeholder="Nombre, documento, torre, código…" autocomplete="off"></label>
+        <div><button class="btn primario" type="submit">Buscar</button></div>
+      </form>
+      <p class="nota" id="d-info"></p>
+      <div class="tabla"><table><thead id="d-cab"></thead><tbody id="d-filas"></tbody></table></div>
+    </div>
+    <div class="card">
+      <header style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <h2 style="margin:0 auto 0 0">Papelera</h2><button class="btn chico" type="button" id="pap-recargar">Actualizar</button>
+      </header>
+      <div class="tabla"><table><thead><tr><th>Eliminado</th><th>Por</th><th>Qué</th><th>Se borra el</th><th></th></tr></thead><tbody id="pap-filas"></tbody></table></div>
+    </div>
+  </section>
+
   <!-- AJUSTES -->
   <section id="v-ajustes" hidden>
     <div class="grid g2">
@@ -570,7 +592,7 @@ function vista(v) {
   $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.v === v)));
   $$('main > section').forEach(s => { s.hidden = s.id !== 'v-' + v; });
   CFG.vista = v; guardarCfg();
-  ({ tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, usuarios: cargarUsuarios, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
+  ({ tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, usuarios: cargarUsuarios, papelera: cargarPapelera, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => vista(t.dataset.v)));
 
@@ -581,6 +603,7 @@ function aplicarPermisos() {
   const sis = S.sistema || {};
   $$('.tab').forEach(t => { const sec = TAB_SECCION[t.dataset.v]; if (sec) t.hidden = nivel(sec) < 1; });
   $('[data-v="usuarios"]').hidden = !sis.gerente;
+  $('[data-v="papelera"]').hidden = !sis.gerente;
   const ed = (sel, sec) => $$(sel).forEach(el => { el.hidden = nivel(sec) < 3; });
   ed('#hs-editor, #hs-asignar', 'hosts'); ed('#negra-agregar', 'lista_negra'); ed('#zona, #f-doc', 'documentos'); ed('#f-torre', 'torres'); ed('#f-emp', 'personal');
   const nom = Object.keys(sis.permisos || {}).some(k => k.startsWith('nom_') && nivel(k) > 0);
@@ -1052,6 +1075,51 @@ $('#f-asignar').addEventListener('submit', async e => {
 
 // ------------------------------------------------------------------ Usuarios y accesos (solo Gerente General)
 const NOMBRES_NIVEL = ['Oculto', 'Ver', 'Profundizar', 'Editar'];
+// ------------------------------------------------------------------ Eliminar y papelera (v1.8)
+async function cargarPapelera() {
+  try {
+    if (!S.tablasDatos) {
+      S.tablasDatos = await api('datos_tablas');
+      $('#d-tabla').innerHTML = S.tablasDatos.tablas.map(t => '<option value="' + esc(t.tabla) + '">' + esc(t.nombre) + '</option>').join('');
+      $('#pap-dias').textContent = S.tablasDatos.dias;
+    }
+    pintarPapelera(await api('papelera'));
+  } catch (e) { $('#pap-filas').innerHTML = '<tr><td colspan="5">' + esc(e.message) + '</td></tr>'; }
+}
+function pintarPapelera(r) {
+  $('#pap-filas').innerHTML = (r.papelera || []).map(p => '<tr><td>' + esc(fmtFH(p.fecha)) + '</td><td>' + esc(p.usuario) + '</td><td>' + esc(p.descripcion) + '</td><td>' + esc(fmtFecha(p.vence)) +
+    '</td><td style="white-space:nowrap"><button class="btn chico primario" data-restaurar="' + esc(p.id) + '">Restaurar</button> <button class="btn chico" data-borrar="' + esc(p.id) + '">Borrar ya</button></td></tr>').join('') ||
+    '<tr><td colspan="5" class="nota">La papelera está vacía.</td></tr>';
+}
+async function buscarDatos() {
+  const tabla = $('#d-tabla').value;
+  try {
+    const r = await api('datos_buscar', { tabla, texto: $('#d-texto').value.trim() });
+    $('#d-info').textContent = r.filas.length + ' de ' + r.total + ' registros' + (r.filas.length === 100 ? ' (se muestran los 100 más recientes; busque para filtrar)' : '') + '.';
+    $('#d-cab').innerHTML = '<tr>' + r.columnas.map(c => '<th>' + esc(c.replace(/_/g, ' ')) + '</th>').join('') + '<th></th></tr>';
+    $('#d-filas').innerHTML = r.filas.map(f => '<tr>' + f.valores.map(v => '<td>' + esc(v) + '</td>').join('') +
+      '<td><button class="btn chico peligro" data-eliminar="' + esc(f.clave) + '" data-desc="' + esc(f.valores.filter(Boolean).slice(0, 3).join(' · ')) + '">Eliminar</button></td></tr>').join('') ||
+      '<tr><td class="nota" colspan="' + (r.columnas.length + 1) + '">Sin resultados.</td></tr>';
+  } catch (e) { toast(e.message, 'error'); }
+}
+$('#f-datos').addEventListener('submit', e => { e.preventDefault(); buscarDatos(); });
+$('#d-tabla').addEventListener('change', buscarDatos);
+$('#pap-recargar').addEventListener('click', cargarPapelera);
+$('#d-filas').addEventListener('click', async e => {
+  const b = e.target.closest('[data-eliminar]'); if (!b) return;
+  if (!confirm('¿Eliminar «' + b.dataset.desc + '»?\n\nVa a la papelera y se puede restaurar durante ' + ((S.tablasDatos || {}).dias || 30) + ' días.')) return;
+  b.disabled = true;
+  try { await api('dato_eliminar', { tabla: $('#d-tabla').value, clave: b.dataset.eliminar }); toast('Enviado a la papelera.'); buscarDatos(); pintarPapelera(await api('papelera')); }
+  catch (err) { toast(err.message, 'error'); b.disabled = false; }
+});
+$('#pap-filas').addEventListener('click', async e => {
+  const r = e.target.closest('[data-restaurar]'), d = e.target.closest('[data-borrar]');
+  try {
+    if (r) { const x = await api('papelera_restaurar', { id: r.dataset.restaurar }); pintarPapelera(x); toast('Restaurado: ' + x.restaurado); }
+    if (d && confirm('Esto ya no se puede deshacer. ¿Borrar definitivamente?')) { pintarPapelera(await api('papelera_borrar', { id: d.dataset.borrar })); toast('Borrado definitivamente.'); }
+  } catch (err) { toast(err.message, 'error'); }
+});
+
 async function cargarUsuarios() {
   try { S.usuarios = await api('usuarios'); pintarUsuarios(); } catch (e) { $('#usuarios').innerHTML = '<tr><td colspan="4">' + esc(e.message) + '</td></tr>'; }
 }
@@ -1268,6 +1336,7 @@ const Demo = (() => {
     { id_host: 'H002', nombre: 'Miguel Torres', tipo: 'host', telefono: '849-555-3030', correo: '', documento: '', notas: 'Suspendido por deuda', estatus: 'suspendido', vinculado: true, unidades: [] }];
   const vistaHosts = g => ({ gerente: g, bot: 'CustomerServiceStili_bot', empresa: 'Stili Group', hosts: hostsD.map(h => Object.assign({}, h, { unidades: h.unidades.slice(),
     telefono: g ? h.telefono : '•••' + h.telefono.slice(-4), documento: g ? h.documento : (h.documento ? '•••' + h.documento.slice(-4) : ''), correo: g ? h.correo : '', notas: g ? h.notas : '' })) });
+  const papD = { papelera: [], datos: [{ clave: 'VST-1', valores: ['JUAN PÉREZ', 'Torre Niza 7', '20/10/2026'] }, { clave: 'VST-2', valores: ['MARÍA GÓMEZ', 'Torre Esperilla 17', '19/10/2026'] }] };
   async function llamar(accion, d) {
     await new Promise(r => setTimeout(r, 120));
     const g = CFG.demoRol === 'gerente' || !CFG.demoRol;
@@ -1277,6 +1346,15 @@ const Demo = (() => {
         return { version: '1.7.0', checkin: true, rol: g ? 'gerente' : 'equipo', nombre: { gerente: 'Ronald Larrauri', gestores: 'Danna Ramírez', rrhh: 'Anny Tejada', contabilidad: 'Lissette López' }[seg],
           gerente: seg === 'gerente', segmento: seg, permisos: p, torres: seg === 'gestores' ? ['Torre Niza 7', 'Torre Esperilla 17'] : null, id: seg === 'gerente' ? 'U001' : 'U00X', url_nomina: '' }; }
       case 'sso_ticket': throw err('En la demostración la Nómina no está conectada. Con el sistema real, este botón la abre sin pedir clave.');
+      case 'datos_tablas': if (!g) throw err('Solo el Gerente General puede hacer esto.', 'SOLO_GERENTE');
+        return { dias: 30, tablas: [{ tabla: 'Visitas', nombre: 'Visitas del lobby' }, { tabla: 'Incidencias', nombre: 'Incidencias del lobby' }, { tabla: 'Hosts', nombre: 'Check-in · Hosts' }] };
+      case 'datos_buscar': return { tabla: d.tabla, columnas: ['nombre', 'torre', 'fecha'], total: papD.datos.length,
+        filas: papD.datos.filter(x => !d.texto || x.valores.join(' ').toLowerCase().includes(String(d.texto).toLowerCase())) };
+      case 'dato_eliminar': { const i = papD.datos.findIndex(x => x.clave === d.clave); const x = papD.datos.splice(i, 1)[0];
+        papD.papelera.unshift({ id: 'PAP-' + Date.now(), fecha: new Date().toISOString(), usuario: 'Ronald Larrauri', tabla: d.tabla, descripcion: x.valores.join(' · '), vence: new Date(Date.now() + 30 * 864e5).toISOString(), x: x }); return { id: 'PAP' }; }
+      case 'papelera': return { papelera: papD.papelera, dias: 30 };
+      case 'papelera_restaurar': { const i = papD.papelera.findIndex(p => p.id === d.id); const p = papD.papelera.splice(i, 1)[0]; papD.datos.unshift(p.x); return { papelera: papD.papelera, restaurado: p.descripcion }; }
+      case 'papelera_borrar': papD.papelera = papD.papelera.filter(p => p.id !== d.id); return { papelera: papD.papelera };
       case 'usuarios': if (!g) throw err('Solo el Gerente General puede hacer esto.', 'SOLO_GERENTE'); return vistaUsuariosD();
       case 'usuario_guardar': { if (!g) throw err('Solo el Gerente General puede hacer esto.', 'SOLO_GERENTE'); const u = d.usuario;
         if (!u.nombre || u.nombre.length < 3) throw err('Escriba el nombre completo.'); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(u.correo)) throw err('Escriba un correo válido: será su usuario.');
