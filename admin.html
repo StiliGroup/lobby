@@ -171,6 +171,23 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-al
 .enc:first-of-type { border-top: 0; }
 .enc .apto { font-family: var(--f-mono); font-weight: 700; background: var(--navy); color: #fff; border-radius: 6px; padding: 2px 8px; margin-right: 6px; }
 
+/* Login y usuarios (v1.7) */
+.login { position: fixed; inset: 0; z-index: 60; background: var(--navy); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
+.login .caja { width: min(420px, 100%); background: var(--panel); color: var(--fg); border-radius: 14px; padding: 26px 22px; box-shadow: 0 20px 60px rgba(0,0,0,.35); display: grid; gap: 14px; }
+.login .caja h1 { margin: 0; font-size: 22px; }
+.login .caja small { color: var(--gold, #B8913A); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+.login .aviso-portero { background: var(--warn-suave); color: var(--warn); border-radius: 10px; padding: 12px; font-weight: 600; }
+.btn-barra { background: transparent; border: 1px solid rgba(255,255,255,.28); color: #fff; border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-barra.oro { border-color: #C9A54C; color: #F1DCA6; }
+.matriz select { min-width: 120px; }
+.matriz td.sec b { display: block; }
+.matriz td.sec span { font-size: 12px; color: var(--muted); }
+.matriz tr.grupo td { background: var(--panel-2); font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: .05em; }
+.nv0 { color: var(--muted); } .nv3 { color: var(--ok); font-weight: 700; }
+.clave-temp { font-family: var(--mono, monospace); font-size: 22px; font-weight: 700; letter-spacing: .08em; background: var(--gold-suave, #F6EDD6); padding: 10px 14px; border-radius: 8px; display: inline-block; }
+dialog.d { border: 0; border-radius: 14px; padding: 0; width: min(440px, calc(100% - 24px)); background: var(--panel); color: var(--fg); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+dialog.d::backdrop { background: rgba(8,18,27,.6); }
+dialog.d form { padding: 20px; display: grid; gap: 12px; }
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--navy); color: #fff; padding: 12px 18px; border-radius: 10px; font-weight: 600; z-index: 50; box-shadow: var(--sombra); max-width: calc(100% - 32px); }
 .toast.error { background: var(--crit); }
 .cargando { opacity: .6; pointer-events: none; }
@@ -191,6 +208,10 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-al
     <div class="marca"><small>Stili Group · Administración</small><b>Panel Stili</b></div>
     <span class="pill" id="pill-con"><span class="p"></span><span>…</span></span>
     <span class="pill" id="pill-rol">…</span>
+    <span style="flex:1"></span>
+    <button class="btn-barra oro" id="b-nomina" type="button" hidden>Nómina ↗</button>
+    <button class="btn-barra" id="b-clave" type="button" hidden>Cambiar clave</button>
+    <button class="btn-barra" id="b-salir" type="button" hidden>Salir</button>
   </div>
   <nav class="tabs gutter" role="tablist" aria-label="Secciones">
     <button class="tab" role="tab" data-v="tablero" aria-selected="true">Tablero</button>
@@ -202,12 +223,13 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-al
     <button class="tab" role="tab" data-v="conflictos" aria-selected="false">Conflictos <span class="n" id="n-conf" hidden>0</span></button>
     <button class="tab" role="tab" data-v="negra" aria-selected="false">Lista negra <span class="n" id="n-sol" hidden>0</span></button>
     <button class="tab" role="tab" data-v="personal" aria-selected="false">Personal</button>
+    <button class="tab" role="tab" data-v="usuarios" aria-selected="false" hidden>Usuarios y accesos</button>
     <button class="tab" role="tab" data-v="ajustes" aria-selected="false">Ajustes</button>
   </nav>
 </header>
 
 <main class="gutter">
-  <div class="demo-aviso" id="demo-aviso" hidden>Modo demostración: datos de ejemplo. Para usar los datos reales, entre en «Ajustes» y escriba la dirección del servicio y su código de administración.</div>
+  <div class="demo-aviso" id="demo-aviso" hidden>Modo demostración: datos de ejemplo. Para usar los datos reales, entre en «Ajustes», escriba la dirección del servicio y entre con su usuario.</div>
 
   <!-- TABLERO -->
   <section id="v-tablero">
@@ -425,6 +447,47 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-al
     </div>
   </section>
 
+  <!-- USUARIOS Y ACCESOS (solo Gerente General) -->
+  <section id="v-usuarios" hidden>
+    <div class="grid g2">
+      <div class="card">
+        <h2>Usuarios</h2>
+        <p class="nota" style="margin-top:0">Un usuario sirve para el Panel Stili y para la Nómina. Los porteros y supervisores no usan usuario: entran a la app del lobby con su cédula y PIN (sección Personal).</p>
+        <div class="tabla"><table><thead><tr><th>Nombre</th><th>Segmento</th><th>Torres</th><th>Estado</th></tr></thead><tbody id="usuarios"></tbody></table></div>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h2 id="u-titulo">Nuevo usuario</h2>
+          <form class="form" id="f-usuario">
+            <input type="hidden" id="u-id">
+            <label class="campo">Nombre completo<input type="text" id="u-nombre" autocomplete="off"></label>
+            <label class="campo">Correo (es su usuario)<input type="email" id="u-correo" autocomplete="off"></label>
+            <label class="campo">Segmento<select id="u-segmento"></select></label>
+            <label class="campo">Torres<input type="text" id="u-torres" placeholder="TODAS" list="u-torres-lista"><datalist id="u-torres-lista"></datalist></label>
+            <label class="campo ancho" id="u-activo-c" hidden style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="u-activo" style="width:auto" checked> Activo (si lo desmarca, se cierra su sesión en todos los equipos)</label>
+            <p class="nota ancho" style="margin:0">Torres: escriba TODAS o los nombres separados por coma. Un gestor solo verá esas torres.</p>
+            <div class="ancho" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primario" type="submit" id="u-guardar">Crear usuario</button><button class="btn" type="button" id="u-cancelar" hidden>Cancelar edición</button></div>
+          </form>
+        </div>
+        <div class="card" id="u-temp" hidden>
+          <h2>Clave temporal de <span id="u-temp-nombre"></span></h2>
+          <p class="nota" style="margin-top:0">Entréguela en persona o por un canal privado. Se muestra solo esta vez. Al entrar, el sistema le pedirá cambiarla.</p>
+          <div><span class="clave-temp" id="u-temp-clave"></span></div>
+          <p class="nota">Usuario: <b id="u-temp-correo"></b> · Entrada: <span id="u-temp-url"></span></p>
+          <div><button class="btn" type="button" id="u-temp-copiar">Copiar instrucciones</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <header style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <h2 style="margin:0 auto 0 0">Qué puede ver y hacer cada segmento</h2>
+        <button class="btn primario" id="m-guardar" type="button">Guardar permisos</button>
+      </header>
+      <p class="nota" style="margin-top:0"><b>Oculto</b>: la sección no aparece. <b>Ver</b>: datos generales, con teléfonos, documentos y códigos ocultos. <b>Profundizar</b>: ve todos los detalles. <b>Editar</b>: además puede crear y modificar. <b>Eliminar registros</b>: solo el Gerente General, siempre. Los cambios se aplican en la próxima acción de cada usuario.</p>
+      <div class="tabla matriz"><table><thead><tr><th>Sección</th><th>Gerente General</th><th>Gestores de cuenta</th><th>RRHH y Operaciones</th><th>Contabilidad / CxC / CxP</th></tr></thead><tbody id="matriz"></tbody></table></div>
+    </div>
+  </section>
+
   <!-- AJUSTES -->
   <section id="v-ajustes" hidden>
     <div class="grid g2">
@@ -432,7 +495,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-al
         <h2>Conexión</h2>
         <form class="form" id="f-ajustes">
           <label class="campo ancho">Dirección del servicio (Apps Script)<input type="url" id="c-url" placeholder="https://script.google.com/macros/s/…/exec"></label>
-          <label class="campo ancho">Código de administración<input type="password" id="c-admin" placeholder="ADM-…" autocomplete="off"></label>
+          <label class="campo ancho">Código maestro (solo emergencias del Gerente)<input type="password" id="c-admin" placeholder="ADM-… · déjelo vacío y use su usuario" autocomplete="off"></label>
           <label class="campo ancho">Dirección de las páginas (GitHub Pages)<input type="url" id="c-paginas" placeholder="https://stiligroup.github.io/visitantes/"></label>
           <div class="acciones" style="grid-column:1/-1"><button class="btn primario" type="submit">Guardar y probar</button><button class="btn" type="button" id="c-demo">Usar demostración</button></div>
         </form>
@@ -440,12 +503,33 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-al
       </div>
       <div class="card" id="c-demo-rol">
         <h2>Demostración: ver como</h2>
-        <p class="nota" style="margin-top:0">Compare lo que ve el Gerente con lo que ve el equipo de Stili en la ficha de un apartamento.</p>
-        <div class="acciones"><button class="btn" data-rol="gerente">Gerente (todo)</button><button class="btn" data-rol="equipo">Equipo (sin datos sensibles)</button></div>
+        <p class="nota" style="margin-top:0">Compare lo que ve cada segmento. Los permisos salen de «Usuarios y accesos».</p>
+        <div class="acciones"><button class="btn" data-rol="gerente">Gerente General</button><button class="btn" data-rol="gestores">Gestor de cuenta</button><button class="btn" data-rol="rrhh">RRHH y Operaciones</button><button class="btn" data-rol="contabilidad">Contabilidad</button></div>
       </div>
     </div>
   </section>
 </main>
+<div class="login" id="login" hidden>
+  <form class="caja" id="f-login" autocomplete="on">
+    <div><small>Stili Group</small><h1>Panel Stili y Nómina</h1></div>
+    <label class="campo">Usuario (su correo de Stili)<input type="email" id="l-correo" autocomplete="username" required></label>
+    <label class="campo">Clave<input type="password" id="l-clave" autocomplete="current-password" required></label>
+    <button class="btn primario" type="submit" id="l-entrar">Entrar</button>
+    <div class="aviso-portero" id="l-portero" hidden></div>
+    <p class="nota" style="margin:0" id="l-msg"></p>
+    <p class="nota" style="margin:0">¿Olvidó su clave? Pídale al Gerente General que se la restablezca. ¿Es portero? Use la <a id="l-lobby" href="index.html">app del lobby</a> con su cédula y PIN.</p>
+  </form>
+</div>
+<dialog class="d" id="dlg-clave">
+  <form id="f-clave" method="dialog">
+    <h2 style="margin:0" id="k-titulo">Cambiar clave</h2>
+    <p class="nota" style="margin:0" id="k-nota">Mínimo 8 caracteres, con letras y números.</p>
+    <label class="campo" id="k-actual-c">Clave actual<input type="password" id="k-actual" autocomplete="current-password"></label>
+    <label class="campo">Clave nueva<input type="password" id="k-nueva" autocomplete="new-password"></label>
+    <label class="campo">Repita la clave nueva<input type="password" id="k-repite" autocomplete="new-password"></label>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" value="cancelar" id="k-cancelar" formnovalidate>Cancelar</button><button class="btn primario" value="ok" id="k-guardar">Guardar</button></div>
+  </form>
+</dialog>
 <div id="toast" class="toast" hidden role="status"></div>
 <script src="config.js"></script>
 <script>
@@ -459,7 +543,7 @@ const fmtFH = d => d ? fmtFecha(d) + ' ' + fmtHora(d) : '';
 const diaClave = d => new Date(d).toLocaleDateString('en-CA', { timeZone: TZ });
 function leerCfg() { try { return JSON.parse(localStorage.getItem('stili-admin') || '{}'); } catch (e) { return {}; } }
 function guardarCfg() { try { localStorage.setItem('stili-admin', JSON.stringify(CFG)); } catch (e) { /* sin almacenamiento */ } }
-const CFG = Object.assign({ url: (window.STILI && window.STILI.servicio) || '', admin: '', paginas: '', demoRol: 'gerente', vista: 'tablero' }, leerCfg());
+const CFG = Object.assign({ url: (window.STILI && window.STILI.servicio) || '', admin: '', sesion: '', paginas: '', demoRol: 'gerente', vista: 'tablero' }, leerCfg());
 const DEMO = () => !CFG.url;
 const S = { sistema: null, tablero: null, docs: null };
 
@@ -469,9 +553,14 @@ function toast(t, tipo) {
 }
 async function api(accion, datos) {
   if (DEMO()) return Demo.llamar(accion, datos || {});
-  const r = await fetch(CFG.url, { method: 'POST', body: JSON.stringify(Object.assign({ accion, admin: CFG.admin }, datos || {})) });
+  const cred = CFG.sesion ? { sesion: CFG.sesion } : { admin: CFG.admin };
+  const r = await fetch(CFG.url, { method: 'POST', body: JSON.stringify(Object.assign({ accion }, cred, datos || {})) });
   const j = await r.json();
-  if (!j.ok) { const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo; throw e; }
+  if (!j.ok) {
+    const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo;
+    if (['SESION', 'SESION_VENCIDA'].includes(j.codigo) || (j.codigo === 'SIN_ADMIN' && !CFG.sesion)) { CFG.sesion = ''; guardarCfg(); mostrarLogin(j.error); }
+    throw e;
+  }
   return j;
 }
 const BASE_PAGINAS = () => CFG.paginas || (location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host) ? location.href.replace(/[^/]*$/, '') : 'https://SU-USUARIO.github.io/visitantes/');
@@ -481,9 +570,68 @@ function vista(v) {
   $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.v === v)));
   $$('main > section').forEach(s => { s.hidden = s.id !== 'v-' + v; });
   CFG.vista = v; guardarCfg();
-  ({ tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
+  ({ tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, usuarios: cargarUsuarios, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => vista(t.dataset.v)));
+
+// ------------------------------------------------------------------ Permisos (v1.7)
+const TAB_SECCION = { tablero: 'tablero', apto: 'apartamento', documentos: 'documentos', encuestas: 'encuestas', hosts: 'hosts', torres: 'torres', conflictos: 'conflictos', negra: 'lista_negra', personal: 'personal' };
+const nivel = sec => S.sistema ? (S.sistema.gerente ? 3 : ((S.sistema.permisos || {})[sec] || 0)) : 0;
+function aplicarPermisos() {
+  const sis = S.sistema || {};
+  $$('.tab').forEach(t => { const sec = TAB_SECCION[t.dataset.v]; if (sec) t.hidden = nivel(sec) < 1; });
+  $('[data-v="usuarios"]').hidden = !sis.gerente;
+  const ed = (sel, sec) => $$(sel).forEach(el => { el.hidden = nivel(sec) < 3; });
+  ed('#hs-editor, #hs-asignar', 'hosts'); ed('#negra-agregar', 'lista_negra'); ed('#zona, #f-doc', 'documentos'); ed('#f-torre', 'torres'); ed('#f-emp', 'personal');
+  const nom = Object.keys(sis.permisos || {}).some(k => k.startsWith('nom_') && nivel(k) > 0);
+  $('#b-nomina').hidden = !(nom && (sis.url_nomina || DEMO()));
+  $('#b-salir').hidden = $('#b-clave').hidden = !CFG.sesion;
+  const actual = $('.tab[aria-selected="true"]');
+  if (actual && actual.hidden) { const primera = $$('.tab').find(t => !t.hidden); if (primera) vista(primera.dataset.v); }
+}
+function mostrarLogin(msg) {
+  $('#login').hidden = false; $('#l-msg').textContent = msg || ''; $('#l-portero').hidden = true;
+  $('#l-lobby').href = BASE_PAGINAS() + 'index.html';
+  setTimeout(() => $('#l-correo').focus(), 50);
+}
+$('#f-login').addEventListener('submit', async e => {
+  e.preventDefault(); $('#l-entrar').disabled = true; $('#l-msg').textContent = 'Entrando…'; $('#l-portero').hidden = true;
+  try {
+    const r = await fetch(CFG.url, { method: 'POST', body: JSON.stringify({ accion: 'login', correo: $('#l-correo').value.trim(), clave: $('#l-clave').value, origen: 'panel' }) }).then(x => x.json());
+    if (!r.ok) throw new Error(r.error);
+    if (r.portero) { $('#l-portero').hidden = false; $('#l-portero').innerHTML = esc(r.mensaje) + ' <a href="' + esc(r.url_lobby || BASE_PAGINAS() + 'index.html') + '">Abrir la app del lobby</a>'; $('#l-msg').textContent = ''; return; }
+    CFG.sesion = r.sesion; CFG.admin = ''; guardarCfg(); $('#l-clave').value = ''; $('#l-msg').textContent = '';
+    $('#login').hidden = true;
+    if (r.usuario.debe_cambiar) await pedirClave(true);
+    iniciar();
+  } catch (err) { $('#l-msg').textContent = err.message; } finally { $('#l-entrar').disabled = false; }
+});
+function pedirClave(obligatoria) {
+  return new Promise(res => {
+    const d = $('#dlg-clave'); $('#f-clave').reset();
+    $('#k-titulo').textContent = obligatoria ? 'Cree su clave personal' : 'Cambiar clave';
+    $('#k-nota').textContent = (obligatoria ? 'Es su primera entrada o le restablecieron la clave. ' : '') + 'Mínimo 8 caracteres, con letras y números. No la comparta.';
+    $('#k-actual-c').hidden = obligatoria; $('#k-cancelar').hidden = obligatoria;
+    d.onclose = () => res(); d.oncancel = ev => { if (obligatoria) ev.preventDefault(); };
+    d.showModal();
+  });
+}
+$('#f-clave').addEventListener('submit', async e => {
+  if (e.submitter && e.submitter.value === 'cancelar') return;
+  e.preventDefault();
+  if ($('#k-nueva').value !== $('#k-repite').value) return toast('Las dos claves nuevas no coinciden.', 'error');
+  try { const r = await api('cambiar_clave', { actual: $('#k-actual').value, nueva: $('#k-nueva').value }); CFG.sesion = r.sesion; guardarCfg(); $('#dlg-clave').close(); toast('Clave guardada. Úsela la próxima vez que entre.'); }
+  catch (err) { toast(err.message, 'error'); }
+});
+$('#b-clave').addEventListener('click', () => pedirClave(false));
+$('#b-salir').addEventListener('click', () => { CFG.sesion = ''; guardarCfg(); S.sistema = null; mostrarLogin('Sesión cerrada.'); });
+$('#b-nomina').addEventListener('click', async () => {
+  try {
+    const r = await api('sso_ticket');
+    if (!r.url_nomina) return toast('La dirección de la Nómina no está configurada (URL_NOMINA en Config).', 'error');
+    window.open(r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket), '_blank', 'noopener');
+  } catch (err) { toast(err.message, 'error'); }
+});
 
 async function cargarSistema() {
   try {
@@ -491,7 +639,10 @@ async function cargarSistema() {
     $('#pill-con').innerHTML = '<span class="p' + (DEMO() ? ' demo' : '') + '"></span><span>' + (DEMO() ? 'Demostración' : 'En línea · v' + esc(S.sistema.version)) + '</span>';
     const g = S.sistema.rol === 'gerente';
     $('#pill-rol').className = 'pill' + (g ? ' rol-gerente' : '');
-    $('#pill-rol').textContent = (g ? 'Gerente · ' : 'Equipo · ') + (S.sistema.nombre || '');
+    const SEG = { gerente: 'Gerente General', gestores: 'Gestor de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad' };
+    $('#pill-rol').className = 'pill' + (S.sistema.gerente ? ' rol-gerente' : '');
+    $('#pill-rol').textContent = (SEG[S.sistema.segmento] || (g ? 'Gerente' : 'Equipo')) + ' · ' + (S.sistema.nombre || '') + (S.sistema.torres ? ' · ' + S.sistema.torres.join(', ') : '');
+    aplicarPermisos();
   } catch (e) {
     $('#pill-con').innerHTML = '<span class="p demo"></span><span>Sin acceso</span>'; $('#pill-rol').textContent = '—';
     toast(e.message + ' Revise «Ajustes».', 'error');
@@ -598,6 +749,7 @@ function pintarFicha(f) {
     (f.visitas.map(v => '<tr><td class="mono">' + fmtFH(v.entrada) + '</td><td>' + esc(v.categoria) + '</td><td>' + esc(v.nombre) + (v.foto ? ' · <a href="' + esc(v.foto) + '" target="_blank" rel="noopener">foto</a>' : '') + '</td><td class="mono">' + esc(v.documento) + '</td></tr>').join('') || '<tr><td colspan="4" class="nota">Sin visitas.</td></tr>') + '</tbody></table></div></div>' +
     '<div class="card"><h2>Faltas de sus visitantes</h2>' + (f.faltas.length ? f.faltas.map(x => '<div class="chip ' + (x.gravedad === 'grave' ? 'rojo' : 'ambar') + '" style="margin:0 6px 6px 0">' + fmtFecha(x.fecha) + ' · ' + esc(x.nombre) + ' · ' + esc(x.tipo) + '</div>').join('') : '<div class="vacio">Sin faltas.</div>') + '</div></div>';
   $('#ficha').innerHTML = h;
+  if ($('#f-cap')) $('#f-cap').hidden = nivel('apartamento') < 3;
   $('#f-cap').onsubmit = async e => { e.preventDefault();
     try { const r = await api('apartamento_guardar', { torre: f.torre, apartamento: f.apartamento, ocupacion_maxima: Number($('#c-max').value) || 0, residentes_habituales: Number($('#c-res').value) || 0 });
       toast('Capacidad guardada: ocupación ' + r.ocupacion.total + (r.ocupacion.max ? ' de ' + r.ocupacion.max : '') + '. El bot y el lobby ya la aplican.'); }
@@ -694,7 +846,7 @@ $('#f-doc').addEventListener('submit', async e => {
 });
 async function cargarDocs() { try { S.docs = await api('documentos'); pintarDocs(); } catch (e) { $('#docs').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; } }
 function pintarDocs() {
-  const d = S.docs, edit = d.puede_editar;
+  const d = S.docs, edit = d.puede_editar && nivel('documentos') >= 3;
   $('#doc-subir').hidden = !edit;
   $('#d-tipo').innerHTML = Object.keys(d.tipos).map(k => '<option value="' + k + '">' + esc(d.tipos[k]) + '</option>').join('');
   const prevT = $('#d-torre').value;
@@ -801,13 +953,13 @@ async function cargarNegra() {
   try { pintarNegra(await api('lista_negra')); } catch (e) { $('#negra').innerHTML = '<tr><td colspan="6">' + esc(e.message) + '</td></tr>'; }
 }
 function pintarNegra(r) {
-  const edit = r.puede_editar;
+  const edit = r.puede_editar && nivel('lista_negra') >= 3, borrar = !!(S.sistema && S.sistema.gerente);
   $('#negra-agregar').hidden = !edit;
   const torres = S.tablero ? S.tablero.torres.map(t => t.torre) : [];
   $('#n-torre').innerHTML = '<option value="">Todas las torres (también huéspedes)</option>' + torres.map(t => '<option>' + esc(t) + '</option>').join('');
   $('#n-sol').hidden = !r.solicitudes.length; $('#n-sol').textContent = r.solicitudes.length;
   $('#negra').innerHTML = r.lista.map(x => '<tr><td>' + esc(x.nombre || '—') + '</td><td class="mono">' + esc(x.documento) + '</td><td>' + esc(x.motivo) + '</td><td>' + esc(x.alcance === 'TODAS' ? 'Todas' : x.alcance) + '<br><span class="nota">' + x.origen.map(o => o === 'huespedes' ? 'huéspedes' : 'visitantes').join(' + ') + '</span></td><td>' +
-    (x.activo ? '<span class="chip rojo">Vetado</span>' : '<span class="chip">Retirado</span>') + '</td><td>' + (edit && x.activo && x.clave ? '<button class="btn chico" data-retirar="' + esc(x.clave) + '">Retirar</button>' : '') + '</td></tr>').join('') || '<tr><td colspan="6" class="nota">Nadie en la lista.</td></tr>';
+    (x.activo ? '<span class="chip rojo">Vetado</span>' : '<span class="chip">Retirado</span>') + '</td><td>' + (borrar && x.activo && x.clave ? '<button class="btn chico" data-retirar="' + esc(x.clave) + '">Retirar</button>' : '') + '</td></tr>').join('') || '<tr><td colspan="6" class="nota">Nadie en la lista.</td></tr>';
   $('#solicitudes').innerHTML = r.solicitudes.length ? r.solicitudes.map(s => '<div class="enc"><div><b>' + esc(s.nombre) + '</b> <span class="mono nota">' + esc(s.documento) + '</span><br><span class="nota">Host ' + esc(s.host) + ' · reserva ' + esc(s.reserva) + ' · ' + fmtFecha(s.fecha) + '</span><br>' + esc(s.motivo) + '</div>' +
     (edit ? '<div class="acciones"><button class="btn peligro chico" data-sol="' + esc(s.id) + '" data-d="aceptar">Vetar</button><button class="btn chico" data-sol="' + esc(s.id) + '" data-d="rechazar">Rechazar</button></div>' : '<span></span>') + '</div>').join('')
     : '<div class="vacio">Sin solicitudes pendientes.</div>';
@@ -826,13 +978,13 @@ async function cargarHosts() {
 }
 function pintarHosts() {
   const r = S.hosts; if (!r) return;
-  const g = r.gerente, q = ($('#hs-buscar').value || '').trim().toLowerCase();
+  const g = nivel('hosts') >= 3, q = ($('#hs-buscar').value || '').trim().toLowerCase();
   $('#hs-editor').hidden = !g; $('#hs-asignar').hidden = !g;
   const lista = r.hosts.filter(h => !q || [h.nombre, h.telefono, h.id_host].concat(h.unidades.map(u => u.apto + ' ' + u.codigo + ' ' + u.torre)).join(' ').toLowerCase().includes(q));
   $('#hosts').innerHTML = lista.map(h => '<tr><td><b>' + esc(h.nombre) + '</b><br><span class="nota mono">' + esc(h.id_host) + '</span> <span class="chip ' + (h.tipo === 'propietario' ? 'oro' : 'teal') + '">' + (h.tipo === 'propietario' ? 'Propietario' : 'Host') + '</span>' +
     (g ? '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn chico" data-editar-host="' + esc(h.id_host) + '">Editar</button>' + (h.estatus !== 'suspendido' ? '<button class="btn chico" data-invitar="' + esc(h.id_host) + '">Invitar</button>' : '') + '</div>' : '') + '</td>' +
     '<td class="mono">' + esc(h.telefono) + '</td><td>' + (h.unidades.map(u => '<span class="chip">' + esc((u.torre ? u.torre.replace(/^Torre\s+/i, '') + ' · ' : '') + u.apto) +
-      (g ? ' <button class="x" title="Quitar" data-quitar="' + esc(h.id_host) + '|' + esc(u.codigo) + '">✕</button>' : '') + '</span>').join(' ') || '<span class="nota">Ninguno</span>') + '</td>' +
+      (S.sistema && S.sistema.gerente ? ' <button class="x" title="Quitar (solo Gerente General)" data-quitar="' + esc(h.id_host) + '|' + esc(u.codigo) + '">✕</button>' : '') + '</span>').join(' ') || '<span class="nota">Ninguno</span>') + '</td>' +
     '<td>' + (h.estatus === 'suspendido' ? '<span class="chip rojo">Suspendido</span>' : '<span class="chip verde">Activo</span>') + '<br>' +
       (h.vinculado ? '<span class="chip verde" style="margin-top:6px">Telegram ✓</span>' : '<span class="chip ambar" style="margin-top:6px" title="Aún no compartió su número en el bot">Sin Telegram</span>') + '</td></tr>').join('')
     || '<tr><td colspan="4" class="nota">' + (q ? 'Nadie coincide con la búsqueda.' : 'Todavía no hay hosts. Cree el primero a la derecha.') + '</td></tr>';
@@ -898,6 +1050,72 @@ $('#f-asignar').addEventListener('submit', async e => {
   } catch (err) { toast(err.message + (err.codigo === 'CONFLICTO' ? ' Marque «transferir» si corresponde.' : ''), 'error'); }
 });
 
+// ------------------------------------------------------------------ Usuarios y accesos (solo Gerente General)
+const NOMBRES_NIVEL = ['Oculto', 'Ver', 'Profundizar', 'Editar'];
+async function cargarUsuarios() {
+  try { S.usuarios = await api('usuarios'); pintarUsuarios(); } catch (e) { $('#usuarios').innerHTML = '<tr><td colspan="4">' + esc(e.message) + '</td></tr>'; }
+}
+function pintarUsuarios() {
+  const r = S.usuarios; if (!r) return;
+  const prevSeg = $('#u-segmento').value || 'gestores';
+  $('#u-segmento').innerHTML = Object.entries(r.segmentos).filter(([k]) => k !== 'gerente').concat([['gerente', r.segmentos.gerente]]).map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('');
+  $('#u-segmento').value = prevSeg;
+  const torres = S.tablero ? S.tablero.torres.map(t => t.torre) : [];
+  $('#u-torres-lista').innerHTML = ['TODAS'].concat(torres).map(t => '<option value="' + esc(t) + '">').join('');
+  $('#usuarios').innerHTML = r.usuarios.map(u => '<tr><td><b>' + esc(u.nombre) + '</b><br><span class="nota">' + esc(u.correo) + '</span>' +
+    '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn chico" data-u-editar="' + esc(u.id) + '">Editar</button>' +
+    (u.gerente && u.id === (S.sistema && S.sistema.id) ? '' : '<button class="btn chico" data-u-clave="' + esc(u.id) + '">Nueva clave</button>') +
+    (u.id === (S.sistema && S.sistema.id) || u.gerente ? '' : '<button class="btn chico peligro" data-u-eliminar="' + esc(u.id) + '">Eliminar</button>') + '</div></td>' +
+    '<td><span class="chip ' + (u.gerente ? 'oro' : 'teal') + '">' + esc(u.segmento_nombre) + '</span></td><td>' + esc(u.torres_texto) + '</td><td>' +
+    (!u.activo ? '<span class="chip">Inactivo</span>' : u.bloqueado ? '<span class="chip rojo">Bloqueado</span>' : u.debe_cambiar ? '<span class="chip ambar">Clave temporal</span>' : '<span class="chip verde">Activo</span>') +
+    (u.ultimo_acceso ? '<br><span class="nota">Entró ' + fmtFH(u.ultimo_acceso) + '</span>' : '<br><span class="nota">Nunca ha entrado</span>') + '</td></tr>').join('');
+  const m = r.matriz, sel = (k, sg) => '<select data-m="' + k + '|' + sg + '" class="nv' + m[k][sg] + '">' + NOMBRES_NIVEL.map((n, i) => '<option value="' + i + '"' + (m[k][sg] === i ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>';
+  let grupo = '';
+  $('#matriz').innerHTML = r.secciones.map(x => {
+    const cab = x.sistema !== grupo ? '<tr class="grupo"><td colspan="5">' + (x.sistema === 'panel' ? 'Panel Stili' : 'Nómina') + '</td></tr>' : ''; grupo = x.sistema;
+    return cab + '<tr><td class="sec"><b>' + esc(x.nombre) + '</b><span>' + esc(x.detalle) + '</span></td><td class="nv3">Todo</td><td>' + sel(x.clave, 'gestores') + '</td><td>' + sel(x.clave, 'rrhh') + '</td><td>' + sel(x.clave, 'contabilidad') + '</td></tr>';
+  }).join('');
+}
+function editarUsuario(u) {
+  $('#u-id').value = u ? u.id : ''; $('#u-nombre').value = u ? u.nombre : ''; $('#u-correo').value = u ? u.correo : '';
+  $('#u-segmento').value = u ? u.segmento : 'gestores'; $('#u-torres').value = u ? u.torres_texto : 'TODAS'; $('#u-activo').checked = u ? u.activo : true;
+  $('#u-activo-c').hidden = !u; $('#u-cancelar').hidden = !u; $('#u-guardar').textContent = u ? 'Guardar cambios' : 'Crear usuario';
+  $('#u-titulo').textContent = u ? 'Editar · ' + u.nombre : 'Nuevo usuario';
+}
+function mostrarTemporal(r) {
+  const u = r.usuarios.find(x => x.id === r.id); if (!r.clave_temporal || !u) return;
+  $('#u-temp').hidden = false; $('#u-temp-nombre').textContent = u.nombre; $('#u-temp-clave').textContent = r.clave_temporal; $('#u-temp-correo').textContent = u.correo;
+  $('#u-temp-url').textContent = BASE_PAGINAS() + 'admin.html';
+  $('#u-temp').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+$('#u-temp-copiar').addEventListener('click', async () => {
+  const t = 'Hola ' + $('#u-temp-nombre').textContent.split(' ')[0] + ', este es tu acceso al Panel Stili y a la Nómina.\nEntrada: ' + $('#u-temp-url').textContent + '\nUsuario: ' + $('#u-temp-correo').textContent +
+    '\nClave temporal: ' + $('#u-temp-clave').textContent + '\nAl entrar, el sistema te pedirá crear tu clave personal. No la compartas.';
+  try { await navigator.clipboard.writeText(t); toast('Instrucciones copiadas.'); } catch (e) { toast('No se pudo copiar; cópielas a mano.', 'error'); }
+});
+$('#u-cancelar').addEventListener('click', () => editarUsuario(null));
+$('#f-usuario').addEventListener('submit', async e => {
+  e.preventDefault();
+  const usuario = { id: $('#u-id').value, nombre: $('#u-nombre').value.trim(), correo: $('#u-correo').value.trim(), segmento: $('#u-segmento').value, torres: $('#u-torres').value.trim(), activo: $('#u-activo').checked };
+  try { const r = await api('usuario_guardar', { usuario }); S.usuarios = r; pintarUsuarios(); editarUsuario(null);
+    toast(usuario.id ? 'Usuario actualizado.' : 'Usuario creado.'); mostrarTemporal(r); } catch (err) { toast(err.message, 'error'); }
+});
+$('#usuarios').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const u = S.usuarios.usuarios.find(x => x.id === (b.dataset.uEditar || b.dataset.uClave || b.dataset.uEliminar));
+  if (b.dataset.uEditar) return editarUsuario(u);
+  if (b.dataset.uClave) { try { const r = await api('usuario_clave_nueva', { id: u.id }); S.usuarios = r; pintarUsuarios(); toast('Clave restablecida y sesiones cerradas.'); mostrarTemporal(r); } catch (err) { toast(err.message, 'error'); } return; }
+  if (b.dataset.uEliminar) {
+    if (!b.dataset.ok) { b.dataset.ok = '1'; b.textContent = '¿Eliminar a ' + u.nombre.split(' ')[0] + '?'; setTimeout(() => { delete b.dataset.ok; b.textContent = 'Eliminar'; }, 4000); return; }
+    try { const r = await api('usuario_eliminar', { id: u.id }); S.usuarios = r; pintarUsuarios(); toast('Usuario eliminado.'); } catch (err) { toast(err.message, 'error'); }
+  }
+});
+$('#matriz').addEventListener('change', e => { const sl = e.target.closest('select'); if (sl) sl.className = 'nv' + sl.value; });
+$('#m-guardar').addEventListener('click', async () => {
+  const matriz = {}; $$('#matriz select').forEach(sl => { const [k, sg] = sl.dataset.m.split('|'); (matriz[k] = matriz[k] || {})[sg] = Number(sl.value); });
+  try { S.usuarios = await api('accesos_guardar', { matriz }); pintarUsuarios(); toast('Permisos guardados. Se aplican en la próxima acción de cada usuario.'); } catch (err) { toast(err.message, 'error'); }
+});
+
 // ------------------------------------------------------------------ Personal
 async function cargarPersonal() {
   try {
@@ -932,11 +1150,12 @@ function pintarAjustes() {
 }
 $('#f-ajustes').addEventListener('submit', async e => {
   e.preventDefault();
-  CFG.url = $('#c-url').value.trim(); CFG.admin = $('#c-admin').value.trim(); CFG.paginas = $('#c-paginas').value.trim(); guardarCfg();
+  CFG.url = $('#c-url').value.trim(); CFG.admin = $('#c-admin').value.trim(); CFG.paginas = $('#c-paginas').value.trim(); if (CFG.admin) CFG.sesion = ''; guardarCfg();
+  if (!DEMO() && !CFG.sesion && !CFG.admin) { mostrarLogin(); return; }
   await cargarSistema(); $('#c-estado').textContent = S.sistema ? 'Conectado como ' + (S.sistema.rol === 'gerente' ? 'Gerente' : 'equipo') + ' · servicio v' + S.sistema.version + (S.sistema.checkin ? ' · hoja del Check-in enlazada' : ' · falta CHECKIN_SHEET_ID') : ''; pintarAjustes();
 });
 $('#c-demo').addEventListener('click', () => { CFG.url = ''; guardarCfg(); cargarSistema(); pintarAjustes(); toast('Modo demostración.'); });
-$('#c-demo-rol').addEventListener('click', e => { const b = e.target.closest('[data-rol]'); if (!b) return; CFG.demoRol = b.dataset.rol; guardarCfg(); cargarSistema(); pintarAjustes(); toast('Ahora ve como ' + (CFG.demoRol === 'gerente' ? 'Gerente' : 'equipo') + '.'); });
+$('#c-demo-rol').addEventListener('click', e => { const b = e.target.closest('[data-rol]'); if (!b) return; CFG.demoRol = b.dataset.rol; guardarCfg(); cargarSistema(); pintarAjustes(); toast('Ahora ve como ' + ({ gerente: 'Gerente General', gestores: 'Gestor de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad' }[CFG.demoRol] || CFG.demoRol) + '.'); });
 
 // ------------------------------------------------------------------ Demostración (datos de ejemplo)
 const Demo = (() => {
@@ -1011,6 +1230,36 @@ const Demo = (() => {
     return { documentos: JSON.parse(JSON.stringify(docs)), temas: TEMAS, tipos: TIPOS, torres: torres.map(t => t.torre), temas_cubiertos: cub, puede_editar: g, faltan: ['salida_huesped', 'horario_trabajo'].filter(k => !cub[k]) };
   }
   const err = (m, c) => { const e = new Error(m); e.codigo = c; return e; };
+  const SEGMENTOS_D = { gerente: 'Gerente General', gestores: 'Gestores de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad / CxC / CxP' };
+  const SECCIONES_D = [
+    ['tablero', 'panel', 'Tablero y actividad', 'Ver: ocupación y actividad de las torres.', [1, 1, 1]],
+    ['apartamento', 'panel', 'Ficha del apartamento', 'Ver: datos generales con teléfonos y documentos ocultos. Profundizar: teléfonos, documentos, fotos, código de puerta y wifi. Editar: ocupación máxima y residentes.', [1, 0, 0]],
+    ['hosts', 'panel', 'Hosts y propietarios', 'Ver: lista con teléfonos ocultos. Profundizar: datos completos. Editar: crear, editar y asignar apartamentos.', [1, 0, 0]],
+    ['encuestas', 'panel', 'Encuestas de propietarios', 'Editar: aprobar o rechazar respuestas.', [3, 0, 0]],
+    ['documentos', 'panel', 'Documentos y normas', 'Editar: subir reglamentos y clasificar artículos.', [1, 1, 0]],
+    ['torres', 'panel', 'Cargar torre', 'Editar: crear torres y apartamentos.', [0, 0, 0]],
+    ['conflictos', 'panel', 'Conflictos (R1–R5)', 'Editar: transferir unidades entre hosts.', [1, 0, 0]],
+    ['lista_negra', 'panel', 'Lista negra', 'Ver: nombres y motivos. Profundizar: documentos completos. Editar: agregar personas y decidir solicitudes.', [1, 1, 0]],
+    ['personal', 'panel', 'Personal y ponches', 'Ver: empleados y asistencia. Profundizar: cédulas completas. Editar: agregar empleados y cambiar PIN.', [0, 3, 1]],
+    ['nom_empleados', 'nomina', 'Nómina · Expedientes', 'Ver: lista. Profundizar: ficha con salario, pagos e historial. Editar: crear, editar e importar.', [0, 3, 1]],
+    ['nom_nominas', 'nomina', 'Nómina · Novedades y cálculo', 'Ver: lista de nóminas. Profundizar: detalle, Excel y volantes. Editar: crear nóminas, novedades y calcular.', [0, 3, 2]],
+    ['nom_aprobar', 'nomina', 'Nómina · Aprobar, pagar y banco', 'Editar: aprobar, marcar pagada y descargar el archivo del banco.', [0, 0, 0]],
+    ['nom_licencias', 'nomina', 'Nómina · Licencias', 'Profundizar: ver certificados médicos. Editar: registrar licencias.', [0, 3, 1]],
+    ['nom_vacaciones', 'nomina', 'Nómina · Vacaciones', 'Editar: registrar vacaciones.', [0, 3, 1]],
+    ['nom_prestamos', 'nomina', 'Nómina · Préstamos', 'Editar: crear y cancelar préstamos.', [0, 1, 2]],
+    ['nom_reportes', 'nomina', 'Nómina · Reportes legales', 'Ver: TSS, ISR, IR-13, DGT y otros reportes.', [0, 1, 2]],
+    ['nom_calculadoras', 'nomina', 'Nómina · Calculadoras', 'Ver: neto y prestaciones.', [0, 1, 1]],
+    ['nom_parametros', 'nomina', 'Nómina · Parámetros y empleadores', 'Ver: valores legales. Editar: parámetros, empleadores y feriados.', [0, 1, 1]],
+  ].map(([clave, sistema, nombre, detalle, def]) => ({ clave, sistema, nombre, detalle, def }));
+  const matrizD = {}; SECCIONES_D.forEach(x => { matrizD[x.clave] = { gestores: x.def[0], rrhh: x.def[1], contabilidad: x.def[2] }; });
+  const usuariosD = [
+    { id: 'U001', nombre: 'Ronald Larrauri', correo: 'ronald@stili.do', segmento: 'gerente', torres_texto: 'TODAS', activo: true, debe_cambiar: false, ultimo_acceso: H(0.1) },
+    { id: 'U002', nombre: 'Danna Carolina Ramírez', correo: 'danna@stili.do', segmento: 'gestores', torres_texto: 'Torre Niza 7, Torre Esperilla 17', activo: true, debe_cambiar: false, ultimo_acceso: H(3) },
+    { id: 'U003', nombre: 'Anny Tejada', correo: 'anny@stili.do', segmento: 'rrhh', torres_texto: 'TODAS', activo: true, debe_cambiar: true, ultimo_acceso: '' },
+    { id: 'U004', nombre: 'Lissette López', correo: 'lissette@stili.do', segmento: 'contabilidad', torres_texto: 'TODAS', activo: true, debe_cambiar: false, ultimo_acceso: H(26) }];
+  const vistaUsuariosD = () => ({ segmentos: SEGMENTOS_D, niveles: ['Oculto', 'Ver', 'Profundizar', 'Editar'], matriz: JSON.parse(JSON.stringify(matrizD)),
+    secciones: SECCIONES_D.map(({ clave, sistema, nombre, detalle }) => ({ clave, sistema, nombre, detalle })),
+    usuarios: usuariosD.map(u => Object.assign({}, u, { gerente: u.segmento === 'gerente', segmento_nombre: SEGMENTOS_D[u.segmento], bloqueado: false })) });
   const hostsD = [
     { id_host: 'H004', nombre: 'Carlos Peña', tipo: 'host', telefono: '829-555-2020', correo: 'carlos@correo.do', documento: '402-1234567-8', notas: '', estatus: 'aprobado', vinculado: true,
       unidades: [{ codigo: 'ESP17-5D', torre: 'Torre Esperilla 17', apto: '5D' }, { codigo: 'NIZA7-8B', torre: 'Torre Niza 7', apto: '8B' }] },
@@ -1021,10 +1270,23 @@ const Demo = (() => {
     telefono: g ? h.telefono : '•••' + h.telefono.slice(-4), documento: g ? h.documento : (h.documento ? '•••' + h.documento.slice(-4) : ''), correo: g ? h.correo : '', notas: g ? h.notas : '' })) });
   async function llamar(accion, d) {
     await new Promise(r => setTimeout(r, 120));
-    const g = CFG.demoRol !== 'equipo';
+    const g = CFG.demoRol === 'gerente' || !CFG.demoRol;
     const soloG = () => { if (!g) throw err('Solo el Gerente puede cambiar los documentos y normas.', 'SOLO_GERENTE'); };
     switch (accion) {
-      case 'sistema': return { version: '1.6.0', checkin: true, rol: g ? 'gerente' : 'equipo', nombre: g ? 'Ronald Larrauri' : 'Equipo Stili' };
+      case 'sistema': { const seg = SEGMENTOS_D[CFG.demoRol] ? CFG.demoRol : 'gerente'; const p = {}; SECCIONES_D.forEach(x => { p[x.clave] = seg === 'gerente' ? 3 : matrizD[x.clave][seg]; });
+        return { version: '1.7.0', checkin: true, rol: g ? 'gerente' : 'equipo', nombre: { gerente: 'Ronald Larrauri', gestores: 'Danna Ramírez', rrhh: 'Anny Tejada', contabilidad: 'Lissette López' }[seg],
+          gerente: seg === 'gerente', segmento: seg, permisos: p, torres: seg === 'gestores' ? ['Torre Niza 7', 'Torre Esperilla 17'] : null, id: seg === 'gerente' ? 'U001' : 'U00X', url_nomina: '' }; }
+      case 'sso_ticket': throw err('En la demostración la Nómina no está conectada. Con el sistema real, este botón la abre sin pedir clave.');
+      case 'usuarios': if (!g) throw err('Solo el Gerente General puede hacer esto.', 'SOLO_GERENTE'); return vistaUsuariosD();
+      case 'usuario_guardar': { if (!g) throw err('Solo el Gerente General puede hacer esto.', 'SOLO_GERENTE'); const u = d.usuario;
+        if (!u.nombre || u.nombre.length < 3) throw err('Escriba el nombre completo.'); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(u.correo)) throw err('Escriba un correo válido: será su usuario.');
+        if (usuariosD.some(x => x.id !== u.id && x.correo.toLowerCase() === u.correo.toLowerCase())) throw err('Ya existe un usuario con ese correo.', 'CONFLICTO');
+        let x = usuariosD.find(y => y.id === u.id), temporal = ''; if (!x) { x = { id: 'U00' + (usuariosD.length + 1), debe_cambiar: true, ultimo_acceso: '' }; usuariosD.push(x); temporal = 'kzmhqa7395'; }
+        Object.assign(x, { nombre: u.nombre, correo: u.correo.toLowerCase(), segmento: u.segmento, torres_texto: u.segmento === 'gerente' ? 'TODAS' : (u.torres || 'TODAS'), activo: u.activo !== false });
+        return Object.assign(vistaUsuariosD(), { clave_temporal: temporal, id: x.id }); }
+      case 'usuario_clave_nueva': { const x = usuariosD.find(y => y.id === d.id); x.debe_cambiar = true; return Object.assign(vistaUsuariosD(), { clave_temporal: 'pwtrnc4826', id: x.id }); }
+      case 'usuario_eliminar': { const i = usuariosD.findIndex(y => y.id === d.id); if (usuariosD[i].gerente) throw err('No puede eliminar su propio usuario.'); usuariosD.splice(i, 1); return vistaUsuariosD(); }
+      case 'accesos_guardar': { Object.entries(d.matriz).forEach(([k, v]) => Object.assign(matrizD[k], v)); return vistaUsuariosD(); }
       case 'tablero': return { torres: JSON.parse(JSON.stringify(torres)), categorias: cats, conflictos, actividad, checkin_conectado: true };
       case 'conflictos': return { conflictos };
       case 'apartamento_guardar': { const max = d.ocupacion_maxima, res = d.residentes_habituales;
@@ -1091,14 +1353,17 @@ const Demo = (() => {
 })();
 
 // ------------------------------------------------------------------ Inicio
-(async () => {
+async function iniciar() {
   await cargarSistema();
-  try { S.docs = await api('documentos'); } catch (e) { /* sin documentos */ }
-  await cargarTablero();
-  const inicial = (location.hash || '').slice(1);
-  vista(['tablero', 'apto', 'documentos', 'encuestas', 'torres', 'conflictos', 'negra', 'personal', 'ajustes'].includes(inicial) ? inicial : (CFG.vista || 'tablero'));
-  setInterval(() => { if (!$('#v-tablero').hidden && !document.hidden) cargarTablero(); }, 60000);
-})();
+  if (!S.sistema) return;
+  if (nivel('documentos') > 0) { try { S.docs = await api('documentos'); } catch (e) { /* sin documentos */ } }
+  if (nivel('tablero') > 0) await cargarTablero();
+  const inicial = (location.hash || '').slice(1), pedida = ['tablero', 'apto', 'documentos', 'encuestas', 'hosts', 'torres', 'conflictos', 'negra', 'personal', 'usuarios', 'ajustes'].includes(inicial) ? inicial : (CFG.vista || 'tablero');
+  const tab = $('.tab[data-v="' + pedida + '"]');
+  vista(tab && !tab.hidden ? pedida : (($$('.tab').find(t => !t.hidden) || {}).dataset || {}).v || 'ajustes');
+  if (!iniciar.reloj) iniciar.reloj = setInterval(() => { if (S.sistema && !$('#v-tablero').hidden && !document.hidden) cargarTablero(); }, 60000);
+}
+if (!DEMO() && !CFG.sesion && !CFG.admin) mostrarLogin(); else iniciar();
 </script>
 </body>
 </html>
