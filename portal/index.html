@@ -4,38 +4,38 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Portal Stili</title>
-<meta name="description" content="Entrada única del equipo de Stili Group: Panel, Nómina y bots de Telegram.">
-<meta name="theme-color" content="#13293D">
+<meta name="description" content="Entrada única del equipo de Stili Group: Panel, Nómina, bots de Telegram, Claude y recursos de marca.">
+<meta name="theme-color" content="#003A75">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="favicon.png">
 <link rel="apple-touch-icon" href="icono-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
 <script src="../config.js"></script>
 <style>
 :root {
   --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
-  --navy: #13293D; --teal: #0F7C7A; --teal-suave: #DCEFEE; --gold: #B8913A; --gold-suave: #F6EDD6; --crit: #B3261E; --crit-suave: #FBE3E1;
+  --navy: #003A75; --teal: #29417F; --teal-suave: #E3E8F4; --gold: #B8880C; --gold-suave: #F6EDD6; --crit: #B3261E; --crit-suave: #FBE3E1;
   --r: 14px; --sombra: 0 1px 2px rgba(19,41,61,.06), 0 4px 16px rgba(19,41,61,.06);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
-    --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18;
+    --navy: #002B57; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18;
     --sombra: none;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
-  --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18; --sombra: none;
+  --navy: #002B57; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18; --sombra: none;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--bg); color: var(--fg); font-family: Archivo, system-ui, sans-serif; font-size: 15px; line-height: 1.45; min-height: 100vh; }
+body { background: var(--bg); color: var(--fg); font-family: Montserrat, "Segoe UI", system-ui, sans-serif; font-size: 15px; line-height: 1.45; min-height: 100vh; }
 button, input { font: inherit; }
 :focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
-header.barra { background: #13293D; color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #C9A54C; }
+header.barra { background: #003A75; color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #DCB40C; }
 header.barra img { width: 34px; height: 34px; border-radius: 8px; }
 header.barra b { font-size: 17px; letter-spacing: .02em; }
 header.barra span { color: #C9D3DF; font-size: 13px; }
@@ -69,6 +69,20 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
 .nota { color: var(--muted); font-size: 13px; }
 .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #13293D; color: #fff; padding: 10px 16px; border-radius: 10px; max-width: calc(100% - 32px); z-index: 9; }
 .toast.error { background: #B3261E; }
+.recursos { display: grid; gap: 18px; }
+.grupo h3 { font-size: 15px; margin: 0 0 8px; color: var(--fg); }
+.archivos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.archivo { display: flex; flex-direction: column; text-decoration: none; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; box-shadow: var(--sombra); transition: border-color .15s; }
+.archivo:hover { border-color: var(--teal); }
+.archivo .vista { height: 110px; display: grid; place-items: center; background: #fff; border-bottom: 1px solid var(--line); }
+.archivo .vista.oscura { background: #003A75; }
+.archivo .vista img { max-width: 88%; max-height: 96px; object-fit: contain; }
+.archivo .vista .tipo { font-weight: 700; font-size: 13px; letter-spacing: .08em; color: #003A75; background: var(--gold-suave); border-radius: 8px; padding: 8px 12px; }
+.archivo .txt { padding: 10px 12px 12px; }
+.archivo b { display: block; font-size: 14px; }
+.archivo small { color: var(--muted); font-size: 12px; }
+.claude-c { margin-top: 26px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid #DCB40C; border-radius: var(--r); padding: 16px; box-shadow: var(--sombra); }
+.claude-c p { margin: 0; flex: 1 1 280px; }
 [hidden] { display: none !important; }
 @media (max-width: 520px) { header.barra span { display: none; } h1 { font-size: 21px; } }
 </style>
@@ -83,6 +97,7 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
 <main>
   <section id="login" hidden>
     <div class="card">
+      <img src="logo.png" alt="Stili Group" style="width:190px;display:block;margin-bottom:14px">
       <h1>Entrar</h1>
       <p class="sub">Use su correo de Stili y su clave (la misma del Panel y la Nómina).</p>
       <form id="f-login">
@@ -113,6 +128,13 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
     <p class="sub" id="perfil"></p>
     <div class="tiles" id="tiles"></div>
     <div id="bots-c" hidden><h2>Bots de Telegram</h2><div class="tiles" id="bots"></div></div>
+    <div class="claude-c" id="claude-c">
+      <p><b>Claude · asistente de IA del equipo</b><br><span class="nota">Redacte comunicados y circulares, revise contratos y actas, resuma correos y resuelva dudas del día a día. Entre con su cuenta de Claude de Stili. No pegue claves ni datos de salud de empleados.</span></p>
+      <a class="btn primario" href="https://claude.ai" target="_blank" rel="noopener" style="text-decoration:none">Abrir Claude</a>
+    </div>
+    <div id="recursos-c"><h2>Recursos Stili · banco de descargables</h2>
+      <p class="nota" style="margin:-4px 0 14px">Archivos oficiales de la línea gráfica. El logo se usa siempre tal como viene: no se redibuja, no se gira y no se le cambian los colores. Su firma de correo, su foto de WhatsApp y su tarjeta personales las crea la Nómina; pídalas a RRHH.</p>
+      <div class="recursos" id="recursos"></div></div>
     <div class="instalar" id="instalar">
       <p><b>Instale el Portal en esta computadora</b><br><span class="nota" id="inst-texto">Queda como una aplicación con su ícono en el escritorio y en el menú Inicio.</span></p>
       <button class="btn primario" id="b-instalar" hidden>Instalar</button>
@@ -211,6 +233,41 @@ document.addEventListener('click', async e => {
     } catch (err) { if (ventana) ventana.close(); toast(err.message, 'error'); }
   }
 });
+
+
+// ---------------------------------------------------------------- Banco de descargables
+const RECURSOS = [
+  ['Logotipo', [
+    ['stili-logo-horizontal.png', 'Logo horizontal a color', 'Documentos, firmas y pantallas. Sobre blanco.', 1],
+    ['stili-logo-vertical-color.png', 'Logo vertical a color', 'Piezas verticales y uniformes.', 1],
+    ['stili-logo-vertical-blanco.png', 'Logo vertical en blanco', 'Sobre azul o fotos oscuras.', 1, 1],
+    ['stili-isotipo-perfil.png', 'Isotipo para perfil', 'Foto de perfil de redes y WhatsApp.', 1]]],
+  ['Papelería y comunicados', [
+    ['stili-hoja-timbrada.png', 'Hoja timbrada', 'Fondo oficial de cartas y comunicados (sin mármol).', 1],
+    ['stili-hoja-timbrada.pdf', 'Hoja timbrada · PDF', 'Para imprenta.'],
+    ['stili-plantilla-informaciones.docx', 'Plantilla de informaciones · Word', 'Avisos a residentes, lista para escribir.'],
+    ['stili-hoja-informativa.png', 'Hoja informativa', 'Fondo de avisos y displays.', 1],
+    ['stili-hoja-informativa.pdf', 'Hoja informativa · PDF', 'Para imprimir.'],
+    ['stili-sobre.pdf', 'Sobre', 'Arte del sobre para imprenta.'],
+    ['stili-folder.pdf', 'Folder', 'Arte del folder para imprenta.'],
+    ['stili-whatsapp-generica.png', 'Foto de WhatsApp «Operador Stili»', 'Para números de departamento u operación.', 1]]],
+  ['Presentaciones', [
+    ['stili-plantilla-presentacion.pdf', 'Plantilla de presentación', 'Las 5 portadas oficiales en un PDF.'],
+    ['stili-portada-presentacion-1.png', 'Portada 1', 'Mármol.', 1], ['stili-portada-presentacion-2.png', 'Portada 2', 'Banda azul.', 1],
+    ['stili-portada-presentacion-3.png', 'Portada 3', 'Banda amarilla.', 1], ['stili-portada-presentacion-4.png', 'Portada 4', 'Línea vertical azul.', 1],
+    ['stili-portada-presentacion-5.png', 'Portada 5', 'Logo al centro.', 1]]],
+  ['Marca y uniforme', [
+    ['montserrat-fuente-stili.zip', 'Fuente Montserrat', 'Las 18 variantes. Descomprima e instale con doble clic.'],
+    ['stili-construccion-de-marca.pdf', 'Construcción de marca', 'Filosofía, promesa y valores de Stili.'],
+    ['stili-uniforme-1.png', 'Uniforme 1', 'Referencia del uniforme del personal.', 1], ['stili-uniforme-2.png', 'Uniforme 2', 'Referencia del uniforme del personal.', 1]]]];
+function pintarRecursos() {
+  $('#recursos').innerHTML = RECURSOS.map(([grupo, items]) => '<div class="grupo"><h3>' + esc(grupo) + '</h3><div class="archivos">' + items.map(([f, t, d, img, oscuro]) => {
+    const ext = f.split('.').pop().toUpperCase();
+    const vista = img ? '<img src="recursos/mini/' + f + '" alt="" loading="lazy">' : '<span class="tipo">' + ext + '</span>';
+    return '<a class="archivo" href="recursos/' + f + '" download><span class="vista' + (oscuro ? ' oscura' : '') + '">' + vista + '</span><span class="txt"><b>' + esc(t) + '</b><small>' + esc(d) + ' · ' + ext + '</small></span></a>';
+  }).join('') + '</div></div>').join('');
+}
+pintarRecursos();
 
 // ---------------------------------------------------------------- Instalar como aplicación
 let aviso = null;

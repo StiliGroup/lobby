@@ -7,32 +7,32 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#13293D">
 <meta name="description" content="Panel de administración de Stili Group: ocupación por torre, apartamentos, documentos y normas, encuestas, conflictos y personal.">
-<link rel="icon" href="icono-192.png">
+<link rel="icon" href="portal/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
 /* Layout: consola de administración — barra navy fija con pestañas; resumen arriba y detalle por torre debajo. Misma identidad que la app del lobby. */
 :root {
   --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
-  --navy: #13293D; --teal: #0F7C7A; --teal-suave: #DCEFEE; --gold: #B8913A; --gold-suave: #F6EDD6;
+  --navy: #003A75; --teal: #29417F; --teal-suave: #E3E8F4; --gold: #B8880C; --gold-suave: #F6EDD6;
   --ok: #1E7D4F; --ok-suave: #DDF1E6; --warn: #A86500; --warn-suave: #FCEBCF; --crit: #B3261E; --crit-suave: #FBE3E1;
   --sobre-oscuro: #FFFFFF; --sombra: 0 1px 2px rgba(19, 41, 61, .06), 0 4px 16px rgba(19, 41, 61, .06);
-  --f-ui: "Archivo", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --f-ui: "Montserrat", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --r: 10px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
-    --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A;
+    --navy: #002B57; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A;
     --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18;
     --sombra: 0 1px 2px rgba(0, 0, 0, .3); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
-  --navy: #0A1520; --teal: #3DB3AE; --teal-suave: #12332F; --gold: #D9B45E; --gold-suave: #33291A;
+  --navy: #002B57; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A;
   --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18;
   --sombra: 0 1px 2px rgba(0, 0, 0, .3); color-scheme: dark;
 }
@@ -50,7 +50,7 @@ h1, h2, h3 { text-wrap: balance; }
 .barra { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--navy); color: var(--sobre-oscuro); }
 .barra .fila { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-block: 10px; max-width: 1360px; margin: 0 auto; }
 .marca { display: flex; flex-direction: column; line-height: 1.15; margin-right: auto; min-width: 0; }
-.marca small { color: #C9A54C; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.marca small { color: #DCB40C; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 .marca b { font-size: 19px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 4px 11px; font-size: 13px; background: transparent; color: #fff; }
 .pill .p { width: 8px; height: 8px; border-radius: 50%; background: #4CC08A; }
@@ -205,7 +205,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
 <body>
 <header class="barra">
   <div class="fila gutter">
-    <div class="marca"><small>Stili Group · Administración</small><b>Panel Stili</b></div>
+    <img src="portal/icono-192.png" alt="" width="36" height="36" style="border-radius:8px;flex:0 0 auto"><div class="marca"><small>Stili Group · Administración</small><b>Panel Stili</b></div>
     <span class="pill" id="pill-con"><span class="p"></span><span>…</span></span>
     <span class="pill" id="pill-rol">…</span>
     <span style="flex:1"></span>
