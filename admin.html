@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Panel Stili</title>
+<title>Invitados y Huéspedes · Stili</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="theme-color" content="#13293D">
+<meta name="theme-color" content="#003A75">
 <meta name="description" content="Panel de administración de Stili Group: ocupación por torre, apartamentos, documentos y normas, encuestas, conflictos y personal.">
 <link rel="icon" href="portal/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -56,9 +56,11 @@ h1, h2, h3 { text-wrap: balance; }
 .pill .p { width: 8px; height: 8px; border-radius: 50%; background: #4CC08A; }
 .pill .p.demo { background: #E9A63A; }
 .pill.rol-gerente { border-color: #C9A54C; color: #F1DCA6; }
-.tabs { display: flex; gap: 2px; overflow-x: auto; max-width: 1360px; margin: 0 auto; scrollbar-width: none; }
+.tabs { display: flex; gap: 2px; overflow: visible; max-width: 1360px; margin: 0 auto; }
+.tabs > .tab, .tabs > .sm-mas { flex: 0 0 auto; }
+.tabs .sm-mas > button { color: rgba(255,255,255,.85); font-size: 15px; padding: 10px 14px 12px; }
 .tabs::-webkit-scrollbar { display: none; }
-.tab { background: none; border: 0; color: rgba(255,255,255,.72); padding: 10px 14px 12px; font-weight: 600; white-space: nowrap; border-bottom: 3px solid transparent; }
+.tab { background: none; border: 0; border-bottom: 3px solid transparent; color: rgba(255,255,255,.72); padding: 10px 14px 12px; font-weight: 600; white-space: nowrap; border-bottom: 3px solid transparent; }
 .tab[aria-selected="true"] { color: #fff; border-bottom-color: #C9A54C; }
 .tab .n { font-family: var(--f-mono); font-size: 12px; background: #B3261E; color: #fff; border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
 
@@ -199,13 +201,14 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
   .enc { grid-template-columns: 1fr; }
   .kpi b { font-size: 24px; }
 }
+@media (max-width: 640px) { .barra .pill { display: none; } .barra .fila { padding-block: 8px; } .marca b { font-size: 17px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
 <header class="barra">
   <div class="fila gutter">
-    <img src="portal/icono-192.png" alt="" width="36" height="36" style="border-radius:8px;flex:0 0 auto"><div class="marca"><small>Stili Group · Administración</small><b>Panel Stili</b></div>
+    <div class="marca"><small>Stili Group · Módulo</small><b id="titulo-modulo">Invitados y Huéspedes</b></div>
     <span class="pill" id="pill-con"><span class="p"></span><span>…</span></span>
     <span class="pill" id="pill-rol">…</span>
     <span style="flex:1"></span>
@@ -453,7 +456,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
     <div class="grid g2">
       <div class="card">
         <h2>Usuarios</h2>
-        <p class="nota" style="margin-top:0">Un usuario sirve para el Panel Stili y para la Nómina. Los porteros y supervisores no usan usuario: entran a la app del lobby con su cédula y PIN (sección Personal).</p>
+        <p class="nota" style="margin-top:0">Un usuario sirve para los tres módulos: Invitados y Huéspedes, Torres y Nómina. Los porteros y supervisores no usan usuario: entran a la app del lobby con su cédula y PIN (sección Personal).</p>
         <div class="tabla"><table><thead><tr><th>Nombre</th><th>Segmento</th><th>Torres</th><th>Estado</th></tr></thead><tbody id="usuarios"></tbody></table></div>
       </div>
       <div class="grid">
@@ -465,6 +468,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
             <label class="campo">Correo (es su usuario)<input type="email" id="u-correo" autocomplete="off"></label>
             <label class="campo">Segmento<select id="u-segmento"></select></label>
             <label class="campo">Torres<input type="text" id="u-torres" placeholder="TODAS" list="u-torres-lista"><datalist id="u-torres-lista"></datalist></label>
+            <label class="campo ancho" id="u-gestiona-c" hidden style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="u-gestiona" style="width:auto"> Puede gestionar usuarios y permisos (módulo Usuarios). Solo usted lo asigna o lo quita.</label>
             <label class="campo ancho" id="u-activo-c" hidden style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="u-activo" style="width:auto" checked> Activo (si lo desmarca, se cierra su sesión en todos los equipos)</label>
             <p class="nota ancho" style="margin:0">Torres: escriba TODAS o los nombres separados por coma. Un gestor solo verá esas torres.</p>
             <div class="ancho" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primario" type="submit" id="u-guardar">Crear usuario</button><button class="btn" type="button" id="u-cancelar" hidden>Cancelar edición</button></div>
@@ -554,6 +558,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
 </dialog>
 <div id="toast" class="toast" hidden role="status"></div>
 <script src="config.js"></script>
+<script src="stili-modulos.js"></script>
 <script>
 'use strict';
 const TZ = 'America/Santo_Domingo';
@@ -565,6 +570,9 @@ const fmtFH = d => d ? fmtFecha(d) + ' ' + fmtHora(d) : '';
 const diaClave = d => new Date(d).toLocaleDateString('en-CA', { timeZone: TZ });
 function leerCfg() { try { return JSON.parse(localStorage.getItem('stili-admin') || '{}'); } catch (e) { return {}; } }
 function guardarCfg() { try { localStorage.setItem('stili-admin', JSON.stringify(CFG)); } catch (e) { /* sin almacenamiento */ } }
+const MODULO = new URLSearchParams(location.search).get('m') === 'usuarios' ? 'usuarios' : 'invitados';
+const TABS_MODULO = { invitados: ['tablero', 'apto', 'documentos', 'encuestas', 'hosts', 'torres', 'conflictos', 'negra', 'personal', 'ajustes'], usuarios: ['usuarios', 'papelera'] };
+document.title = (MODULO === 'usuarios' ? 'Usuarios y permisos' : 'Invitados y Huéspedes') + ' · Stili';
 const CFG = Object.assign({ url: (window.STILI && window.STILI.servicio) || '', admin: '', sesion: '', paginas: '', demoRol: 'gerente', vista: 'tablero' }, leerCfg());
 const DEMO = () => !CFG.url;
 const S = { sistema: null, tablero: null, docs: null };
@@ -591,7 +599,8 @@ const BASE_PAGINAS = () => CFG.paginas || (location.protocol.startsWith('http') 
 function vista(v) {
   $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.v === v)));
   $$('main > section').forEach(s => { s.hidden = s.id !== 'v-' + v; });
-  CFG.vista = v; guardarCfg();
+  if (MODULO === 'invitados') { CFG.vista = v; guardarCfg(); }
+  if (window.StiliModulos) StiliModulos.mas($('.tabs'), { items: ':scope > .tab' });
   ({ tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, usuarios: cargarUsuarios, papelera: cargarPapelera, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => vista(t.dataset.v)));
@@ -602,13 +611,14 @@ const nivel = sec => S.sistema ? (S.sistema.gerente ? 3 : ((S.sistema.permisos |
 function aplicarPermisos() {
   const sis = S.sistema || {};
   $$('.tab').forEach(t => { const sec = TAB_SECCION[t.dataset.v]; if (sec) t.hidden = nivel(sec) < 1; });
-  $('[data-v="usuarios"]').hidden = !sis.gerente;
+  $('[data-v="usuarios"]').hidden = !(sis.gerente || sis.usuarios);
   $('[data-v="papelera"]').hidden = !sis.gerente;
+  $$('.tab').forEach(t => { if (!TABS_MODULO[MODULO].includes(t.dataset.v)) t.hidden = true; });
   const ed = (sel, sec) => $$(sel).forEach(el => { el.hidden = nivel(sec) < 3; });
   ed('#hs-editor, #hs-asignar', 'hosts'); ed('#negra-agregar', 'lista_negra'); ed('#zona, #f-doc', 'documentos'); ed('#f-torre', 'torres'); ed('#f-emp', 'personal');
   const nom = Object.keys(sis.permisos || {}).some(k => k.startsWith('nom_') && nivel(k) > 0);
-  $('#b-nomina').hidden = !(nom && (sis.url_nomina || DEMO()));
-  $('#b-salir').hidden = $('#b-clave').hidden = !CFG.sesion;
+  $('#b-nomina').hidden = true;   // la Nómina está en la barra de módulos
+  $('#b-clave').hidden = !CFG.sesion; $('#b-salir').hidden = true;   // «Salir» está en la barra de módulos
   const actual = $('.tab[aria-selected="true"]');
   if (actual && actual.hidden) { const primera = $$('.tab').find(t => !t.hidden); if (primera) vista(primera.dataset.v); }
 }
@@ -1121,50 +1131,55 @@ $('#pap-filas').addEventListener('click', async e => {
 });
 
 async function cargarUsuarios() {
+  if (!S.tablero && nivel('tablero') > 0) { try { S.tablero = await api('tablero'); } catch (e) { /* lista de torres opcional */ } }
   try { S.usuarios = await api('usuarios'); pintarUsuarios(); } catch (e) { $('#usuarios').innerHTML = '<tr><td colspan="4">' + esc(e.message) + '</td></tr>'; }
 }
 function pintarUsuarios() {
   const r = S.usuarios; if (!r) return;
   const prevSeg = $('#u-segmento').value || 'gestores';
-  $('#u-segmento').innerHTML = Object.entries(r.segmentos).filter(([k]) => k !== 'gerente').concat([['gerente', r.segmentos.gerente]]).map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('');
-  $('#u-segmento').value = prevSeg;
+  const esGerente = !!(S.sistema && S.sistema.gerente);
+  $('#u-segmento').innerHTML = Object.entries(r.segmentos).filter(([k]) => k !== 'gerente').concat(esGerente ? [['gerente', r.segmentos.gerente]] : []).map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('');
+  $('#u-segmento').value = prevSeg; ajustarGestiona();
   const torres = S.tablero ? S.tablero.torres.map(t => t.torre) : [];
   $('#u-torres-lista').innerHTML = ['TODAS'].concat(torres).map(t => '<option value="' + esc(t) + '">').join('');
   $('#usuarios').innerHTML = r.usuarios.map(u => '<tr><td><b>' + esc(u.nombre) + '</b><br><span class="nota">' + esc(u.correo) + '</span>' +
-    '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn chico" data-u-editar="' + esc(u.id) + '">Editar</button>' +
-    (u.gerente && u.id === (S.sistema && S.sistema.id) ? '' : '<button class="btn chico" data-u-clave="' + esc(u.id) + '">Nueva clave</button>') +
-    (u.id === (S.sistema && S.sistema.id) || u.gerente ? '' : '<button class="btn chico peligro" data-u-eliminar="' + esc(u.id) + '">Eliminar</button>') + '</div></td>' +
-    '<td><span class="chip ' + (u.gerente ? 'oro' : 'teal') + '">' + esc(u.segmento_nombre) + '</span></td><td>' + esc(u.torres_texto) + '</td><td>' +
+    '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">' + (u.gerente && !esGerente ? '' : '<button class="btn chico" data-u-editar="' + esc(u.id) + '">Editar</button>') +
+    (u.gerente && (u.id === (S.sistema && S.sistema.id) || !esGerente) ? '' : '<button class="btn chico" data-u-clave="' + esc(u.id) + '">Nueva clave</button>') +
+    (u.id === (S.sistema && S.sistema.id) || u.gerente || !esGerente ? '' : '<button class="btn chico peligro" data-u-eliminar="' + esc(u.id) + '">Eliminar</button>') + '</div></td>' +
+    '<td><span class="chip ' + (u.gerente ? 'oro' : 'teal') + '">' + esc(u.segmento_nombre) + '</span>' + (u.gestiona_usuarios && !u.gerente ? '<br><span class="chip oro" style="margin-top:4px">Gestiona usuarios</span>' : '') + '</td><td>' + esc(u.torres_texto) + '</td><td>' +
     (!u.activo ? '<span class="chip">Inactivo</span>' : u.bloqueado ? '<span class="chip rojo">Bloqueado</span>' : u.debe_cambiar ? '<span class="chip ambar">Clave temporal</span>' : '<span class="chip verde">Activo</span>') +
     (u.ultimo_acceso ? '<br><span class="nota">Entró ' + fmtFH(u.ultimo_acceso) + '</span>' : '<br><span class="nota">Nunca ha entrado</span>') + '</td></tr>').join('');
   const m = r.matriz, sel = (k, sg) => '<select data-m="' + k + '|' + sg + '" class="nv' + m[k][sg] + '">' + NOMBRES_NIVEL.map((n, i) => '<option value="' + i + '"' + (m[k][sg] === i ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>';
   let grupo = '';
   $('#matriz').innerHTML = r.secciones.map(x => {
-    const cab = x.sistema !== grupo ? '<tr class="grupo"><td colspan="5">' + (x.sistema === 'panel' ? 'Panel Stili' : 'Nómina') + '</td></tr>' : ''; grupo = x.sistema;
+    const cab = x.sistema !== grupo ? '<tr class="grupo"><td colspan="5">' + ({ panel: 'Invitados y Huéspedes', torres: 'Torres', nomina: 'Nómina' }[x.sistema] || x.sistema) + '</td></tr>' : ''; grupo = x.sistema;
     return cab + '<tr><td class="sec"><b>' + esc(x.nombre) + '</b><span>' + esc(x.detalle) + '</span></td><td class="nv3">Todo</td><td>' + sel(x.clave, 'gestores') + '</td><td>' + sel(x.clave, 'rrhh') + '</td><td>' + sel(x.clave, 'contabilidad') + '</td></tr>';
   }).join('');
 }
 function editarUsuario(u) {
   $('#u-id').value = u ? u.id : ''; $('#u-nombre').value = u ? u.nombre : ''; $('#u-correo').value = u ? u.correo : '';
   $('#u-segmento').value = u ? u.segmento : 'gestores'; $('#u-torres').value = u ? u.torres_texto : 'TODAS'; $('#u-activo').checked = u ? u.activo : true;
-  $('#u-activo-c').hidden = !u; $('#u-cancelar').hidden = !u; $('#u-guardar').textContent = u ? 'Guardar cambios' : 'Crear usuario';
+  $('#u-activo-c').hidden = !u; $('#u-cancelar').hidden = !u;
+  $('#u-gestiona').checked = !!(u && u.gestiona_usuarios && !u.gerente); ajustarGestiona(); $('#u-guardar').textContent = u ? 'Guardar cambios' : 'Crear usuario';
   $('#u-titulo').textContent = u ? 'Editar · ' + u.nombre : 'Nuevo usuario';
 }
+function ajustarGestiona() { $('#u-gestiona-c').hidden = !(S.sistema && S.sistema.gerente) || $('#u-segmento').value === 'gerente'; }
+$('#u-segmento').addEventListener('change', ajustarGestiona);
 function mostrarTemporal(r) {
   const u = r.usuarios.find(x => x.id === r.id); if (!r.clave_temporal || !u) return;
   $('#u-temp').hidden = false; $('#u-temp-nombre').textContent = u.nombre; $('#u-temp-clave').textContent = r.clave_temporal; $('#u-temp-correo').textContent = u.correo;
-  $('#u-temp-url').textContent = BASE_PAGINAS() + 'admin.html';
+  $('#u-temp-url').textContent = BASE_PAGINAS() + 'portal/';
   $('#u-temp').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 $('#u-temp-copiar').addEventListener('click', async () => {
-  const t = 'Hola ' + $('#u-temp-nombre').textContent.split(' ')[0] + ', este es tu acceso al Panel Stili y a la Nómina.\nEntrada: ' + $('#u-temp-url').textContent + '\nUsuario: ' + $('#u-temp-correo').textContent +
+  const t = 'Hola ' + $('#u-temp-nombre').textContent.split(' ')[0] + ', este es tu acceso al Portal Stili (Invitados y Huéspedes, Torres y Nómina, según tus permisos).\nEntrada: ' + $('#u-temp-url').textContent + '\nUsuario: ' + $('#u-temp-correo').textContent +
     '\nClave temporal: ' + $('#u-temp-clave').textContent + '\nAl entrar, el sistema te pedirá crear tu clave personal. No la compartas.';
   try { await navigator.clipboard.writeText(t); toast('Instrucciones copiadas.'); } catch (e) { toast('No se pudo copiar; cópielas a mano.', 'error'); }
 });
 $('#u-cancelar').addEventListener('click', () => editarUsuario(null));
 $('#f-usuario').addEventListener('submit', async e => {
   e.preventDefault();
-  const usuario = { id: $('#u-id').value, nombre: $('#u-nombre').value.trim(), correo: $('#u-correo').value.trim(), segmento: $('#u-segmento').value, torres: $('#u-torres').value.trim(), activo: $('#u-activo').checked };
+  const usuario = { id: $('#u-id').value, nombre: $('#u-nombre').value.trim(), correo: $('#u-correo').value.trim(), segmento: $('#u-segmento').value, torres: $('#u-torres').value.trim(), activo: $('#u-activo').checked, gestiona_usuarios: $('#u-gestiona').checked };
   try { const r = await api('usuario_guardar', { usuario }); S.usuarios = r; pintarUsuarios(); editarUsuario(null);
     toast(usuario.id ? 'Usuario actualizado.' : 'Usuario creado.'); mostrarTemporal(r); } catch (err) { toast(err.message, 'error'); }
 });
@@ -1434,9 +1449,16 @@ const Demo = (() => {
 async function iniciar() {
   await cargarSistema();
   if (!S.sistema) return;
+  if (window.StiliModulos && !document.querySelector('.sm-barra')) StiliModulos.montar(document.body, MODULO);
+  if (MODULO === 'usuarios') {
+    $('#titulo-modulo').textContent = 'Usuarios y permisos';
+    if (!(S.sistema.gerente || S.sistema.usuarios)) { $$('main > section').forEach(s => { s.hidden = true; });
+      $('main').insertAdjacentHTML('beforeend', '<div class="card"><h2>Usuarios y permisos</h2><p class="nota">Este módulo es del Gerente General. Si lo necesita, pídale que se lo asigne.</p></div>'); return; }
+  }
   if (nivel('documentos') > 0) { try { S.docs = await api('documentos'); } catch (e) { /* sin documentos */ } }
-  if (nivel('tablero') > 0) await cargarTablero();
-  const inicial = (location.hash || '').slice(1), pedida = ['tablero', 'apto', 'documentos', 'encuestas', 'hosts', 'torres', 'conflictos', 'negra', 'personal', 'usuarios', 'ajustes'].includes(inicial) ? inicial : (CFG.vista || 'tablero');
+  if (MODULO === 'invitados' && nivel('tablero') > 0) await cargarTablero();
+  const inicial = (location.hash || '').slice(1), propias = TABS_MODULO[MODULO];
+  const pedida = propias.includes(inicial) ? inicial : MODULO === 'usuarios' ? 'usuarios' : (propias.includes(CFG.vista) ? CFG.vista : 'tablero');
   const tab = $('.tab[data-v="' + pedida + '"]');
   vista(tab && !tab.hidden ? pedida : (($$('.tab').find(t => !t.hidden) || {}).dataset || {}).v || 'ajustes');
   if (!iniciar.reloj) iniciar.reloj = setInterval(() => { if (S.sistema && !$('#v-tablero').hidden && !document.hidden) cargarTablero(); }, 60000);

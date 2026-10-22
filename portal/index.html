@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
 <script src="../config.js"></script>
+<script src="../stili-modulos.js"></script>
 <style>
 :root {
   --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
@@ -62,6 +63,9 @@ input { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; b
 .tile.oro .ic { background: var(--gold-suave); }
 .tile.rojo .ic { background: var(--crit-suave); }
 .tile b { display: block; font-size: 16px; margin-bottom: 2px; }
+.tiles.modulos .tile { padding: 18px; border-top: 4px solid var(--navy); }
+.tiles.modulos .tile.oro { border-top-color: #DCB40C; }
+.tiles.modulos .tile.rojo { border-top-color: var(--crit); }
 .tile small { color: var(--muted); font-size: 13px; }
 h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 26px 0 10px; font-weight: 700; }
 .instalar { margin-top: 26px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--gold-suave); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
@@ -88,7 +92,8 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
 </style>
 </head>
 <body>
-<header class="barra">
+<div id="modulos"></div>
+<header class="barra" id="barra-login">
   <img src="icono-192.png" alt="">
   <div><b>Portal Stili</b><br><span>Stili Group · un solo usuario para todo</span></div>
   <div class="der"><button class="btn-barra" id="b-salir" hidden>Salir</button></div>
@@ -126,13 +131,14 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
   <section id="inicio" hidden>
     <h1 id="saludo">Hola</h1>
     <p class="sub" id="perfil"></p>
-    <div class="tiles" id="tiles"></div>
+    <h2>Módulos</h2>
+    <div class="tiles modulos" id="tiles"></div>
     <div id="bots-c" hidden><h2>Bots de Telegram</h2><div class="tiles" id="bots"></div></div>
     <div class="claude-c" id="claude-c">
       <p><b>Claude · asistente de IA del equipo</b><br><span class="nota">Redacte comunicados y circulares, revise contratos y actas, resuma correos y resuelva dudas del día a día. Entre con su cuenta de Claude de Stili. No pegue claves ni datos de salud de empleados.</span></p>
       <a class="btn primario" href="https://claude.ai" target="_blank" rel="noopener" style="text-decoration:none">Abrir Claude</a>
     </div>
-    <div id="recursos-c"><h2>Recursos Stili · banco de descargables</h2>
+    <div id="recursos-c"><h2 id="descargables">Recursos Stili · banco de descargables</h2>
       <p class="nota" style="margin:-4px 0 14px">Archivos oficiales de la línea gráfica. El logo se usa siempre tal como viene: no se redibuja, no se gira y no se le cambian los colores. Su firma de correo, su foto de WhatsApp y su tarjeta personales las crea la Nómina; pídalas a RRHH.</p>
       <div class="recursos" id="recursos"></div></div>
     <div class="instalar" id="instalar">
@@ -168,8 +174,9 @@ async function api(accion, datos) {
   }
   return j;
 }
-function ver(id) { ['login', 'clave', 'inicio'].forEach(x => { $('#' + x).hidden = x !== id; }); $('#b-salir').hidden = id === 'login'; }
-function salir(msg) { sesion = ''; guardarCfg({ sesion: '' }); ver('login'); $('#l-msg').textContent = msg || ''; setTimeout(() => $('#l-correo').focus(), 50); }
+function ver(id) { ['login', 'clave', 'inicio'].forEach(x => { $('#' + x).hidden = x !== id; }); $('#b-salir').hidden = id === 'login';
+  if (id !== 'inicio') { const b = $('#modulos'); b.innerHTML = ''; $('#barra-login').hidden = false; } }
+function salir(msg) { sesion = ''; guardarCfg({ sesion: '', modulos: {}, usuario: {} }); ver('login'); $('#l-msg').textContent = msg || ''; setTimeout(() => $('#l-correo').focus(), 50); }
 
 $('#f-login').addEventListener('submit', async e => {
   e.preventDefault(); $('#l-entrar').disabled = true; $('#l-msg').className = 'msg'; $('#l-msg').textContent = 'Entrando…'; $('#l-portero').hidden = true;
@@ -207,10 +214,15 @@ async function cargar() {
     if (u.debe_cambiar) return ver('clave');
     $('#saludo').textContent = 'Hola, ' + (u.nombre || '').split(' ')[0];
     $('#perfil').textContent = u.segmento_nombre + ' · ' + u.correo;
+    guardarCfg({ modulos: a, usuario: u });
+    if (window.StiliModulos && !$('#modulos .sm-barra')) { StiliModulos.montar($('#modulos'), 'inicio'); $('#barra-login').hidden = true; }
     let h = '';
-    if (a.panel) h += tile('🖥', 'Panel Stili', 'Torres, visitantes, hosts, lista negra, personal y documentos.', 'href="../admin.html" data-vista="tablero"');
-    if (a.nomina) h += tile('💼', 'Nómina y RRHH', 'Empleados, novedades, nóminas, licencias, vacaciones y reportes legales.', 'href="#" data-nomina="1"', 'oro');
-    if (a.papelera) h += tile('🗑', 'Eliminar y papelera', 'Solo Gerente: eliminar datos del Panel y restaurar lo eliminado (30 días).', 'href="../admin.html" data-vista="papelera"', 'rojo');
+    if (a.invitados || a.panel) h += tile('🛎', 'Invitados y Huéspedes', 'Lobby, visitantes, hosts y huéspedes, encuestas, lista negra, documentos y personal.', 'href="../admin.html?m=invitados"');
+    if (a.torres) h += tile('🏢', 'Torres', 'Ficha de cada torre: datos legales, finanzas, proveedores, contratos, reclamaciones y comunicados.', 'href="../torres.html"');
+    if (a.nomina) h += tile('💼', 'Nómina y RRHH', 'Empleados, novedades, nóminas, licencias, vacaciones y reportes legales. Se abre en otra pestaña.', 'href="#" data-nomina="1"', 'oro');
+    else if (a.nomina_permiso && !a.nomina_configurada) h += tile('💼', 'Nómina y RRHH', 'Falta la dirección de la Nómina (URL_NOMINA en la pestaña Config).', 'href="#" data-sin="1"', 'oro');
+    if (a.usuarios) h += tile('👥', 'Usuarios y permisos', 'Crear usuarios de la empresa, asignar segmento, torres y permisos por módulo.', 'href="../admin.html?m=usuarios"');
+    if (a.papelera) h += tile('🗑', 'Eliminar y papelera', 'Solo Gerente: eliminar datos y restaurar lo eliminado (30 días).', 'href="../admin.html?m=usuarios#papelera"', 'rojo');
     $('#tiles').innerHTML = h || '<p class="nota">Su usuario todavía no tiene secciones asignadas. Pídalas al Gerente General.</p>';
     const bots = [[a.bot_torres, '🏢', 'Bot de Torres', 'Ficha de cada torre, proveedores, contratos, reclamaciones y comunicados.'],
       [a.bot_nomina, '🤖', 'Bot de Nómina y RRHH', 'Reportar novedades, licencias y vacaciones desde el teléfono.'],
@@ -221,7 +233,7 @@ async function cargar() {
 }
 document.addEventListener('click', async e => {
   const t = e.target.closest('.tile'); if (!t) return;
-  if (t.dataset.vista) guardarCfg({ vista: t.dataset.vista });   // el Panel abre en esa sección
+  if (t.dataset.sin) { e.preventDefault(); return toast('La dirección de la Nómina no está configurada todavía.', 'error'); }
   if (t.dataset.nomina) {
     e.preventDefault();
     const ventana = window.open('', '_blank');   // se abre ya, para que el navegador no la bloquee
@@ -285,7 +297,7 @@ $('#b-instalar').addEventListener('click', async () => { if (!aviso) return; avi
 })();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
-if (sesion) cargar(); else salir('');
+if (sesion) cargar().then(() => { if (location.hash.length > 1) { const d = document.getElementById(location.hash.slice(1)); if (d) d.scrollIntoView({ behavior: 'smooth' }); } }); else salir('');
 </script>
 </body>
 </html>

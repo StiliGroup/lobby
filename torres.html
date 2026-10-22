@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Torres · Stili</title>
+<meta name="description" content="Módulo Torres de Stili Group: ficha de cada torre, finanzas, proveedores, contratos, reclamaciones y comunicados.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<script src="config.js"></script>
+<script src="stili-modulos.js"></script>
+<style>
+:root {
+  --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
+  --navy: #003A75; --banda: #29417F; --azul-suave: #E3E8F4; --oro: #DCB40C; --oro-oscuro: #B8880C; --oro-suave: #F6EDD6;
+  --ok: #1E7D4F; --ok-suave: #DDF1E6; --warn: #A86500; --warn-suave: #FCEBCF; --crit: #B3261E; --crit-suave: #FBE3E1;
+  --r: 12px; --sombra: 0 1px 2px rgba(19,41,61,.06), 0 4px 16px rgba(19,41,61,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+    --navy: #002B57; --banda: #8FB3E8; --azul-suave: #15263F; --oro-suave: #33291A;
+    --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18; --sombra: none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+  --navy: #002B57; --banda: #8FB3E8; --azul-suave: #15263F; --oro-suave: #33291A;
+  --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18; --sombra: none; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: Montserrat, "Segoe UI", system-ui, sans-serif; font-size: 15px; line-height: 1.45; min-height: 100vh; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--banda); outline-offset: 2px; }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Encabezado del módulo: título y selector de torre */
+.cabecera { background: var(--navy); color: #fff; }
+.cabecera .fila { max-width: 1360px; margin: 0 auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-block: 14px; }
+.cabecera .titulo { display: flex; flex-direction: column; line-height: 1.15; margin-right: auto; min-width: 0; }
+.cabecera .titulo small { color: #DCB40C; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.cabecera .titulo b { font-size: 20px; }
+
+.selector { position: relative; flex: 1 1 340px; max-width: 460px; }
+.selector > button { width: 100%; display: flex; align-items: center; gap: 10px; justify-content: space-between; background: #fff; color: #13293D; border: 0;
+  border-radius: 10px; padding: 10px 14px; font-weight: 600; cursor: pointer; text-align: left; }
+.selector > button small { display: block; color: #5A6B78; font-weight: 500; font-size: 12px; }
+.selector > button .flecha { color: #003A75; font-size: 13px; }
+.lista { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(19,41,61,.25); z-index: 50; max-height: min(70vh, 560px); display: flex; flex-direction: column; overflow: hidden; }
+.lista .buscar { padding: 10px; border-bottom: 1px solid var(--line); }
+.lista input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); }
+.lista .grupos { overflow-y: auto; padding: 6px; }
+.lista details { border-radius: 9px; }
+.lista summary { list-style: none; cursor: pointer; padding: 9px 10px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  display: flex; justify-content: space-between; border-radius: 8px; }
+.lista summary::-webkit-details-marker { display: none; }
+.lista summary::after { content: "▾"; }
+.lista details:not([open]) summary::after { content: "▸"; }
+.lista summary:hover { background: var(--panel-2); }
+.lista .t { display: flex; justify-content: space-between; gap: 8px; align-items: center; width: 100%; text-align: left; border: 0; background: none; padding: 9px 12px 9px 22px;
+  border-radius: 8px; cursor: pointer; font-weight: 600; }
+.lista .t:hover, .lista .t[aria-selected="true"] { background: var(--azul-suave); color: var(--navy); }
+.lista .t small { color: var(--muted); font-weight: 500; font-size: 12px; }
+.lista .vacio { padding: 16px; color: var(--muted); }
+
+/* Pestañas de la torre (las que no caben pasan a «Más ▾») */
+.secciones { background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+.secciones nav { max-width: 1360px; margin: 0 auto; display: flex; gap: 2px; }
+.secciones nav > button, .secciones .sm-mas > button { flex: 0 0 auto; background: none; border: 0; border-bottom: 3px solid transparent; padding: 12px 14px 10px; font-weight: 600;
+  color: var(--muted); cursor: pointer; white-space: nowrap; font-size: 15px; }
+.secciones nav > button[aria-selected="true"] { color: var(--navy); border-bottom-color: var(--oro); }
+.secciones .sm-mas { flex: 0 0 auto; }
+.secciones nav > button:hover, .secciones .sm-mas > button:hover { color: var(--navy); }
+.secciones .n { font-size: 12px; background: var(--crit); color: #fff; border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+
+main { max-width: 1360px; margin: 0 auto; padding-block: 18px 60px; display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--sombra); min-width: 0; }
+h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+.nota { color: var(--muted); font-size: 14px; }
+.resumen { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; border-left: 5px solid var(--oro); }
+.resumen h1 { margin: 0 0 4px; font-size: 24px; color: var(--navy); }
+.resumen .acciones { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 600; background: var(--panel-2); border: 1px solid var(--line); }
+.chip.rojo { background: var(--crit-suave); color: var(--crit); border-color: transparent; }
+.chip.ambar { background: var(--warn-suave); color: var(--warn); border-color: transparent; }
+.chip.verde { background: var(--ok-suave); color: var(--ok); border-color: transparent; }
+.chip.azul { background: var(--azul-suave); color: var(--navy); border-color: transparent; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--fg); border-radius: 9px; padding: 9px 14px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; font-size: 14px; }
+.btn.primario { background: var(--navy); border-color: var(--navy); color: #fff; }
+.campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 0 24px; margin: 0; }
+.campos div { padding: 10px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.campos dt { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .03em; }
+.campos dd { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-line; }
+.campos dd.falta { color: var(--muted); font-style: italic; }
+.tabla { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 2px solid var(--line); white-space: nowrap; }
+td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td small { color: var(--muted); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kpi { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+.kpi span { display: block; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.kpi b { font-size: 26px; color: var(--navy); }
+.vacio { color: var(--muted); padding: 22px; text-align: center; border: 1px dashed var(--line); border-radius: var(--r); }
+.aviso-edicion { background: var(--oro-suave); border-radius: 10px; padding: 10px 14px; font-size: 14px; }
+.entrar { max-width: 460px; margin: 10vh auto; text-align: center; }
+@media (max-width: 640px) {
+  .resumen { grid-template-columns: 1fr; }
+  .resumen .acciones { justify-content: flex-start; }
+  .cabecera .titulo b { font-size: 18px; }
+  .selector { max-width: none; }
+}
+</style>
+</head>
+<body>
+<header class="cabecera">
+  <div class="fila gutter">
+    <div class="titulo"><small>Stili Group · Módulo</small><b>Torres</b></div>
+    <div class="selector" id="selector" hidden>
+      <button type="button" id="sel-boton" aria-haspopup="listbox" aria-expanded="false"><span><span id="sel-nombre">Elija una torre</span><small id="sel-gestor"></small></span><span class="flecha">▾</span></button>
+      <div class="lista" id="sel-lista" hidden>
+        <div class="buscar"><input type="search" id="sel-buscar" placeholder="Buscar torre o gestor…" autocomplete="off" aria-label="Buscar torre"></div>
+        <div class="grupos" id="sel-grupos" role="listbox"></div>
+      </div>
+    </div>
+  </div>
+</header>
+<div class="secciones gutter" id="secciones" hidden><nav id="tabs" aria-label="Secciones de la torre"></nav></div>
+
+<main class="gutter" id="contenido">
+  <p class="nota">Cargando…</p>
+</main>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const LS = 'stili-admin';
+const cfg = () => { try { return JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) { return {}; } };
+const guardar = c => { try { localStorage.setItem(LS, JSON.stringify(Object.assign(cfg(), c))); } catch (e) { /* sin almacenamiento */ } };
+const DEMO = new URLSearchParams(location.search).has('demo');
+const S = { lista: null, torre: null, detalle: null, seccion: 'general' };
+
+async function api(accion, datos) {
+  if (DEMO) return Demo[accion](datos || {});
+  const url = cfg().url || (window.STILI && window.STILI.servicio) || '';
+  const r = await fetch(url, { method: 'POST', body: JSON.stringify(Object.assign({ accion, sesion: cfg().sesion || '' }, datos || {})) });
+  const j = await r.json();
+  if (!j.ok) { const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo; throw e; }
+  return j;
+}
+
+// ------------------------------------------------------------------ Selector de torres (agrupado por gestor, con buscador)
+const plural = (n, uno, varios) => n + ' ' + (n === 1 ? uno : varios);
+function sinTildes(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function pintarLista() {
+  const q = sinTildes($('#sel-buscar').value.trim());
+  const grupos = {};
+  S.lista.torres.filter(t => !q || sinTildes(t.torre + ' ' + t.gestor + ' ' + t.direccion + ' ' + t.clave).includes(q))
+    .forEach(t => { (grupos[t.gestor] = grupos[t.gestor] || []).push(t); });
+  const nombres = Object.keys(grupos).sort((a, b) => a === 'Sin gestor asignado' ? 1 : b === 'Sin gestor asignado' ? -1 : sinTildes(a) < sinTildes(b) ? -1 : 1);
+  $('#sel-grupos').innerHTML = nombres.map(g => '<details open><summary>' + esc(g) + ' <span>' + grupos[g].length + '</span></summary>' +
+    grupos[g].map(t => '<button type="button" class="t" role="option" data-clave="' + esc(t.clave) + '" aria-selected="' + (S.torre === t.clave) + '"><span>' + esc(t.torre) +
+      (t.direccion ? '<br><small>' + esc(t.direccion) + '</small>' : '') + '</span>' + (t.abiertas ? '<span class="chip rojo" title="Reclamaciones abiertas">' + t.abiertas + '</span>' : '') + '</button>').join('') +
+    '</details>').join('') || '<div class="vacio">No hay torres con ese nombre.</div>';
+}
+function abrirLista(abrir) {
+  $('#sel-lista').hidden = !abrir; $('#sel-boton').setAttribute('aria-expanded', String(abrir));
+  if (abrir) { $('#sel-buscar').value = ''; pintarLista(); setTimeout(() => $('#sel-buscar').focus(), 30); }
+}
+$('#sel-boton').addEventListener('click', e => { e.stopPropagation(); abrirLista($('#sel-lista').hidden); });
+$('#sel-buscar').addEventListener('input', pintarLista);
+$('#sel-buscar').addEventListener('keydown', e => { if (e.key === 'Enter') { const b = $('#sel-grupos .t'); if (b) b.click(); } });
+$('#sel-grupos').addEventListener('click', e => { const b = e.target.closest('.t'); if (!b) return; abrirLista(false); abrirTorre(b.dataset.clave); });
+document.addEventListener('click', e => { if (!$('#selector').contains(e.target)) abrirLista(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') abrirLista(false); });
+
+// ------------------------------------------------------------------ Secciones de la torre
+const SECCIONES = [
+  ['general', 'Generales y legales'], ['finanzas', 'Finanzas'], ['proveedores', 'Proveedores'], ['contratos', 'Contratos y pólizas'],
+  ['empleados', 'Empleados del lobby'], ['reclamaciones', 'Reclamaciones'], ['comunicados', 'Comunicados'], ['documentos', 'Reglamentos'],
+  ['notas', 'Notas del equipo'], ['historial', 'Historial de cambios'],
+];
+function tieneSeccion(k, d) {
+  if (k === 'reclamaciones' || k === 'comunicados') return !!d.reclamaciones;
+  if (k === 'historial') return !!d.historial;
+  return true;
+}
+function pintarTabs() {
+  const d = S.detalle;
+  $('#tabs').innerHTML = SECCIONES.filter(([k]) => tieneSeccion(k, d)).map(([k, n]) => '<button type="button" data-s="' + k + '" aria-selected="' + (S.seccion === k) + '">' + esc(n) +
+    (k === 'reclamaciones' && d.reclamaciones && d.reclamaciones.resumen.abiertas ? '<span class="n">' + d.reclamaciones.resumen.abiertas + '</span>' : '') +
+    (k === 'contratos' && d.contratos.some(c => c.dias !== null && c.dias <= 30) ? '<span class="n">' + d.contratos.filter(c => c.dias !== null && c.dias <= 30).length + '</span>' : '') + '</button>').join('');
+  $('#secciones').hidden = false;
+  StiliModulos.mas($('#tabs'), { items: ':scope > button' });
+}
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-s]'); if (b) verSeccion(b.dataset.s); });
+function verSeccion(k) {
+  S.seccion = k; guardar({ torre_seccion: k });
+  $$('#tabs > button[data-s]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.s === k)));
+  StiliModulos.mas($('#tabs'), { items: ':scope > button' });
+  pintarSeccion();
+}
+
+const campos = lista => '<dl class="campos">' + lista.map(c => '<div><dt>' + esc(c.etiqueta) + '</dt><dd' + (c.valor ? '' : ' class="falta"') + '>' +
+  (c.valor ? (c.clave === 'mapa_url' && /^https?:\/\//.test(c.valor) ? '<a href="' + esc(c.valor) + '" target="_blank" rel="noopener">Abrir mapa ↗</a>' : esc(c.valor)) : 'Sin dato') + '</dd></div>').join('') + '</dl>';
+const tabla = (cols, filas, vacio) => filas.length ? '<div class="tabla"><table><thead><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' + filas.join('') + '</tbody></table></div>' : '<div class="vacio">' + esc(vacio) + '</div>';
+const tel = t => t ? '<a href="tel:' + esc(String(t).replace(/[^\d+]/g, '')) + '">' + esc(t) + '</a>' : '';
+function estadoChip(e) { return e === 'abierta' ? '<span class="chip rojo">Abierta</span>' : e.indexOf('notific') === 0 ? '<span class="chip ambar">Notificada</span>' : e.indexOf('cerrad') === 0 ? '<span class="chip verde">Cerrada</span>' : '<span class="chip">' + esc(e) + '</span>'; }
+
+function pintarSeccion() {
+  const d = S.detalle, k = S.seccion;
+  let h = '';
+  if (k === 'general') h = '<div class="card"><h2>Generales y legales</h2>' + campos(d.general) + '</div>';
+  if (k === 'finanzas') h = '<div class="card"><h2>Finanzas</h2>' + campos(d.finanzas) + (d.nivel < 2 ? '<p class="nota">El número de cuenta completo lo ven quienes tienen el nivel «Profundizar» en Torres.</p>' : '') + '</div>';
+  if (k === 'proveedores') h = '<div class="card"><h2>Proveedores · ' + d.proveedores.length + '</h2>' + tabla(['Servicio', 'Empresa', 'Contacto', 'Teléfono', 'Correo', 'Notas'],
+    d.proveedores.map(p => '<tr><td><b>' + esc(p.servicio) + '</b></td><td>' + esc(p.empresa) + '</td><td>' + esc(p.contacto) + '</td><td>' + tel(p.telefono) + '</td><td>' + (p.correo ? '<a href="mailto:' + esc(p.correo) + '">' + esc(p.correo) + '</a>' : '') + '</td><td><small>' + esc(p.notas) + '</small></td></tr>'),
+    'Todavía no hay proveedores registrados para esta torre.') + '</div>';
+  if (k === 'contratos') h = '<div class="card"><h2>Contratos y pólizas · ' + d.contratos.length + '</h2>' + tabla(['Tipo', 'Proveedor', 'Número', 'Vence', 'Monto', 'Frecuencia'],
+    d.contratos.map(c => '<tr><td><b>' + esc(c.tipo) + '</b>' + (c.notas ? '<br><small>' + esc(c.notas) + '</small>' : '') + '</td><td>' + esc(c.proveedor) + '</td><td>' + esc(c.numero) + '</td><td>' + esc(c.vence) +
+      (c.dias === null ? '' : c.dias < 0 ? ' <span class="chip rojo">Vencido</span>' : c.dias <= 30 ? ' <span class="chip ambar">En ' + c.dias + ' días</span>' : '') + '</td><td>' + esc(c.monto) + '</td><td>' + esc(c.frecuencia) + '</td></tr>'),
+    'Todavía no hay contratos ni pólizas registrados.') + '</div>';
+  if (k === 'empleados') h = '<div class="card"><h2>Empleados del lobby · ' + d.empleados.length + '</h2>' + tabla(['Nombre', 'Puesto', 'Cédula'],
+    d.empleados.map(e => '<tr><td><b>' + esc(e.nombre) + '</b></td><td>' + esc(e.puesto) + '</td><td>' + esc(e.documento) + '</td></tr>'), 'No hay empleados asignados a esta torre.') +
+    '<p class="nota">Los porteros y supervisores se agregan en Invitados y Huéspedes → Personal, o en el Bot de Torres.</p></div>';
+  if (k === 'reclamaciones') {
+    const r = d.reclamaciones, s = r.resumen;
+    h = '<div class="card"><h2>Reclamaciones</h2><div class="kpis">' + [['Abiertas', s.abiertas], ['Notificadas', s.notificadas], ['Cerradas', s.cerradas], ['Este mes', s.este_mes], ['Total', s.total]]
+      .map(([n, v]) => '<div class="kpi"><span>' + n + '</span><b>' + v + '</b></div>').join('') + '</div>' + tabla(['Fecha', 'Incidencia', 'Apto.', 'Detalle', 'Estado'],
+      r.lista.map(x => '<tr><td>' + esc(x.fecha) + '</td><td><b>' + esc(x.tipo) + '</b></td><td>' + esc(x.apartamento) + '</td><td>' + esc(x.descripcion) + (x.resolucion ? '<br><small>Resolución: ' + esc(x.resolucion) + '</small>' : '') + '</td><td>' + estadoChip(x.estado) + '</td></tr>'),
+      'Sin reclamaciones registradas.') + '</div>';
+  }
+  if (k === 'comunicados') h = '<div class="card"><h2>Comunicados emitidos</h2>' + tabla(['Fecha', 'Título', 'Tipo', 'Estado', 'Por', ''],
+    d.comunicados.map(c => '<tr><td>' + esc(c.fecha) + '</td><td><b>' + esc(c.titulo) + '</b></td><td>' + esc(c.tipo) + '</td><td>' + esc(c.estado) + '</td><td>' + esc(c.por) + '</td><td>' + (c.pdf ? '<a class="btn" href="' + esc(c.pdf) + '" target="_blank" rel="noopener">PDF</a>' : '') + '</td></tr>'),
+    'Todavía no hay comunicados de esta torre.') + '<p class="nota">Los comunicados salen sobre la hoja timbrada de Stili y se crean en el Bot de Torres (📝 Comunicado).</p></div>';
+  if (k === 'documentos') h = '<div class="card"><h2>Reglamentos y documentos</h2>' + tabla(['Título', 'Archivo', 'Subido'],
+    d.documentos.map(x => '<tr><td><b>' + esc(x.titulo) + '</b></td><td>' + esc(x.archivo) + '</td><td>' + esc(x.subido) + '</td></tr>'), 'Todavía no hay documentos de esta torre.') + '</div>';
+  if (k === 'notas') h = '<div class="card"><h2>Notas del equipo</h2>' + (d.notas.length ? d.notas.map(n => '<p style="margin:0 0 12px"><b>' + esc(n.autor) + '</b> <small class="nota">' + esc(n.fecha) + '</small><br>' + esc(n.nota) + '</p>').join('') : '<div class="vacio">Sin notas.</div>') + '</div>';
+  if (k === 'historial') h = '<div class="card"><h2>Últimos cambios</h2>' + tabla(['Fecha', 'Quién', 'Qué', 'Antes', 'Ahora'],
+    d.historial.map(x => '<tr><td>' + esc(x.fecha) + '</td><td>' + esc(x.usuario) + '</td><td>' + esc(x.campo) + '<br><small>' + esc(x.accion) + '</small></td><td><small>' + esc(x.antes) + '</small></td><td>' + esc(x.despues) + '</td></tr>'), 'Sin cambios registrados.') + '</div>';
+  $('#seccion').innerHTML = h;
+}
+
+async function abrirTorre(clave) {
+  S.torre = clave; guardar({ torre_actual: clave });
+  const t = S.lista.torres.find(x => x.clave === clave);
+  $('#sel-nombre').textContent = t ? t.torre : clave; $('#sel-gestor').textContent = t ? t.gestor : '';
+  history.replaceState(null, '', '#' + encodeURIComponent(clave));
+  $('#contenido').innerHTML = '<p class="nota">Cargando ' + esc(t ? t.torre : clave) + '…</p>';
+  try {
+    const d = S.detalle = await api('torre_detalle', { torre: clave });
+    if (!tieneSeccion(S.seccion, d)) S.seccion = 'general';
+    const porVencer = d.contratos.filter(c => c.dias !== null && c.dias <= 30).length;
+    const rnc = (d.general.find(c => c.clave === 'rnc') || {}).valor, dir = (d.general.find(c => c.clave === 'direccion') || {}).valor;
+    $('#contenido').innerHTML = '<section class="card resumen"><div><h1>' + esc(d.torre) + '</h1><div class="nota">' + [dir, rnc ? 'RNC ' + rnc : '', d.gestor ? 'Gestor(a): ' + d.gestor : ''].filter(Boolean).map(esc).join(' · ') + '</div>' +
+      '<div class="chips">' + (d.reclamaciones ? '<span class="chip ' + (d.reclamaciones.resumen.abiertas ? 'rojo' : 'verde') + '">' + plural(d.reclamaciones.resumen.abiertas, 'reclamación abierta', 'reclamaciones abiertas') + '</span>' : '') +
+      (porVencer ? '<span class="chip ambar">' + plural(porVencer, 'contrato vence', 'contratos vencen') + ' en 30 días</span>' : '') + '<span class="chip azul">' + plural(d.proveedores.length, 'proveedor', 'proveedores') + '</span><span class="chip azul">' + plural(d.empleados.length, 'empleado', 'empleados') + '</span></div></div>' +
+      '<div class="acciones">' + (S.lista.bot ? '<a class="btn primario" href="' + esc(S.lista.bot) + '" target="_blank" rel="noopener">Agregar o corregir en el Bot de Torres ↗</a>' : '') + '</div></section>' +
+      '<div id="seccion"></div>';
+    pintarTabs(); pintarSeccion();
+  } catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
+}
+
+async function iniciar() {
+  if (!DEMO && !cfg().sesion) {
+    $('#contenido').innerHTML = '<div class="card entrar"><h2>Torres</h2><p>Entre con su usuario de Stili en el Portal y vuelva a esta página.</p><a class="btn primario" href="portal/">Entrar en el Portal Stili</a></div>';
+    StiliModulos.montar(document.body, 'torres'); return;
+  }
+  StiliModulos.montar(document.body, 'torres');
+  try {
+    S.lista = await api('torres_lista');
+    S.seccion = cfg().torre_seccion || 'general';
+    if (!S.lista.torres.length) { $('#contenido').innerHTML = '<div class="vacio">Su usuario no tiene torres asignadas. Pídalas al Gerente General.</div>'; return; }
+    $('#selector').hidden = false;
+    const pedida = decodeURIComponent(location.hash.slice(1)) || cfg().torre_actual;
+    const inicial = S.lista.torres.find(t => t.clave === pedida) || S.lista.torres[0];
+    abrirTorre(inicial.clave);
+  } catch (err) {
+    $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (err.codigo === 'SESION' || err.codigo === 'SESION_VENCIDA' ? '<a class="btn primario" href="portal/">Entrar de nuevo</a>' : '') + '</div>';
+  }
+}
+
+// ------------------------------------------------------------------ Datos de ejemplo (?demo) para revisar el diseño sin conexión
+const Demo = {
+  torres_lista: () => ({ bot: 'https://t.me/StiliTorresBot', nivel: 3, reclamaciones: true, torres: [
+    ['Apex Arroyo Hondo', 'APEX', 'Mildred Pérez', 'Arroyo Hondo', 0], ['Torre Arpel 07', 'ARPEL', 'Mildred Pérez', 'Naco', 2], ['Torre Esperilla 17', 'ESP17', 'Reyna Martínez', 'La Esperilla', 0],
+    ['Torre Niza 7', 'NIZA7', 'Reyna Martínez', 'Piantini', 1], ['Torre Prime Residences', 'PRIME', 'Danna Ramírez', 'Serrallés', 0], ['Torre Madelta VI', 'MAD6', 'Sin gestor asignado', '', 0]]
+    .map(([torre, clave, gestor, direccion, abiertas]) => ({ torre, clave, gestor, direccion, abiertas })) }),
+  torre_detalle: ({ torre }) => ({ torre: (Demo.torres_lista().torres.find(t => t.clave === torre) || {}).torre || torre, clave: torre, nivel: 3, gestor: 'Reyna Martínez',
+    general: [['razon_social', 'Nombre legal del condominio', 'Condominio Torre Niza 7'], ['rnc', 'RNC', '430-12345-6'], ['direccion', 'Dirección', 'C/ Gustavo Mejía Ricart 7, Piantini'],
+      ['mapa_url', 'Ubicación (mapa)', ''], ['cantidad_aptos', 'Cantidad de apartamentos', '28'], ['pisos', 'Pisos', '14'], ['presidente', 'Presidente(a) del consejo', 'Emily McDougal'],
+      ['presidente_telefono', 'Teléfono del presidente(a)', '809-555-0101'], ['gestor', 'Gestor(a) de Stili', 'Reyna Martínez'], ['telefono_lobby', 'Teléfono del lobby', '809-555-0177']]
+      .map(([clave, etiqueta, valor]) => ({ clave, etiqueta, valor })),
+    finanzas: [['cuota_mantenimiento', 'Cuota de mantenimiento (mensual)', 'RD$ 12,500'], ['banco', 'Banco', 'BHD'], ['numero_cuenta', 'Número de cuenta', '•••• 4521'], ['dia_pago', 'Día límite de pago', '10']]
+      .map(([clave, etiqueta, valor]) => ({ clave, etiqueta, valor })),
+    proveedores: [{ servicio: 'Ascensores', empresa: 'Elevadores del Caribe', contacto: 'Luis Peña', telefono: '809-555-0144', correo: 'servicio@ejemplo.do', notas: 'Visita mensual' },
+      { servicio: 'Fumigación', empresa: 'FumiRD', contacto: '', telefono: '809-555-0190', correo: '', notas: '' }],
+    contratos: [{ tipo: 'Póliza de seguro', proveedor: 'Seguros Ejemplo', numero: 'P-2231', vence: '08/11/2026', dias: 17, monto: 'RD$ 85,000', frecuencia: 'Anual', notas: 'Incendio y responsabilidad civil' },
+      { tipo: 'Mant. ascensores', proveedor: 'Elevadores del Caribe', numero: 'C-88', vence: '31/03/2027', dias: 160, monto: 'RD$ 9,000', frecuencia: 'Mensual', notas: '' }],
+    empleados: [{ nombre: 'Pedro Gómez', puesto: 'portero', documento: '•••4321' }, { nombre: 'Juana Santos', puesto: 'conserje', documento: '•••8810' }],
+    documentos: [{ titulo: 'Reglamento de convivencia 2026', archivo: 'reglamento.pdf', subido: '02/10/2026' }],
+    notas: [{ autor: 'Reyna Martínez', fecha: '15/10/2026', nota: 'La presidenta prefiere comunicados por WhatsApp antes de las 6:00 p. m.' }],
+    historial: [{ fecha: '20/10/2026', usuario: 'Reyna Martínez', campo: 'cuota_mantenimiento', antes: 'RD$ 11,800', despues: 'RD$ 12,500', accion: 'corregido' }],
+    reclamaciones: { resumen: { total: 6, abiertas: 1, notificadas: 1, cerradas: 4, este_mes: 2 }, lista: [
+      { fecha: '18/10/2026', tipo: 'Ruido', apartamento: '5B', descripcion: 'Música alta después de las 11:00 p. m.', estado: 'abierta', resolucion: '' },
+      { fecha: '02/10/2026', tipo: 'Parqueo', apartamento: '3A', descripcion: 'Ocupa dos parqueos.', estado: 'notificada', resolucion: '' }] },
+    comunicados: [{ fecha: '12/10/2026', titulo: 'Mantenimiento de ascensores', tipo: 'Comunicado', estado: 'enviado', por: 'Reyna Martínez', pdf: '' }] }),
+};
+
+iniciar();
+</script>
+</body>
+</html>
