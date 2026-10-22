@@ -75,6 +75,7 @@ input { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; b
 .pend a:hover { background: var(--teal-suave); }
 .pend .p { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); }
 .pend .rojo .p { background: var(--crit); }
+.pend .info .p { background: var(--teal); }
 .pend b { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .pend small { color: var(--muted); font-size: 12.5px; }
 .pend .ir { color: var(--muted); font-size: 13px; white-space: nowrap; }
@@ -232,7 +233,7 @@ function tile(icono, titulo, texto, attrs, clase) {
 async function cargarPendientes(a) {
   try {
     const r = await api('pendientes');
-    const ir = { finanzas: 'Finanzas', reclamaciones: 'Reclamaciones', contratos: 'Contratos', lobby: 'Lobby' };
+    const ir = { finanzas: 'Finanzas', reclamaciones: 'Reclamaciones', contratos: 'Contratos', lobby: 'Lobby', completar: 'Completar', tareas: 'Tareas' };
     $('#pend').innerHTML = r.items.length ? r.items.slice(0, 10).map(i => '<a class="' + esc(i.nivel) + '" href="../' + esc(i.enlace) + '"' + (i.seccion ? ' data-sec="' + esc(i.seccion) + '"' : '') + '><span class="p"></span><span><b>' + esc(i.titulo) + '</b>' +
       (i.detalle ? '<small>' + esc(i.detalle) + '</small>' : '') + '</span><span class="ir">' + esc(ir[i.tipo] || '') + ' →</span></a>').join('') +
       (r.items.length > 10 ? '<div class="nada">Y ' + (r.items.length - 10) + ' más.</div>' : '') : '<div class="nada">Nada pendiente por ahora. ✓</div>';
