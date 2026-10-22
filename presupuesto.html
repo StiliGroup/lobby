@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Presupuesto · Stili</title>
-<meta name="description" content="Presupuesto de cada torre y alerta temprana de crisis financiera.">
+<title>Finanzas · Stili</title>
+<meta name="description" content="Finanzas de todas las torres: presupuesto vs real y alerta temprana de crisis financiera.">
 <meta name="theme-color" content="#003A75">
 <link rel="icon" href="portal/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,7 +27,7 @@
 </style>
 </head>
 <body>
-<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Módulo</small><b>Presupuesto y alerta temprana</b></div>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Módulo</small><b>Finanzas · semáforo de las torres</b></div>
   <label class="nota" style="color:#C9D3DF">Año <select id="anio" style="border-radius:8px;padding:6px"></select></label></div></header>
 <main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
 <script>
@@ -57,14 +57,14 @@ function pintar() {
       '<p class="nota" style="margin:10px 0 0">El semáforo compara el presupuesto aprobado con lo que muestran los estados analizados en Finanzas (promedio de los últimos 3 meses): ejecución del gasto, ingresos, cobranza, liquidez y fondo de reserva.</p></div>' +
     '<div class="filtros" role="group" aria-label="Filtrar">' + [['todas', 'Todas'], ['rojo', 'Riesgo alto'], ['ambar', 'Atención'], ['verde', 'Sanas'], ['incompleto', 'Faltan datos'], ['sin_datos', 'Sin datos']]
       .map(([k, n]) => '<button type="button" data-f="' + k + '" aria-pressed="' + (filtro === k) + '">' + n + '</button>').join('') + '</div>' +
-    '<div class="torres-g">' + (lista.map(t => '<a class="card tt ' + t.estado + '" href="torres.html#' + encodeURIComponent(t.clave) + '" data-sec="presupuesto"><div class="cab" style="margin:0"><h3>' + esc(t.torre) + '</h3><span class="semaforo ' + t.estado + '">● ' + NOMBRE[t.estado] + '</span></div>' +
+    '<div class="torres-g">' + (lista.map(t => '<a class="card tt ' + t.estado + '" href="torres.html#' + encodeURIComponent(t.clave) + '" data-sec="finanzas"><div class="cab" style="margin:0"><h3>' + esc(t.torre) + '</h3><span class="semaforo ' + t.estado + '">● ' + NOMBRE[t.estado] + '</span></div>' +
       (t.señales.length ? '<ul>' + t.señales.slice(0, 3).map(s => '<li>' + esc(s.texto) + '</li>').join('') + '</ul>' : '<span class="nota">' + (t.estado === 'verde' ? 'Sin señales de riesgo.' : t.estado === 'sin_datos' ? 'Falta cargar el presupuesto y analizar estados.' : (t.rubros ? 'Falta analizar estados en Finanzas.' : 'Falta cargar el presupuesto.')) + '</span>') +
       '<div class="mini"><div>Gasto<b>' + pct(t.indicadores.ejecucion_gasto) + '</b></div><div>Cobranza<b>' + pct(t.indicadores.cobranza) + '</b></div><div>Liquidez<b>' + (t.indicadores.liquidez_meses === null ? '—' : t.indicadores.liquidez_meses.toFixed(1) + ' m') + '</b></div></div></a>').join('') ||
       '<div class="vacio">No hay torres en este grupo.</div>') + '</div>';
 }
 document.addEventListener('click', e => {
   const f = e.target.closest('[data-f]'); if (f) { filtro = f.dataset.f; pintar(); }
-  const a = e.target.closest('a[data-sec]'); if (a) StiliModulos.guardar({ torre_seccion: 'presupuesto' });
+  const a = e.target.closest('a[data-sec]'); if (a) StiliModulos.guardar({ torre_seccion: 'finanzas' });
 });
 function demo() {
   const t = (torre, clave, estado, s, g, c, l) => ({ torre, clave, estado, rubros: 4, señales: s.map(x => ({ nivel: estado, texto: x })), indicadores: { ejecucion_gasto: g, cobranza: c, liquidez_meses: l } });
@@ -72,8 +72,8 @@ function demo() {
     t('Torre Arpel 07', 'ARPEL', 'ambar', ['Gasta 12 % más de lo presupuestado.'], 1.12, 0.92, 2.3), t('Apex Arroyo Hondo', 'APEXAH', 'verde', [], 0.97, 0.96, 3.1),
     t('Coral Park', 'CORAP', 'incompleto', [], null, null, null), Object.assign(t('Vigabon', 'VIGA', 'sin_datos', [], null, null, null), { rubros: 0 })] };
 }
-if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'presupuesto'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Presupuesto</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en el Portal Stili</a></div>'; }
-else { StiliModulos.montar(document.body, 'presupuesto'); cargar(); }
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'finanzas'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Finanzas</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en el Portal Stili</a></div>'; }
+else { StiliModulos.montar(document.body, 'finanzas'); cargar(); }
 </script>
 </body>
 </html>

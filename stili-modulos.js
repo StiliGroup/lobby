@@ -1,5 +1,5 @@
-/* Stili Group · barra común de módulos (v1.9)
- * Una sola navegación para Inicio, Invitados y Huéspedes, Torres, Nómina, Usuarios y Recursos.
+/* Stili Group · barra común de módulos (v2.1)
+ * Seis puertas, por tarea: Inicio · Torres · Lobby · Finanzas · Nómina · Administración.
  * Cada página la monta con:  StiliModulos.montar(elemento, 'torres')
  * Los botones que no caben en la pantalla pasan al desplegable «Más ▾» (StiliModulos.mas(nav)).
  * Usa la misma sesión del Portal y del Panel (localStorage 'stili-admin').
@@ -15,14 +15,14 @@
 
   const MODULOS = [
     { k: 'inicio', t: 'Inicio', href: 'portal/', siempre: true },
-    { k: 'invitados', t: 'Invitados y Huéspedes', href: 'admin.html?m=invitados' },
     { k: 'torres', t: 'Torres', href: 'torres.html' },
-    { k: 'presupuesto', t: 'Presupuesto', href: 'presupuesto.html' },
-    { k: 'cumpleanos', t: 'Cumpleaños', href: 'cumpleanos.html' },
+    { k: 'lobby', t: 'Lobby', href: 'admin.html?m=lobby', antes: 'invitados' },
+    { k: 'finanzas', t: 'Finanzas', href: 'presupuesto.html', antes: 'presupuesto' },
     { k: 'nomina', t: 'Nómina', externo: true },
-    { k: 'usuarios', t: 'Usuarios', href: 'admin.html?m=usuarios' },
-    { k: 'recursos', t: 'Recursos', href: 'portal/#descargables', siempre: true },
+    { k: 'admin', t: 'Administración', href: 'admin.html?m=admin', antes: 'usuarios' },
   ];
+  // Páginas que viven dentro de otra puerta (marcan esa puerta como activa)
+  const DENTRO_DE = { invitados: 'lobby', presupuesto: 'finanzas', usuarios: 'admin', cumpleanos: 'inicio', recursos: 'inicio' };
 
   const CSS = `
 .sm-barra { background: #003A75; color: #fff; border-bottom: 3px solid #DCB40C; font-family: Montserrat, "Segoe UI", system-ui, sans-serif; }
@@ -79,11 +79,11 @@
     const activo = items.find(el => el.getAttribute('aria-selected') === 'true' || el.getAttribute('aria-current') === 'page');
     items.forEach(el => { usado += el.offsetWidth + 2; if (usado > disponible) fuera.push(el); });
     if (!fuera.length) { cont.hidden = true; menu.hidden = true; return; }
-    // La pestaña activa siempre queda a la vista: se cambia por la última visible
+    // La pestaña activa siempre queda a la vista: se le reserva su espacio y las demás entran en orden mientras quepan
     if (activo && fuera.includes(activo)) {
-      const visibles = items.filter(el => !fuera.includes(el));
-      const ultima = visibles[visibles.length - 1];
-      if (ultima) { fuera = fuera.filter(el => el !== activo); fuera.unshift(ultima); }
+      let espacio = disponible - activo.offsetWidth - 2, lleno = false;
+      const visibles = items.filter(el => { if (el === activo || lleno) return false; if (el.offsetWidth + 2 <= espacio) { espacio -= el.offsetWidth + 2; return true; } lleno = true; return false; });
+      fuera = items.filter(el => el !== activo && !visibles.includes(el));
     }
     fuera.forEach(el => el.classList.add('sm-oculto'));
     menu.innerHTML = fuera.map(el => el.tagName === 'A'
@@ -112,7 +112,8 @@
 
   function pintar(cont, actual) {
     const c = leer(), a = c.modulos || {}, u = c.usuario || {};
-    const ve = m => m.siempre || (m.k === 'nomina' ? a.nomina : a[m.k]);
+    const ve = m => m.siempre || (a[m.k] !== undefined ? a[m.k] : a[m.antes]);
+    actual = DENTRO_DE[actual] || actual;
     const nav = cont.querySelector('.sm-nav');
     nav.innerHTML = MODULOS.filter(m => c.sesion && ve(m) || m.k === 'inicio').map(m =>
       '<a href="' + (m.externo ? '#' : BASE + m.href) + '" data-mod="' + m.k + '"' + (m.k === actual ? ' aria-current="page"' : '') + '>' + esc(m.t) + (m.externo ? ' ↗' : '') + '</a>').join('');

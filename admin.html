@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Invitados y Huéspedes · Stili</title>
+<title>Lobby · Stili</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#003A75">
 <meta name="description" content="Panel de administración de Stili Group: ocupación por torre, apartamentos, documentos y normas, encuestas, conflictos y personal.">
@@ -203,12 +203,16 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
 }
 @media (max-width: 640px) { .barra .pill { display: none; } .barra .fila { padding-block: 8px; } .marca b { font-size: 17px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* v2.1 · dentro de una torre (módulo Torres) */
+.incrustado body { background: transparent; }
+.incrustado body::before, .incrustado .barra, .incrustado #demo-aviso { display: none !important; }
+.incrustado main { padding: 0 0 8px; max-width: none; }
 </style>
 </head>
 <body>
 <header class="barra">
   <div class="fila gutter">
-    <div class="marca"><small>Stili Group · Módulo</small><b id="titulo-modulo">Invitados y Huéspedes</b></div>
+    <div class="marca"><small>Stili Group · Módulo</small><b id="titulo-modulo">Lobby</b></div>
     <span class="pill" id="pill-con"><span class="p"></span><span>…</span></span>
     <span class="pill" id="pill-rol">…</span>
     <span style="flex:1"></span>
@@ -218,22 +222,22 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
   </div>
   <nav class="tabs gutter" role="tablist" aria-label="Secciones">
     <button class="tab" role="tab" data-v="tablero" aria-selected="true">Tablero</button>
-    <button class="tab" role="tab" data-v="apto" aria-selected="false">Apartamento</button>
-    <button class="tab" role="tab" data-v="documentos" aria-selected="false">Documentos y normas</button>
-    <button class="tab" role="tab" data-v="encuestas" aria-selected="false">Encuestas <span class="n" id="n-enc" hidden>0</span></button>
-    <button class="tab" role="tab" data-v="hosts" aria-selected="false">Hosts y propietarios</button>
-    <button class="tab" role="tab" data-v="torres" aria-selected="false">Apartamentos del lobby</button>
-    <button class="tab" role="tab" data-v="conflictos" aria-selected="false">Conflictos <span class="n" id="n-conf" hidden>0</span></button>
+    <button class="tab" role="tab" data-v="apto" aria-selected="false">Buscar apartamento</button>
+    <button class="tab" role="tab" data-v="hosts" aria-selected="false">Hosts y renta corta</button>
+    <button class="tab" role="tab" data-v="revisar" aria-selected="false">Por revisar <span class="n" id="n-rev" hidden>0</span></button>
     <button class="tab" role="tab" data-v="negra" aria-selected="false">Lista negra <span class="n" id="n-sol" hidden>0</span></button>
-    <button class="tab" role="tab" data-v="personal" aria-selected="false">Personal</button>
-    <button class="tab" role="tab" data-v="usuarios" aria-selected="false" hidden>Usuarios y accesos</button>
-    <button class="tab" role="tab" data-v="papelera" aria-selected="false" hidden>Eliminar y papelera</button>
+    <button class="tab" role="tab" data-v="torres" aria-selected="false">Apartamentos</button>
+    <button class="tab" role="tab" data-v="personal" aria-selected="false">Personal del lobby</button>
+    <button class="tab" role="tab" data-v="documentos" aria-selected="false">Reglamentos y documentos</button>
+    <button class="tab" role="tab" data-v="usuarios" aria-selected="false" hidden>Usuarios y permisos</button>
+    <button class="tab" role="tab" data-v="papelera" aria-selected="false" hidden>Papelera</button>
     <button class="tab" role="tab" data-v="ajustes" aria-selected="false">Ajustes</button>
+    <span hidden><span id="n-enc" hidden>0</span><span id="n-conf" hidden>0</span></span>
   </nav>
 </header>
 
 <main class="gutter">
-  <div class="demo-aviso" id="demo-aviso" hidden>Modo demostración: datos de ejemplo. Para usar los datos reales, entre en «Ajustes», escriba la dirección del servicio y entre con su usuario.</div>
+  <div class="demo-aviso" id="demo-aviso" hidden>Modo demostración: datos de ejemplo. Para usar los datos reales, entre en Administración → «Ajustes», escriba la dirección del servicio y entre con su usuario.</div>
 
   <!-- TABLERO -->
   <section id="v-tablero">
@@ -308,7 +312,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
     <div class="grid g2">
       <div class="card">
         <h2>Apartamentos del lobby</h2>
-        <p class="nota" style="margin-top:0">Las torres se crean en el módulo <a href="torres.html">Torres</a> («+ Nueva torre»), con su gestor responsable. Aquí se cargan los apartamentos del lobby de una torre que ya existe.</p>
+        <p class="nota" style="margin-top:0">Cargue aquí los apartamentos de la torre para que el lobby registre visitas y huéspedes. Si ya existen, los nuevos se agregan.</p>
         <form class="form" id="f-torre">
           <label class="campo ancho">Torre<input type="text" id="t-nombre" placeholder="Escriba o elija la torre" list="t-nombre-lista"><datalist id="t-nombre-lista"></datalist></label>
           <label class="campo">Prefijo de códigos<input type="text" id="t-prefijo" placeholder="MIR3" maxlength="10"></label>
@@ -324,7 +328,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
       <div class="card" id="t-resultado"><h2>Después de cargar</h2><ol class="nota" style="margin:0;padding-left:18px;line-height:1.7">
         <li>Se crean los apartamentos, el código de la encuesta y el código del lobby.</li>
         <li>Envíe el enlace de la encuesta a los propietarios (grupo de WhatsApp de la torre).</li>
-        <li>Revise las respuestas en «Encuestas»: al aprobar, se llena el directorio y, si el apartamento es de renta corta, se crea la unidad con su host exclusivo.</li>
+        <li>Revise las respuestas en Lobby → «Por revisar»: al aprobar, se llena el directorio y, si el apartamento es de renta corta, se crea la unidad con su host exclusivo.</li>
         <li>Escriba el código del lobby en la app del portero (⚙).</li></ol></div>
     </div>
   </section>
@@ -457,7 +461,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
     <div class="grid g2">
       <div class="card">
         <h2>Usuarios</h2>
-        <p class="nota" style="margin-top:0">Un usuario sirve para los tres módulos: Invitados y Huéspedes, Torres y Nómina. Los porteros y supervisores no usan usuario: entran a la app del lobby con su cédula y PIN (sección Personal).</p>
+        <p class="nota" style="margin-top:0">Un usuario sirve para todo el Portal: Torres, Lobby, Finanzas y Nómina, según sus permisos. Los porteros y supervisores no usan usuario: entran a la app del lobby con su cédula y PIN (Torres → Personal del lobby).</p>
         <div class="tabla"><table><thead><tr><th>Nombre</th><th>Segmento</th><th>Torres</th><th>Estado</th></tr></thead><tbody id="usuarios"></tbody></table></div>
       </div>
       <div class="grid">
@@ -571,11 +575,17 @@ const fmtFH = d => d ? fmtFecha(d) + ' ' + fmtHora(d) : '';
 const diaClave = d => new Date(d).toLocaleDateString('en-CA', { timeZone: TZ });
 function leerCfg() { try { return JSON.parse(localStorage.getItem('stili-admin') || '{}'); } catch (e) { return {}; } }
 function guardarCfg() { try { localStorage.setItem('stili-admin', JSON.stringify(CFG)); } catch (e) { /* sin almacenamiento */ } }
-const MODULO = new URLSearchParams(location.search).get('m') === 'usuarios' ? 'usuarios' : 'invitados';
-const TABS_MODULO = { invitados: ['tablero', 'apto', 'documentos', 'encuestas', 'hosts', 'torres', 'conflictos', 'negra', 'personal', 'ajustes'], usuarios: ['usuarios', 'papelera'] };
-document.title = (MODULO === 'usuarios' ? 'Usuarios y permisos' : 'Invitados y Huéspedes') + ' · Stili';
+// v2.1 · tres usos de esta página: el módulo Lobby, el módulo Administración y las secciones del lobby dentro de cada torre
+const PARAM = new URLSearchParams(location.search);
+const MODULO = ({ lobby: 'lobby', invitados: 'lobby', admin: 'admin', usuarios: 'admin', torre: 'torre' })[PARAM.get('m')] || 'lobby';
+const INCRUSTADO = MODULO === 'torre' && PARAM.get('embed') === '1', TORRE = PARAM.get('torre') || '';
+const TABS_MODULO = { lobby: ['tablero', 'apto', 'hosts', 'revisar', 'negra'], admin: ['usuarios', 'papelera', 'ajustes'], torre: ['torres', 'personal', 'documentos'] };
+const VIEJAS = { encuestas: 'revisar', conflictos: 'revisar' };   // enlaces guardados de la v2.0
+const NOMBRE_MODULO = { lobby: 'Lobby', admin: 'Administración', torre: 'Torre' };
+document.title = NOMBRE_MODULO[MODULO] + ' · Stili';
+if (INCRUSTADO) document.documentElement.classList.add('incrustado');
 const CFG = Object.assign({ url: (window.STILI && window.STILI.servicio) || '', admin: '', sesion: '', paginas: '', demoRol: 'gerente', vista: 'tablero' }, leerCfg());
-const DEMO = () => !CFG.url;
+const DEMO = () => !CFG.url || PARAM.has('demo');
 const S = { sistema: null, tablero: null, docs: null };
 
 function toast(t, tipo) {
@@ -598,11 +608,27 @@ const BASE_PAGINAS = () => CFG.paginas || (location.protocol.startsWith('http') 
 
 // ------------------------------------------------------------------ Navegación
 function vista(v) {
+  v = VIEJAS[v] || v;
   $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.v === v)));
-  $$('main > section').forEach(s => { s.hidden = s.id !== 'v-' + v; });
-  if (MODULO === 'invitados') { CFG.vista = v; guardarCfg(); }
+  const partes = v === 'revisar' ? ['encuestas', 'conflictos'].filter(x => nivel(x) > 0) : [v];
+  $$('main > section').forEach(s => { s.hidden = !partes.some(p => s.id === 'v-' + p); });
+  if (MODULO === 'lobby') { CFG.vista = v; guardarCfg(); }
+  if (v === 'revisar') { partes.forEach(p => ({ encuestas: cargarEncuestas, conflictos: cargarConflictos })[p]()); avisarAltura(); return; }
   if (window.StiliModulos) StiliModulos.mas($('.tabs'), { items: ':scope > .tab' });
   ({ torres: () => { const l = (S.tablero ? S.tablero.torres.map(x => x.torre) : []); $('#t-nombre-lista').innerHTML = l.map(x => '<option value="' + esc(x) + '">').join(''); }, tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, usuarios: cargarUsuarios, papelera: cargarPapelera, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
+  avisarAltura();
+}
+// Dentro de Torres: esta página va en un marco y le avisa su altura para que no haya doble barra de desplazamiento
+function avisarAltura() {
+  if (!INCRUSTADO || !window.parent || window.parent === window) return;
+  clearTimeout(avisarAltura.t);
+  avisarAltura.t = setTimeout(() => window.parent.postMessage({ stiliAltura: Math.ceil(document.documentElement.scrollHeight) }, location.origin), 80);
+}
+if (INCRUSTADO && window.ResizeObserver) new ResizeObserver(avisarAltura).observe(document.body);
+// Insignia de «Por revisar» = encuestas pendientes + conflictos
+function actualizarRevisar() {
+  const n = (($('#n-enc').hidden ? 0 : Number($('#n-enc').textContent)) || 0) + (($('#n-conf').hidden ? 0 : Number($('#n-conf').textContent)) || 0);
+  $('#n-rev').hidden = !n; $('#n-rev').textContent = n;
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => vista(t.dataset.v)));
 
@@ -612,6 +638,7 @@ const nivel = sec => S.sistema ? (S.sistema.gerente ? 3 : ((S.sistema.permisos |
 function aplicarPermisos() {
   const sis = S.sistema || {};
   $$('.tab').forEach(t => { const sec = TAB_SECCION[t.dataset.v]; if (sec) t.hidden = nivel(sec) < 1; });
+  $('[data-v="revisar"]').hidden = nivel('encuestas') < 1 && nivel('conflictos') < 1;
   $('[data-v="usuarios"]').hidden = !(sis.gerente || sis.usuarios);
   $('[data-v="papelera"]').hidden = !sis.gerente;
   $$('.tab').forEach(t => { if (!TABS_MODULO[MODULO].includes(t.dataset.v)) t.hidden = true; });
@@ -679,7 +706,7 @@ async function cargarSistema() {
     aplicarPermisos();
   } catch (e) {
     $('#pill-con').innerHTML = '<span class="p demo"></span><span>Sin acceso</span>'; $('#pill-rol').textContent = '—';
-    toast(e.message + ' Revise «Ajustes».', 'error');
+    toast(e.message + ' Revise Administración → «Ajustes».', 'error');
   }
   $('#demo-aviso').hidden = !DEMO();
 }
@@ -692,7 +719,7 @@ function pintarTablero(r) {
   const T = r.torres, sum = k => T.reduce((a, t) => a + (Number(t[k]) || 0), 0);
   const adentro = T.reduce((a, t) => a + Object.values(t.dentro || {}).reduce((x, y) => x + y, 0), 0);
   const conf = (r.conflictos || []).length, enc = sum('encuestas_pendientes');
-  $('#n-conf').hidden = !conf; $('#n-conf').textContent = conf; $('#n-enc').hidden = !enc; $('#n-enc').textContent = enc;
+  $('#n-conf').hidden = !conf; $('#n-conf').textContent = conf; $('#n-enc').hidden = !enc; $('#n-enc').textContent = enc; actualizarRevisar();
   const k = (t, v, s, malo) => '<div class="kpi' + (malo ? ' malo' : '') + '"><span>' + t + '</span><b>' + v + '</b><small>' + s + '</small></div>';
   $('#kpis').innerHTML =
     k('Personas adentro', adentro, T.length + ' torres') +
@@ -969,7 +996,7 @@ $('#f-torre').addEventListener('submit', async e => {
 async function cargarConflictos() {
   try {
     const r = await api('conflictos');
-    $('#n-conf').hidden = !r.conflictos.length; $('#n-conf').textContent = r.conflictos.length;
+    $('#n-conf').hidden = !r.conflictos.length; $('#n-conf').textContent = r.conflictos.length; actualizarRevisar();
     $('#conflictos').innerHTML = r.conflictos.length ? '<div class="grid" style="gap:10px">' + r.conflictos.map(c => '<div class="card" style="box-shadow:none;border-left:5px solid var(--' + (c.gravedad === 'alta' ? 'crit' : 'warn') + ')"><div class="chips" style="margin-bottom:6px"><span class="chip ' + (c.gravedad === 'alta' ? 'rojo' : 'ambar') + '">' + esc(c.regla) + ' · ' + esc(c.tipo) + '</span></div>' + esc(c.detalle) +
       (c.regla === 'R3' && c.unidad ? '<div class="acciones" style="margin-top:8px">' + (c.ids || []).map(id => '<button class="btn chico" data-unidad="' + esc(c.unidad) + '" data-host="' + esc(id) + '">Dejar solo a ' + esc(id) + '</button>').join('') + '</div>' : '') + '</div>').join('') + '</div>'
       : '<div class="vacio">✓ Sin conflictos. Cada apartamento tiene un solo host y ningún número se repite.</div>';
@@ -1153,7 +1180,7 @@ function pintarUsuarios() {
   const m = r.matriz, sel = (k, sg) => '<select data-m="' + k + '|' + sg + '" class="nv' + m[k][sg] + '">' + NOMBRES_NIVEL.map((n, i) => '<option value="' + i + '"' + (m[k][sg] === i ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>';
   let grupo = '';
   $('#matriz').innerHTML = r.secciones.map(x => {
-    const cab = x.sistema !== grupo ? '<tr class="grupo"><td colspan="5">' + ({ panel: 'Invitados y Huéspedes', torres: 'Torres', nomina: 'Nómina' }[x.sistema] || x.sistema) + '</td></tr>' : ''; grupo = x.sistema;
+    const cab = x.sistema !== grupo ? '<tr class="grupo"><td colspan="5">' + ({ panel: 'Lobby', torres: 'Torres y Finanzas', inicio: 'Inicio', nomina: 'Nómina' }[x.sistema] || x.sistema) + '</td></tr>' : ''; grupo = x.sistema;
     return cab + '<tr><td class="sec"><b>' + esc(x.nombre) + '</b><span>' + esc(x.detalle) + '</span></td><td class="nv3">Todo</td><td>' + sel(x.clave, 'gestores') + '</td><td>' + sel(x.clave, 'rrhh') + '</td><td>' + sel(x.clave, 'contabilidad') + '</td></tr>';
   }).join('');
 }
@@ -1173,7 +1200,7 @@ function mostrarTemporal(r) {
   $('#u-temp').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 $('#u-temp-copiar').addEventListener('click', async () => {
-  const t = 'Hola ' + $('#u-temp-nombre').textContent.split(' ')[0] + ', este es tu acceso al Portal Stili (Invitados y Huéspedes, Torres y Nómina, según tus permisos).\nEntrada: ' + $('#u-temp-url').textContent + '\nUsuario: ' + $('#u-temp-correo').textContent +
+  const t = 'Hola ' + $('#u-temp-nombre').textContent.split(' ')[0] + ', este es tu acceso al Portal Stili (Torres, Lobby, Finanzas y Nómina, según tus permisos).\nEntrada: ' + $('#u-temp-url').textContent + '\nUsuario: ' + $('#u-temp-correo').textContent +
     '\nClave temporal: ' + $('#u-temp-clave').textContent + '\nAl entrar, el sistema te pedirá crear tu clave personal. No la compartas.';
   try { await navigator.clipboard.writeText(t); toast('Instrucciones copiadas.'); } catch (e) { toast('No se pudo copiar; cópielas a mano.', 'error'); }
 });
@@ -1315,16 +1342,21 @@ const Demo = (() => {
   }
   const err = (m, c) => { const e = new Error(m); e.codigo = c; return e; };
   const SEGMENTOS_D = { gerente: 'Gerente General', gestores: 'Gestores de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad / CxC / CxP' };
-  const SECCIONES_D = [
-    ['tablero', 'panel', 'Tablero y actividad', 'Ver: ocupación y actividad de las torres.', [1, 1, 1]],
-    ['apartamento', 'panel', 'Ficha del apartamento', 'Ver: datos generales con teléfonos y documentos ocultos. Profundizar: teléfonos, documentos, fotos, código de puerta y wifi. Editar: ocupación máxima y residentes.', [1, 0, 0]],
-    ['hosts', 'panel', 'Hosts y propietarios', 'Ver: lista con teléfonos ocultos. Profundizar: datos completos. Editar: crear, editar y asignar apartamentos.', [1, 0, 0]],
-    ['encuestas', 'panel', 'Encuestas de propietarios', 'Editar: aprobar o rechazar respuestas.', [3, 0, 0]],
-    ['documentos', 'panel', 'Documentos y normas', 'Editar: subir reglamentos y clasificar artículos.', [1, 1, 0]],
-    ['torres', 'panel', 'Cargar torre', 'Editar: crear torres y apartamentos.', [0, 0, 0]],
-    ['conflictos', 'panel', 'Conflictos (R1–R5)', 'Editar: transferir unidades entre hosts.', [1, 0, 0]],
-    ['lista_negra', 'panel', 'Lista negra', 'Ver: nombres y motivos. Profundizar: documentos completos. Editar: agregar personas y decidir solicitudes.', [1, 1, 0]],
-    ['personal', 'panel', 'Personal y ponches', 'Ver: empleados y asistencia. Profundizar: cédulas completas. Editar: agregar empleados y cambiar PIN.', [0, 3, 1]],
+  const SECCIONES_D = [   // copia de SECCIONES del servicio (v2.1)
+    ['tablero', 'panel', 'Lobby · Tablero y actividad', 'Ver: ocupación y actividad de las torres.', [1, 1, 1]],
+    ['apartamento', 'panel', 'Lobby · Buscar apartamento', 'Ver: datos generales con teléfonos y documentos ocultos. Profundizar: teléfonos, documentos, fotos, código de puerta y wifi. Editar: ocupación máxima y residentes.', [1, 0, 0]],
+    ['hosts', 'panel', 'Lobby · Hosts y renta corta', 'Ver: lista con teléfonos ocultos. Profundizar: datos completos. Editar: crear, editar y asignar apartamentos.', [1, 0, 0]],
+    ['encuestas', 'panel', 'Lobby · Por revisar: encuestas', 'Editar: aprobar o rechazar respuestas.', [3, 0, 0]],
+    ['conflictos', 'panel', 'Lobby · Por revisar: conflictos (R1–R5)', 'Editar: transferir unidades entre hosts.', [1, 0, 0]],
+    ['lista_negra', 'panel', 'Lobby · Lista negra', 'Ver: nombres y motivos. Profundizar: documentos completos. Editar: agregar personas y decidir solicitudes.', [1, 1, 0]],
+    ['tor_fichas', 'torres', 'Torres · Ficha, proveedores, contratos y Junta', 'Ver: datos generales, proveedores, contratos y empleados. Profundizar: finanzas con el número de cuenta e historial de cambios.', [2, 1, 2]],
+    ['tor_reclamaciones', 'torres', 'Torres · Reclamaciones y comunicados', 'Ver: reclamaciones de cada torre, conteo y comunicados emitidos.', [1, 0, 0]],
+    ['tor_finanzas', 'torres', 'Torres · Finanzas y análisis con IA', 'Ver: análisis y discrepancias. Profundizar: abrir los estados subidos. Editar: subir estados bancarios y de Habitanto, analizar con IA y escribir en la memoria.', [1, 0, 3]],
+    ['tor_presupuesto', 'torres', 'Finanzas · Presupuesto y alerta temprana', 'Ver: tablero de riesgo de todas sus torres. Editar: cargar y corregir el presupuesto de cada torre.', [1, 0, 3]],
+    ['torres', 'torres', 'Torres · Apartamentos del lobby', 'Editar: cargar los apartamentos del lobby de una torre (las torres se crean en el módulo Torres).', [0, 0, 0]],
+    ['personal', 'torres', 'Torres · Personal del lobby y ponches', 'Ver: empleados y asistencia. Profundizar: cédulas completas. Editar: agregar empleados y cambiar PIN.', [0, 3, 1]],
+    ['documentos', 'torres', 'Torres · Reglamentos y documentos', 'Editar: subir reglamentos y clasificar artículos.', [1, 1, 0]],
+    ['cumpleanos', 'inicio', 'Inicio · Cumpleaños', 'Ver: cumpleaños de la Junta Directiva, empleados de las torres y equipo Stili.', [1, 1, 1]],
     ['nom_empleados', 'nomina', 'Nómina · Expedientes', 'Ver: lista. Profundizar: ficha con salario, pagos e historial. Editar: crear, editar e importar.', [0, 3, 1]],
     ['nom_nominas', 'nomina', 'Nómina · Novedades y cálculo', 'Ver: lista de nóminas. Profundizar: detalle, Excel y volantes. Editar: crear nóminas, novedades y calcular.', [0, 3, 2]],
     ['nom_aprobar', 'nomina', 'Nómina · Aprobar, pagar y banco', 'Editar: aprobar, marcar pagada y descargar el archivo del banco.', [0, 0, 0]],
@@ -1450,19 +1482,41 @@ const Demo = (() => {
 async function iniciar() {
   await cargarSistema();
   if (!S.sistema) return;
-  if (window.StiliModulos && !document.querySelector('.sm-barra')) StiliModulos.montar(document.body, MODULO);
-  if (MODULO === 'usuarios') {
-    $('#titulo-modulo').textContent = 'Usuarios y permisos';
+  if (window.StiliModulos && !INCRUSTADO && !document.querySelector('.sm-barra')) StiliModulos.montar(document.body, MODULO);
+  $('#titulo-modulo').textContent = NOMBRE_MODULO[MODULO];
+  if (INCRUSTADO) prepararTorre();
+  if (MODULO === 'admin') {
     if (!(S.sistema.gerente || S.sistema.usuarios)) { $$('main > section').forEach(s => { s.hidden = true; });
-      $('main').insertAdjacentHTML('beforeend', '<div class="card"><h2>Usuarios y permisos</h2><p class="nota">Este módulo es del Gerente General. Si lo necesita, pídale que se lo asigne.</p></div>'); return; }
+      $('main').insertAdjacentHTML('beforeend', '<div class="card"><h2>Administración</h2><p class="nota">Este módulo es del Gerente General. Si lo necesita, pídale que se lo asigne.</p></div>'); return; }
   }
   if (nivel('documentos') > 0) { try { S.docs = await api('documentos'); } catch (e) { /* sin documentos */ } }
-  if (MODULO === 'invitados' && nivel('tablero') > 0) await cargarTablero();
-  const inicial = (location.hash || '').slice(1), propias = TABS_MODULO[MODULO];
-  const pedida = propias.includes(inicial) ? inicial : MODULO === 'usuarios' ? 'usuarios' : (propias.includes(CFG.vista) ? CFG.vista : 'tablero');
+  if (MODULO === 'lobby' && nivel('tablero') > 0) await cargarTablero();
+  const inicial = VIEJAS[(location.hash || '').slice(1)] || (location.hash || '').slice(1), propias = TABS_MODULO[MODULO];
+  const pedida = propias.includes(inicial) ? inicial : MODULO === 'lobby' ? (propias.includes(CFG.vista) ? CFG.vista : 'tablero') : propias[0];
   const tab = $('.tab[data-v="' + pedida + '"]');
   vista(tab && !tab.hidden ? pedida : (($$('.tab').find(t => !t.hidden) || {}).dataset || {}).v || 'ajustes');
-  if (!iniciar.reloj) iniciar.reloj = setInterval(() => { if (S.sistema && !$('#v-tablero').hidden && !document.hidden) cargarTablero(); }, 60000);
+  if (!iniciar.reloj && MODULO === 'lobby') iniciar.reloj = setInterval(() => { if (S.sistema && !$('#v-tablero').hidden && !document.hidden) cargarTablero(); }, 60000);
+}
+/** Dentro de una torre (módulo Torres): sin barra propia y con la torre ya elegida en cada formulario y lista. */
+function prepararTorre() {
+  S.tablero = S.tablero || { torres: TORRE ? [{ torre: TORRE }] : [] };
+  const fijo = (sel, valor) => { const el = $(sel); if (!el) return; if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === valor)) el.insertAdjacentHTML('beforeend', '<option>' + esc(valor) + '</option>'); el.value = valor; };
+  if (TORRE) { fijo('#t-nombre', TORRE); $('#t-nombre').readOnly = true; }
+  // se repite después de cada carga, porque las listas se vuelven a pintar
+  const despues = (fn, extra) => { const original = window[fn]; window[fn] = async function () { const r = await original.apply(this, arguments); try { extra(); } catch (e) { /* nada */ } avisarAltura(); return r; }; };
+  despues('cargarPersonal', () => {
+    fijo('#p-torre', TORRE);
+    $$('#empleados tr').forEach(tr => { const c = tr.children[2]; if (c && c.textContent && !['TODAS', TORRE].includes(c.textContent.trim())) tr.hidden = true; });
+  });
+  despues('cargarAsistencia', () => {
+    const nombres = new Set();
+    $$('#asistencia tr').forEach(tr => { const c = tr.children[1]; if (c && c.textContent && c.textContent.trim() !== TORRE) tr.hidden = true; else if (tr.children[0]) nombres.add(tr.children[0].textContent.trim()); });
+    $$('#as-totales .chip').forEach(ch => { ch.hidden = !nombres.has(ch.textContent.split(' · ')[0].trim()); });
+  });
+  despues('pintarDocs', () => {
+    if ($('#d-torre').value === 'TODAS' || !$('#d-torre').value) fijo('#d-torre', TORRE);
+    $$('#docs > details').forEach(dt => { const m = dt.querySelector('.meta'); const t = m ? m.children[1].textContent.trim() : ''; if (t && t !== 'Todas las torres' && t !== TORRE) dt.hidden = true; });
+  });
 }
 if (!DEMO() && !CFG.sesion && !CFG.admin) mostrarLogin(); else iniciar();
 </script>

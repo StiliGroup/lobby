@@ -66,6 +66,25 @@ input { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; b
 .tiles.modulos .tile { padding: 18px; border-top: 4px solid var(--navy); }
 .tiles.modulos .tile.oro { border-top-color: #DCB40C; }
 .tiles.modulos .tile.rojo { border-top-color: var(--crit); }
+/* v2.1 · Pendientes de hoy */
+.hoy { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; margin-bottom: 8px; }
+.hoy-c { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+.hoy-c h2 { margin: 0 0 10px; font-size: 16px; }
+.pend { display: flex; flex-direction: column; gap: 2px; }
+.pend a { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 8px; border-radius: 10px; color: var(--fg); text-decoration: none; }
+.pend a:hover { background: var(--teal-suave); }
+.pend .p { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); }
+.pend .rojo .p { background: var(--crit); }
+.pend b { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.pend small { color: var(--muted); font-size: 12.5px; }
+.pend .ir { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.pend .nada { color: var(--muted); font-size: 14px; padding: 6px 0; }
+.cumple { display: flex; flex-direction: column; gap: 8px; }
+.cumple div { display: flex; flex-direction: column; font-size: 14px; }
+.cumple span { color: var(--muted); font-size: 12.5px; }
+.cumple .hoy-si b::after { content: " 🎂"; }
+.hoy-c .ver { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 600; }
+@media (max-width: 760px) { .hoy { grid-template-columns: 1fr; } }
 .tile small { color: var(--muted); font-size: 13px; }
 h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 26px 0 10px; font-weight: 700; }
 .instalar { margin-top: 26px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--gold-suave); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
@@ -131,6 +150,10 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
   <section id="inicio" hidden>
     <h1 id="saludo">Hola</h1>
     <p class="sub" id="perfil"></p>
+    <div class="hoy" id="hoy" hidden>
+      <div class="hoy-c"><h2>Pendientes de hoy</h2><div class="pend" id="pend"></div></div>
+      <div class="hoy-c" id="cumple-c" hidden><h2>Cumpleaños de la semana</h2><div class="cumple" id="cumple"></div><a class="ver" href="../cumpleanos.html">Ver todos los cumpleaños →</a></div>
+    </div>
     <h2>Módulos</h2>
     <div class="tiles modulos" id="tiles"></div>
     <div id="bots-c" hidden><h2>Bots de Telegram</h2><div class="tiles" id="bots"></div></div>
@@ -205,6 +228,21 @@ $('#b-salir').addEventListener('click', () => salir('Sesión cerrada.'));
 function tile(icono, titulo, texto, attrs, clase) {
   return '<a class="tile ' + (clase || '') + '" ' + attrs + '><span class="ic" aria-hidden="true">' + icono + '</span><span><b>' + esc(titulo) + '</b><small>' + esc(texto) + '</small></span></a>';
 }
+/** Pendientes de hoy y cumpleaños de la semana: lo primero que ve cada persona al entrar. */
+async function cargarPendientes(a) {
+  try {
+    const r = await api('pendientes');
+    const ir = { finanzas: 'Finanzas', reclamaciones: 'Reclamaciones', contratos: 'Contratos', lobby: 'Lobby' };
+    $('#pend').innerHTML = r.items.length ? r.items.slice(0, 10).map(i => '<a class="' + esc(i.nivel) + '" href="../' + esc(i.enlace) + '"' + (i.seccion ? ' data-sec="' + esc(i.seccion) + '"' : '') + '><span class="p"></span><span><b>' + esc(i.titulo) + '</b>' +
+      (i.detalle ? '<small>' + esc(i.detalle) + '</small>' : '') + '</span><span class="ir">' + esc(ir[i.tipo] || '') + ' →</span></a>').join('') +
+      (r.items.length > 10 ? '<div class="nada">Y ' + (r.items.length - 10) + ' más.</div>' : '') : '<div class="nada">Nada pendiente por ahora. ✓</div>';
+    $('#cumple-c').hidden = !a.cumpleanos;
+    $('#cumple').innerHTML = (r.cumpleanos || []).length ? r.cumpleanos.map(c => '<div class="' + (c.dias === 0 ? 'hoy-si' : '') + '"><b>' + esc(c.nombre) + '</b><span>' + (c.dias === 0 ? 'Hoy' : c.dias === 1 ? 'Mañana' : 'En ' + c.dias + ' días') +
+      ' · ' + esc(c.torre || '') + '</span></div>').join('') : '<div class="nada" style="color:var(--muted)">Nadie cumple años esta semana.</div>';
+    $('#hoy').hidden = false;
+  } catch (err) { $('#hoy').hidden = true; }   // con un servicio anterior a la v2.1 simplemente no se muestra
+}
+document.addEventListener('click', e => { const l = e.target.closest('#pend a[data-sec]'); if (l) guardarCfg({ torre_seccion: l.dataset.sec }); });
 async function cargar() {
   ver('inicio');
   $('#tiles').innerHTML = '<p class="nota">Cargando…</p>';
@@ -216,15 +254,16 @@ async function cargar() {
     $('#perfil').textContent = u.segmento_nombre + ' · ' + u.correo;
     guardarCfg({ modulos: a, usuario: u });
     if (window.StiliModulos && !$('#modulos .sm-barra')) { StiliModulos.montar($('#modulos'), 'inicio'); $('#barra-login').hidden = true; }
+    // v2.1 · las mismas seis puertas de la barra, en el mismo orden
+    const lobby = a.lobby !== undefined ? a.lobby : (a.invitados || a.panel), fin = a.finanzas !== undefined ? a.finanzas : a.presupuesto, admin = a.admin !== undefined ? a.admin : a.usuarios;
     let h = '';
-    if (a.invitados || a.panel) h += tile('🛎', 'Invitados y Huéspedes', 'Lobby, visitantes, hosts y huéspedes, encuestas, lista negra, documentos y personal.', 'href="../admin.html?m=invitados"');
-    if (a.torres) h += tile('🏢', 'Torres', 'Ficha de cada torre: datos legales, finanzas, proveedores, contratos, reclamaciones y comunicados.', 'href="../torres.html"');
-    if (a.presupuesto) h += tile('📊', 'Presupuesto', 'Semáforo financiero de cada torre: presupuesto vs real, cobranza, liquidez y alerta temprana.', 'href="../presupuesto.html"');
-    if (a.cumpleanos) h += tile('🎂', 'Cumpleaños', 'Junta Directiva, empleados de las torres y equipo Stili, con avisos por correo.', 'href="../cumpleanos.html"', 'oro');
+    if (a.torres) h += tile('🏢', 'Torres', 'Todo de cada torre: reclamaciones, finanzas y presupuesto, proveedores y contratos, apartamentos, personal, Junta y reglamentos.', 'href="../torres.html"');
+    if (lobby) h += tile('🛎', 'Lobby', 'El día a día de portería: tablero, buscar apartamento, hosts y renta corta, solicitudes por revisar y lista negra.', 'href="../admin.html?m=lobby"');
+    if (fin) h += tile('📊', 'Finanzas', 'Semáforo de todas las torres: presupuesto vs real, cobranza, liquidez y alerta temprana.', 'href="../presupuesto.html"');
     if (a.nomina) h += tile('💼', 'Nómina y RRHH', 'Empleados, novedades, nóminas, licencias, vacaciones y reportes legales. Se abre en otra pestaña.', 'href="#" data-nomina="1"', 'oro');
     else if (a.nomina_permiso && !a.nomina_configurada) h += tile('💼', 'Nómina y RRHH', 'Falta la dirección de la Nómina (URL_NOMINA en la pestaña Config).', 'href="#" data-sin="1"', 'oro');
-    if (a.usuarios) h += tile('👥', 'Usuarios y permisos', 'Crear usuarios de la empresa, asignar segmento, torres y permisos por módulo.', 'href="../admin.html?m=usuarios"');
-    if (a.papelera) h += tile('🗑', 'Eliminar y papelera', 'Solo Gerente: eliminar datos y restaurar lo eliminado (30 días).', 'href="../admin.html?m=usuarios#papelera"', 'rojo');
+    if (admin) h += tile('⚙️', 'Administración', 'Usuarios y permisos' + (a.papelera ? ', papelera' : '') + ' y ajustes del sistema.', 'href="../admin.html?m=admin"');
+    cargarPendientes(a);
     $('#tiles').innerHTML = h || '<p class="nota">Su usuario todavía no tiene secciones asignadas. Pídalas al Gerente General.</p>';
     const bots = [[a.bot_torres, '🏢', 'Bot de Torres', 'Ficha de cada torre, proveedores, contratos, reclamaciones y comunicados.'],
       [a.bot_nomina, '🤖', 'Bot de Nómina y RRHH', 'Reportar novedades, licencias y vacaciones desde el teléfono.'],

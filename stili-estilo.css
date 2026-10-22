@@ -131,3 +131,6 @@ dialog h2 { color: var(--navy); font-size: 18px; letter-spacing: 0; text-transfo
   .cabecera .titulo b { font-size: 18px; }
   .selector { max-width: none; }
 }
+/* v2.1 · secciones del lobby dentro de la torre */
+iframe.marco-lobby { display: block; width: 100%; min-height: 420px; border: 0; background: transparent; }
+#seccion > * + * { margin-top: 14px; }
