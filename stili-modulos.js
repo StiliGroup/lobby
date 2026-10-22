@@ -22,7 +22,7 @@
     { k: 'admin', t: 'Administración', href: 'admin.html?m=admin', antes: 'usuarios' },
   ];
   // Páginas que viven dentro de otra puerta (marcan esa puerta como activa)
-  const DENTRO_DE = { invitados: 'lobby', presupuesto: 'finanzas', usuarios: 'admin', cumpleanos: 'inicio', recursos: 'inicio' };
+  const DENTRO_DE = { invitados: 'lobby', presupuesto: 'finanzas', usuarios: 'admin', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'torres' };
 
   const CSS = `
 .sm-barra { background: #003A75; color: #fff; border-bottom: 3px solid #DCB40C; font-family: Montserrat, "Segoe UI", system-ui, sans-serif; }

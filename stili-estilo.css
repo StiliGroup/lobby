@@ -134,3 +134,17 @@ dialog h2 { color: var(--navy); font-size: 18px; letter-spacing: 0; text-transfo
 /* v2.1 · secciones del lobby dentro de la torre */
 iframe.marco-lobby { display: block; width: 100%; min-height: 420px; border: 0; background: transparent; }
 #seccion > * + * { margin-top: 14px; }
+/* v2.2 · datos por completar y tareas */
+.completar { margin-top: 12px; }
+.completar summary { cursor: pointer; font-weight: 700; color: var(--warn); }
+.completar .chip { cursor: pointer; font: inherit; font-size: 13px; }
+.filtros-t { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 10px; }
+.filtros-t .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.filtros-t .seg button { border: 0; background: var(--panel); padding: 7px 14px; font-weight: 600; cursor: pointer; }
+.filtros-t .seg button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+.filtros-t select { border-radius: 8px; padding: 7px 10px; border: 1px solid var(--line); max-width: 100%; }
+tr.cerrada td { color: var(--muted); }
+tr.cerrada td b { text-decoration: line-through; }
+.subir-lev { margin: 4px 0 6px; }
+.aviso-ok { border-left: 5px solid var(--ok); }
+.btn-nueva.enlace { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.45); text-decoration: none; display: inline-flex; align-items: center; }

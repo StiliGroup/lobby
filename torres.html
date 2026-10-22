@@ -18,6 +18,7 @@
 <header class="cabecera">
   <div class="fila gutter">
     <div class="titulo"><small>Stili Group · Módulo</small><b>Torres</b></div>
+    <a class="btn-nueva enlace" id="b-tareas" href="tareas.html" hidden>Tareas por gestor</a>
     <button type="button" class="btn-nueva" id="b-nueva" hidden>+ Nueva torre</button>
     <div class="selector" id="selector" hidden>
       <button type="button" id="sel-boton" aria-haspopup="listbox" aria-expanded="false"><span><span id="sel-nombre">Elija una torre</span><small id="sel-gestor"></small></span><span class="flecha">▾</span></button>
@@ -99,17 +100,18 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') abrirLista(f
 // ------------------------------------------------------------------ Secciones de la torre
 // v2.1 · en el orden en que más se usan. Apartamentos, Personal y Reglamentos se trajeron del Lobby.
 const SECCIONES = [
-  ['reclamaciones', 'Reclamaciones y comunicados'], ['finanzas', 'Finanzas y presupuesto'], ['proveedores', 'Proveedores y contratos'],
+  ['reclamaciones', 'Reclamaciones y comunicados'], ['tareas', 'Tareas y levantamientos'], ['finanzas', 'Finanzas y presupuesto'], ['proveedores', 'Proveedores y contratos'],
   ['apartamentos', 'Apartamentos'], ['personal', 'Personal del lobby'], ['junta', 'Junta Directiva'], ['accesos', 'Accesos y servicios'],
   ['documentos', 'Reglamentos y documentos'], ['general', 'Generales y legales'], ['historial', 'Notas e historial'],
 ];
-const CORTO = { reclamaciones: 'Reclamaciones', finanzas: 'Finanzas', proveedores: 'Proveedores', apartamentos: 'Apartamentos', personal: 'Personal', junta: 'Junta',
+const CORTO = { reclamaciones: 'Reclamaciones', tareas: 'Tareas', finanzas: 'Finanzas', proveedores: 'Proveedores', apartamentos: 'Apartamentos', personal: 'Personal', junta: 'Junta',
   accesos: 'Accesos', documentos: 'Reglamentos', general: 'Generales', historial: 'Historial' };   // en el teléfono
 const SECCION_VIEJA = { presupuesto: 'finanzas', contratos: 'proveedores', comunicados: 'reclamaciones', empleados: 'personal', notas: 'historial' };
 const lobby = () => (S.lista && S.lista.lobby) || {};
 function tieneSeccion(k, d) {
   const ficha = d.ver_ficha !== false;
   if (k === 'reclamaciones') return !!d.reclamaciones;
+  if (k === 'tareas') return !!(S.lista && S.lista.tareas > 0);
   if (k === 'finanzas') return ficha || !!(S.lista && (S.lista.finanzas || S.lista.presupuesto));
   if (k === 'apartamentos') return lobby().apartamentos > 0;
   if (k === 'personal') return lobby().personal > 0 || (ficha && d.empleados.length > 0);
@@ -128,11 +130,20 @@ function pintarTabs() {
   const corto = window.matchMedia('(max-width: 700px)').matches;
   $('#tabs').innerHTML = SECCIONES.filter(([k]) => tieneSeccion(k, d)).map(([k, n]) => '<button type="button" data-s="' + k + '" aria-selected="' + (S.seccion === k) + '" title="' + esc(n) + '">' + esc(corto ? CORTO[k] : n) +
     (k === 'reclamaciones' && d.reclamaciones && d.reclamaciones.resumen.abiertas ? '<span class="n">' + d.reclamaciones.resumen.abiertas + '</span>' : '') +
+    (k === 'tareas' && d.tareas_abiertas ? '<span class="n">' + d.tareas_abiertas + '</span>' : '') +
     (k === 'proveedores' && d.contratos.some(c => c.dias !== null && c.dias <= 30) ? '<span class="n">' + d.contratos.filter(c => c.dias !== null && c.dias <= 30).length + '</span>' : '') + '</button>').join('');
   $('#secciones').hidden = false;
   StiliModulos.mas($('#tabs'), { items: ':scope > button' });
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-s]'); if (b) verSeccion(b.dataset.s); });
+// «Datos por completar»: cada dato lleva a su sección (y abre el editor de la ficha cuando aplica)
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-ir]'); if (!b || !S.detalle) return;
+  const k = b.dataset.ir;
+  if (!tieneSeccion(k, S.detalle)) return;
+  if ((k === 'general' || k === 'finanzas') && S.detalle.puede_editar && k === 'general') S.editando = 'general';
+  verSeccion(k); $('#seccion').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 function verSeccion(k) {
   S.seccion = k; guardar({ torre_seccion: k });
   $$('#tabs > button[data-s]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.s === k)));
@@ -169,6 +180,7 @@ function pintarSeccion() {
     '<div class="card"><h2>Proveedores · ' + d.proveedores.length + '</h2>' + tabla(['Servicio', 'Empresa', 'Contacto', 'Teléfono', 'Correo', 'Notas'],
     d.proveedores.map(p => '<tr><td><b>' + esc(p.servicio) + '</b></td><td>' + esc(p.empresa) + '</td><td>' + esc(p.contacto) + '</td><td>' + tel(p.telefono) + '</td><td>' + (p.correo ? '<a href="mailto:' + esc(p.correo) + '">' + esc(p.correo) + '</a>' : '') + '</td><td><small>' + esc(p.notas) + '</small></td></tr>'),
     'Todavía no hay proveedores registrados para esta torre.') + '</div>';
+  if (k === 'tareas') h = '<div id="tar"><p class="nota">Cargando tareas…</p></div>';
   if (k === 'apartamentos') h = marco('torres', 'Apartamentos del lobby');
   if (k === 'personal') h = lobby().personal > 0 ? marco('personal', 'Personal del lobby') : '<div class="card"><h2>Personal del lobby · ' + d.empleados.length + '</h2>' + tabla(['Nombre', 'Puesto', 'Cédula'],
     d.empleados.map(e => '<tr><td><b>' + esc(e.nombre) + '</b></td><td>' + esc(e.puesto) + '</td><td>' + esc(e.documento) + '</td></tr>'), 'No hay empleados asignados a esta torre.') +
@@ -190,6 +202,7 @@ function pintarSeccion() {
     (d.historial ? '<div class="card"><h2>Últimos cambios</h2>' + tabla(['Fecha', 'Quién', 'Qué', 'Antes', 'Ahora'],
     d.historial.map(x => '<tr><td>' + esc(x.fecha) + '</td><td>' + esc(x.usuario) + '</td><td>' + esc(x.campo) + '<br><small>' + esc(x.accion) + '</small></td><td><small>' + esc(x.antes) + '</small></td><td>' + esc(x.despues) + '</td></tr>'), 'Sin cambios registrados.') + '</div>' : '');
   $('#seccion').innerHTML = h;
+  if (k === 'tareas') cargarTareas();
   if (k === 'finanzas' && S.lista.finanzas) cargarFinanzas();
   if (k === 'finanzas' && S.lista.presupuesto) cargarPresupuesto();
 }
@@ -203,14 +216,18 @@ async function abrirTorre(clave) {
   try {
     const d = S.detalle = await api('torre_detalle', { torre: clave });
     S.seccion = SECCION_VIEJA[S.seccion] || S.seccion;
+    if (S.seccion === 'completar') S.seccion = primeraSeccion(d);
     if (!tieneSeccion(S.seccion, d)) S.seccion = primeraSeccion(d);
     const porVencer = d.contratos.filter(c => c.dias !== null && c.dias <= 30).length;
     const rnc = (d.general.find(c => c.clave === 'rnc') || {}).valor, dir = (d.general.find(c => c.clave === 'direccion') || {}).valor;
     $('#contenido').innerHTML = '<section class="card resumen"><div><h1>' + esc(d.torre) + '</h1><div class="nota">' + [dir, rnc ? 'RNC ' + rnc : '', d.gestor ? 'Gestor(a): ' + d.gestor : ''].filter(Boolean).map(esc).join(' · ') + '</div>' +
       (d.puede_asignar ? '<div class="gestor-fila"><label for="g-sel">Gestor responsable</label><select class="gestor" id="g-sel">' + opcionesGestor(d.gestor_id, d.equipo) + '</select></div>' : '') +
       '<div class="chips">' + (d.reclamaciones ? '<span class="chip ' + (d.reclamaciones.resumen.abiertas ? 'rojo' : 'verde') + '">' + plural(d.reclamaciones.resumen.abiertas, 'reclamación abierta', 'reclamaciones abiertas') + '</span>' : '') +
-      (porVencer ? '<span class="chip ambar">' + plural(porVencer, 'contrato vence', 'contratos vencen') + ' en 30 días</span>' : '') + '<span class="chip azul">' + plural(d.proveedores.length, 'proveedor', 'proveedores') + '</span><span class="chip azul">' + plural(d.empleados.length, 'empleado', 'empleados') + '</span></div></div>' +
-      '<div class="acciones">' + (S.lista.bot ? '<a class="btn primario" href="' + esc(S.lista.bot) + '" target="_blank" rel="noopener">Agregar o corregir en el Bot de Torres ↗</a>' : '') + '</div></section>' +
+      (porVencer ? '<span class="chip ambar">' + plural(porVencer, 'contrato vence', 'contratos vencen') + ' en 30 días</span>' : '') +
+      (d.tareas_abiertas ? '<span class="chip ambar">' + plural(d.tareas_abiertas, 'tarea abierta', 'tareas abiertas') + '</span>' : '') + '<span class="chip azul">' + plural(d.proveedores.length, 'proveedor', 'proveedores') + '</span><span class="chip azul">' + plural(d.empleados.length, 'empleado', 'empleados') + '</span></div>' +
+      ((d.completar || []).length ? '<details class="completar"' + (cfg().torre_seccion === 'completar' ? ' open' : '') + '><summary>⚠ ' + plural(d.completar.length, 'dato por completar', 'datos por completar') + '</summary><div class="chips">' +
+        d.completar.map(x => '<button type="button" class="chip ambar" data-ir="' + esc(x.seccion) + '" title="Ir a ' + esc(x.seccion) + '">' + esc(x.texto) + '</button>').join('') + '</div></details>' : '') +
+      '</div><div class="acciones">' + (S.lista.bot ? '<a class="btn primario" href="' + esc(S.lista.bot) + '" target="_blank" rel="noopener">Agregar o corregir en el Bot de Torres ↗</a>' : '') + '</div></section>' +
       '<div id="seccion"></div>';
     S.editando = null; pintarTabs(); pintarSeccion();
     const gs = $('#g-sel'); if (gs) gs.addEventListener('change', () => cambiarGestor(gs.value));
@@ -310,6 +327,70 @@ async function leerArchivo(f) {
   }
   return out;
 }
+// ------------------------------------------------------------------ Tareas y levantamientos (v2.2)
+const PRIORIDAD = { alta: 'rojo', media: 'ambar', baja: 'azul' };
+const FILTRO_T = { estado: 'abierta', categoria: '' };
+async function cargarTareas(datos) {
+  try { S.tar = datos || await api('tareas_datos', { torre: S.torre }); pintarTareas(); }
+  catch (err) { $('#tar').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
+}
+function pintarTareas() {
+  const d = S.tar, cats = d.categorias, ab = d.tareas.filter(t => t.estado !== 'cerrada');
+  const porCat = {}; ab.forEach(t => { porCat[t.categoria] = (porCat[t.categoria] || 0) + 1; });
+  const lista = d.tareas.filter(t => (FILTRO_T.estado === 'todas' || (FILTRO_T.estado === 'cerrada') === (t.estado === 'cerrada')) && (!FILTRO_T.categoria || t.categoria === FILTRO_T.categoria));
+  const opCat = sel => Object.keys(cats).map(k => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(cats[k]) + '</option>').join('');
+  $('#tar').innerHTML =
+    '<div class="card"><div class="cab"><h2>Tareas de la torre</h2><a class="btn" href="tareas.html">Métricas por gestor →</a></div>' +
+    '<div class="kpis">' + [['Abiertas', ab.length], ['Cerradas', d.tareas.length - ab.length], ['Prioridad alta', ab.filter(t => t.prioridad === 'alta').length], ['Levantamientos', d.reportes.length]]
+      .map(([n, v]) => '<div class="kpi"><span>' + n + '</span><b>' + v + '</b></div>').join('') + '</div>' +
+    (Object.keys(porCat).length ? '<div class="chips" style="margin:0 0 12px">' + Object.keys(porCat).map(k => '<button type="button" class="chip azul" data-fcat="' + k + '">' + esc(cats[k]) + ' · ' + porCat[k] + '</button>').join('') + '</div>' : '') +
+    (d.puede_editar ? '<form class="form subir-lev" id="f-lev"><label class="ancho subida">Subir levantamiento (PDF de Report &amp; Run, fotos o Excel)<input type="file" name="archivo" accept=".pdf,.xlsx,.xls,.csv,image/*" required></label>' +
+      '<label>Título (opcional)<input name="titulo" placeholder="Levantamiento octubre"></label><label>Nota para la IA (opcional)<input name="nota" placeholder="Ej.: la puerta del ascensor ya se cotizó"></label>' +
+      '<div class="acciones-fila"><button class="btn primario" id="b-lev"' + (d.ia ? '' : ' disabled title="Falta la clave de la IA"') + '>Subir y clasificar con IA</button></div><p class="nota" id="lev-msg" role="status"></p></form>' : '') +
+    '<div class="filtros-t"><div class="seg">' + [['abierta', 'Abiertas'], ['cerrada', 'Cerradas'], ['todas', 'Todas']].map(([k, n]) => '<button type="button" data-fest="' + k + '" aria-pressed="' + (FILTRO_T.estado === k) + '">' + n + '</button>').join('') + '</div>' +
+      '<select id="fcat" aria-label="Categoría"><option value="">Todas las categorías</option>' + opCat(FILTRO_T.categoria) + '</select></div>' +
+    tabla(['#', 'Tarea', 'Categoría', 'Prioridad', 'Responsable', 'Fecha', ''], lista.map(t => '<tr' + (t.estado === 'cerrada' ? ' class="cerrada"' : '') + '><td>' + esc(t.numero) + '</td><td><b>' + esc(t.descripcion) + '</b>' +
+      (t.detalle ? '<br><small>' + esc(t.detalle) + '</small>' : '') + (t.estado === 'cerrada' ? '<br><small>✓ Cerrada el ' + esc(t.cerrada_en) + ' por ' + esc(t.cerrada_por) + (t.nota_cierre ? ': ' + esc(t.nota_cierre) : '') + '</small>' : '') + '</td><td>' +
+      (d.puede_editar ? '<select data-tcat="' + esc(t.id) + '" aria-label="Categoría">' + opCat(t.categoria) + '</select>' : esc(cats[t.categoria] || t.categoria)) + (t.subcategoria ? '<br><small>' + esc(t.subcategoria) + '</small>' : '') + '</td>' +
+      '<td><span class="chip ' + (PRIORIDAD[t.prioridad] || '') + '">' + esc(t.prioridad) + '</span></td><td>' + esc(t.responsable) + '</td><td>' + esc(t.fecha) + '</td><td>' +
+      (d.puede_editar ? (t.estado === 'cerrada' ? '<button type="button" class="btn" data-tabrir="' + esc(t.id) + '">Reabrir</button>' : '<button type="button" class="btn primario" data-tcerrar="' + esc(t.id) + '">Cerrar</button>') : '') + '</td></tr>'),
+      FILTRO_T.estado === 'abierta' ? 'No hay tareas abiertas.' : 'No hay tareas en este filtro.') + '</div>' +
+    '<div class="card"><h2>Levantamientos recibidos</h2>' + tabla(['Fecha', 'Título', 'Tareas', 'Subido por', 'Resumen de la IA'], d.reportes.map(r => '<tr><td>' + esc(r.fecha) + '</td><td><b>' + esc(r.titulo) + '</b>' +
+      (r.url ? '<br><a href="' + esc(r.url) + '" target="_blank" rel="noopener">Abrir archivo ↗</a>' : '') + '</td><td>' + esc(r.tareas) + '</td><td>' + esc(r.subido_por) + '<br><small>' + (r.origen === 'bot' ? 'Bot de Telegram' : 'Portal') + '</small></td><td><small>' + esc(r.resumen) + '</small></td></tr>'),
+      'Todavía no hay levantamientos. ' + (d.puede_editar ? 'Suba el PDF de la inspección o envíelo al Bot de Torres.' : '')) + '</div>';
+  const f = $('#f-lev'); if (f) f.addEventListener('submit', subirLevantamiento);
+}
+async function subirLevantamiento(e) {
+  e.preventDefault();
+  const f = e.target, file = f.archivo.files[0]; if (!file) return;
+  const b = $('#b-lev'); b.disabled = true; $('#lev-msg').textContent = 'Leyendo el levantamiento con IA… puede tardar un minuto.';
+  try {
+    const archivo = await leerArchivo(file);
+    const r = await api('reporte_subir', { torre: S.torre, archivo, titulo: f.titulo.value.trim(), nota: f.nota.value.trim() });
+    FILTRO_T.estado = 'abierta'; FILTRO_T.categoria = '';
+    await cargarTareas(r);
+    const nuevas = r.tareas.filter(t => t.reporte_id === r.reporte_id);
+    const porCat = {}; nuevas.forEach(t => { porCat[t.categoria] = (porCat[t.categoria] || 0) + 1; });
+    $('#tar').insertAdjacentHTML('afterbegin', '<div class="card aviso-ok"><b>✓ ' + plural(nuevas.length, 'tarea nueva', 'tareas nuevas') + '</b>: ' +
+      Object.keys(porCat).map(k => esc(r.categorias[k]) + ' ' + porCat[k]).join(' · ') + '. Revise la categoría de cada una y corrija si hace falta.</div>');
+  } catch (err) { $('#lev-msg').textContent = err.message; b.disabled = false; }
+}
+document.addEventListener('click', async e => {
+  const est = e.target.closest('[data-fest]'), fc = e.target.closest('[data-fcat]');
+  if (est) { FILTRO_T.estado = est.dataset.fest; return pintarTareas(); }
+  if (fc) { FILTRO_T.categoria = fc.dataset.fcat; FILTRO_T.estado = 'abierta'; return pintarTareas(); }
+  const c = e.target.closest('[data-tcerrar]'), a = e.target.closest('[data-tabrir]');
+  if (!c && !a) return;
+  const nota = c ? prompt('Nota de cierre (opcional): qué se hizo, proveedor, costo…', '') : '';
+  if (c && nota === null) return;
+  try { await cargarTareas(await api('tarea_actualizar', { id: (c || a).dataset[c ? 'tcerrar' : 'tabrir'], estado: c ? 'cerrada' : 'abierta', nota })); }
+  catch (err) { alert(err.message); }
+});
+document.addEventListener('change', async e => {
+  if (e.target.id === 'fcat') { FILTRO_T.categoria = e.target.value; return pintarTareas(); }
+  const s = e.target.closest('[data-tcat]'); if (!s) return;
+  try { S.tar = await api('tarea_actualizar', { id: s.dataset.tcat, categoria: s.value }); } catch (err) { alert(err.message); }
+});
 function informe(md) {
   const lineas = esc(md).split('\n'); let h = '', lista = false;
   lineas.forEach(l => {
@@ -428,7 +509,7 @@ async function iniciar() {
   try {
     S.lista = await api('torres_lista');
     S.seccion = SECCION_VIEJA[cfg().torre_seccion] || cfg().torre_seccion || 'reclamaciones';
-    $('#b-nueva').hidden = !S.lista.puede_crear;
+    $('#b-nueva').hidden = !S.lista.puede_crear; $('#b-tareas').hidden = !(S.lista.tareas > 0);
     if (!S.lista.torres.length) { $('#contenido').innerHTML = '<div class="vacio">' + (S.lista.puede_crear ? 'Todavía no hay torres. Use «+ Nueva torre».' : 'Su usuario no tiene torres asignadas. Pídalas al Gerente General.') + '</div>'; return; }
     $('#selector').hidden = false; $('#b-nueva').hidden = !S.lista.puede_crear;
     const pedida = decodeURIComponent(location.hash.slice(1)) || cfg().torre_actual;
@@ -441,7 +522,7 @@ async function iniciar() {
 
 // ------------------------------------------------------------------ Datos de ejemplo (?demo) para revisar el diseño sin conexión
 const Demo = {
-  torres_lista: () => ({ bot: 'https://t.me/StiliTorresBot', nivel: 3, reclamaciones: true, puede_crear: true, finanzas: true, presupuesto: true, ficha: true, lobby: { apartamentos: 3, personal: 3, documentos: 3 },
+  torres_lista: () => ({ bot: 'https://t.me/StiliTorresBot', nivel: 3, reclamaciones: true, puede_crear: true, finanzas: true, presupuesto: true, ficha: true, tareas: 3, lobby: { apartamentos: 3, personal: 3, documentos: 3 },
     equipo: [['NOM-1', 'Mildred Pérez', 'Gestora de Cuentas', 'Gestión de Cuentas'], ['NOM-2', 'Reyna Martínez', 'Gestora de Cuentas', 'Gestión de Cuentas'], ['NOM-3', 'Danna Carolina Ramírez', 'Gestora de Cuentas', 'Gestión de Cuentas'],
       ['NOM-4', 'Lissette López', 'Encargada de Contabilidad', 'Contabilidad'], ['NOM-5', 'Ronald Larrauri', 'Gerente General', 'Gerencia General']].map(([id, nombre, cargo, departamento]) => ({ id, nombre, cargo, departamento })),
     torres: [
@@ -449,6 +530,12 @@ const Demo = {
     ['Torre Niza 7', 'NIZA7', 'Reyna Martínez', 'Piantini', 1], ['Torre Prime Residences', 'PRIME', 'Danna Ramírez', 'Serrallés', 0], ['Torre Madelta VI', 'MAD6', 'Sin gestor asignado', '', 0]]
     .map(([torre, clave, gestor, direccion, abiertas]) => ({ torre, clave, gestor, direccion, abiertas })) }),
   torre_guardar: () => ({ gestor: 'Reyna Martínez', cambios: 1 }),
+  tareas_datos: () => ({ torre: 'Torre Niza 7', puede_editar: true, ia: true, categorias: { mantenimiento: 'Mantenimiento', limpieza: 'Limpieza', personal: 'Personal', compras: 'Compras y suministros', seguridad: 'Seguridad', administrativo: 'Administrativo', otro: 'Otro' },
+    reportes: [{ id: 'RP1', titulo: 'Levantamiento octubre', fecha: '21/10/2026', subido_por: 'Reyna Martínez', origen: 'bot', tareas: 5, resumen: 'Retoques de pintura, plafones dañados y limpieza del parqueo.', url: '#' }],
+    tareas: [['Soldar hierro de entrada de lobby', 'mantenimiento', 'soldadura', 'alta', 'técnico o proveedor', 'abierta'], ['Retoque de pintura en columnas del parqueo', 'mantenimiento', 'pintura', 'baja', 'técnico o proveedor', 'abierta'],
+      ['Pulido de pisos del lobby', 'limpieza', 'pisos', 'media', 'conserjería', 'abierta'], ['Comprar alfombras del ascensor', 'compras', 'mobiliario', 'baja', 'gestor(a)', 'abierta'], ['Revisión de las cámaras', 'seguridad', 'CCTV', 'media', 'técnico o proveedor', 'cerrada']]
+      .map(([descripcion, categoria, subcategoria, prioridad, responsable, estado], i) => ({ id: 'T' + i, reporte_id: 'RP1', numero: i + 1, descripcion, categoria, subcategoria, prioridad, responsable, estado, fecha: '21/10/2026',
+        detalle: '', cerrada_en: estado === 'cerrada' ? '22/10/2026' : '', cerrada_por: estado === 'cerrada' ? 'Reyna Martínez' : '' })) }),
   fin_datos: () => ({ torre: 'Torre Niza 7', puede_editar: true, ia: true, tipos: { banco: 'Estado bancario', habitanto: 'Estado de Habitanto', presupuesto: 'Presupuesto', morosidad: 'Cuotas y morosidad', otro: 'Otro' },
     archivos: [{ id: 'FA1', tipo: 'banco', periodo: '2026-09', nombre: 'BHD septiembre.pdf', url: '#', subido_por: 'Lissette López', subido_en: '05/10/2026' },
       { id: 'FA2', tipo: 'habitanto', periodo: '2026-09', nombre: 'Habitanto estado sept.xlsx', url: '#', subido_por: 'Lissette López', subido_en: '05/10/2026' }],
@@ -480,7 +567,7 @@ const Demo = {
     contratos: [{ tipo: 'Póliza de seguro', proveedor: 'Seguros Ejemplo', numero: 'P-2231', vence: '08/11/2026', dias: 17, monto: 'RD$ 85,000', frecuencia: 'Anual', notas: 'Incendio y responsabilidad civil' },
       { tipo: 'Mant. ascensores', proveedor: 'Elevadores del Caribe', numero: 'C-88', vence: '31/03/2027', dias: 160, monto: 'RD$ 9,000', frecuencia: 'Mensual', notas: '' }],
     empleados: [{ nombre: 'Pedro Gómez', puesto: 'portero', documento: '•••4321' }, { nombre: 'Juana Santos', puesto: 'conserje', documento: '•••8810' }],
-    documentos: [{ titulo: 'Reglamento de convivencia 2026', archivo: 'reglamento.pdf', subido: '02/10/2026', articulos: 24, general: false }], ver_ficha: true,
+    documentos: [{ titulo: 'Reglamento de convivencia 2026', archivo: 'reglamento.pdf', subido: '02/10/2026', articulos: 24, general: false }], ver_ficha: true, tareas_abiertas: 4, completar: [{ campo: 'rnc', texto: 'RNC', seccion: 'general' }, { campo: 'junta_nacimiento', texto: 'Cumpleaños de 1 miembro de la Junta', seccion: 'junta' }, { campo: 'presupuesto', texto: 'Presupuesto 2026', seccion: 'finanzas' }],
     notas: [{ autor: 'Reyna Martínez', fecha: '15/10/2026', nota: 'La presidenta prefiere comunicados por WhatsApp antes de las 6:00 p. m.' }],
     historial: [{ fecha: '20/10/2026', usuario: 'Reyna Martínez', campo: 'cuota_mantenimiento', antes: 'RD$ 11,800', despues: 'RD$ 12,500', accion: 'corregido' }],
     reclamaciones: { resumen: { total: 6, abiertas: 1, notificadas: 1, cerradas: 4, este_mes: 2 }, lista: [

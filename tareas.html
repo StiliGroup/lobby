@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tareas por gestor · Stili</title>
+<meta name="description" content="Tareas que recibe y cierra cada gestor por mes, a partir de los levantamientos de las torres.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css">
+<script src="config.js"></script>
+<script src="stili-modulos.js"></script>
+<style>
+/* Colores de las series validados (claro y oscuro): recibidas = azul, cerradas = dorado */
+:root { --s-rec: #3A5BA8; --s-cer: #B07F06; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --s-rec: #5577CC; --s-cer: #B98A12; } }
+:root[data-theme="dark"] { --s-rec: #5577CC; --s-cer: #B98A12; }
+.filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filtros select { border-radius: 8px; padding: 7px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); max-width: 100%; }
+.gestores { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 14px; }
+.g h2 { margin: 0; font-size: 18px; color: var(--navy); text-transform: none; letter-spacing: 0; }
+.g .torres { color: var(--muted); font-size: 13px; margin: 2px 0 10px; }
+.leyenda { display: flex; gap: 14px; font-size: 13px; color: var(--muted); margin: 4px 0 6px; }
+.leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.graf { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; align-items: end; gap: 10px; height: 150px; padding: 0 2px;
+  border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to top, transparent 0 49px, var(--line) 49px 50px); background-size: 100% 50px; }
+.mes { display: flex; gap: 2px; align-items: end; justify-content: center; height: 100%; }
+.barra { width: min(22px, 40%); border-radius: 4px 4px 0 0; min-height: 0; cursor: default; position: relative; }
+.barra.rec { background: var(--s-rec); } .barra.cer { background: var(--s-cer); }
+.barra:hover, .barra:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
+.ejes { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; font-size: 12px; color: var(--muted); text-align: center; margin-top: 4px; }
+.tip { position: fixed; z-index: 50; background: var(--fg); color: var(--panel); padding: 6px 9px; border-radius: 8px; font-size: 13px; pointer-events: none; white-space: nowrap; }
+.mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.mini div { background: var(--panel-2); border-radius: 10px; padding: 8px 10px; font-size: 12px; color: var(--muted); }
+.mini b { display: block; font-size: 20px; color: var(--fg); }
+.cats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+details.tabla-mes summary { cursor: pointer; font-weight: 600; margin-top: 10px; color: var(--navy); }
+@media (max-width: 560px) { .mini { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Torres</small><b>Tareas por gestor</b></div>
+  <div class="filtros"><label class="nota" style="color:#C9D3DF">Período <select id="meses"><option value="3">3 meses</option><option value="6" selected>6 meses</option><option value="12">12 meses</option></select></label>
+  <label class="nota" style="color:#C9D3DF">Gestor <select id="gestor"><option value="">Todos</option></select></label></div></div></header>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<div class="tip" id="tip" hidden></div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const nombreMes = m => MES[Number(m.slice(5)) - 1] + ' ' + m.slice(2, 4);
+const pct = (a, b) => b ? Math.round(a / b * 100) + ' %' : '—';
+let datos = null;
+
+async function cargar() {
+  $('#contenido').innerHTML = '<p class="nota">Cargando…</p>';
+  try {
+    datos = DEMO ? demo(Number($('#meses').value)) : await StiliModulos.api('tareas_metricas', { meses: $('#meses').value });
+    const g = $('#gestor').value;
+    $('#gestor').innerHTML = '<option value="">Todos</option>' + datos.gestores.map(x => '<option' + (x.gestor === g ? ' selected' : '') + '>' + esc(x.gestor) + '</option>').join('');
+    pintar();
+  } catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
+}
+function pintar() {
+  const sel = $('#gestor').value, gs = datos.gestores.filter(x => !sel || x.gestor === sel);
+  const suma = k => gs.reduce((a, x) => a + x.meses.reduce((b, m) => b + m[k], 0), 0);
+  const rec = suma('recibidas'), cer = suma('cerradas');
+  $('#contenido').innerHTML =
+    '<div class="card"><div class="kpis" style="margin:0">' + [['Recibidas', rec], ['Cerradas', cer], ['Cierre', pct(cer, rec)],
+      ['Abiertas hoy', gs.reduce((a, x) => a + x.abiertas, 0)], ['Abiertas +30 días', gs.reduce((a, x) => a + x.abiertas_30, 0)]]
+      .map(([n, v]) => '<div class="kpi"><span>' + n + '</span><b>' + v + '</b></div>').join('') + '</div>' +
+      '<p class="nota" style="margin:10px 0 0">Recibidas = tareas que salieron de los levantamientos ese mes (Portal o Bot de Telegram). Cerradas = tareas cerradas ese mes. Cada tarea se cuenta para el gestor responsable de la torre cuando se recibió.</p></div>' +
+    (gs.length ? '<div class="gestores">' + gs.map(tarjeta).join('') + '</div>' : '<div class="vacio">Todavía no hay tareas. Suba un levantamiento en Torres → Tareas, o envíelo al Bot de Torres.</div>');
+}
+function tarjeta(x) {
+  const max = Math.max(1, ...x.meses.map(m => Math.max(m.recibidas, m.cerradas)));
+  const rec = x.meses.reduce((a, m) => a + m.recibidas, 0), cer = x.meses.reduce((a, m) => a + m.cerradas, 0);
+  const alto = v => Math.round(v / max * 100) + '%';
+  const cats = Object.keys(x.por_categoria).sort((a, b) => x.por_categoria[b].recibidas - x.por_categoria[a].recibidas);
+  return '<section class="card g"><h2>' + esc(x.gestor) + '</h2><div class="torres">' + esc(x.torres.join(' · ')) + '</div>' +
+    '<div class="mini"><div>Recibidas<b>' + rec + '</b></div><div>Cerradas<b>' + cer + '</b></div><div>Abiertas hoy<b>' + x.abiertas + '</b></div><div>Días para cerrar<b>' +
+      (x.dias_promedio_cierre == null ? '—' : x.dias_promedio_cierre) + '</b></div></div>' +
+    '<div class="leyenda" aria-hidden="true"><span><i style="background:var(--s-rec)"></i>Recibidas</span><span><i style="background:var(--s-cer)"></i>Cerradas</span></div>' +
+    '<div class="graf" role="img" aria-label="Tareas recibidas y cerradas por mes de ' + esc(x.gestor) + '">' + x.meses.map(m =>
+      '<div class="mes"><div class="barra rec" tabindex="0" style="height:' + alto(m.recibidas) + '" data-tip="' + esc(nombreMes(m.mes) + ' · Recibidas: ' + m.recibidas) + '"></div>' +
+      '<div class="barra cer" tabindex="0" style="height:' + alto(m.cerradas) + '" data-tip="' + esc(nombreMes(m.mes) + ' · Cerradas: ' + m.cerradas) + '"></div></div>').join('') + '</div>' +
+    '<div class="ejes">' + x.meses.map(m => '<span>' + nombreMes(m.mes) + '</span>').join('') + '</div>' +
+    '<details class="tabla-mes"><summary>Ver la tabla por mes</summary><div class="tabla"><table><thead><tr><th>Mes</th><th>Recibidas</th><th>Cerradas</th><th>Cierre</th></tr></thead><tbody>' +
+      x.meses.map(m => '<tr><td>' + nombreMes(m.mes) + '</td><td>' + m.recibidas + '</td><td>' + m.cerradas + '</td><td>' + pct(m.cerradas, m.recibidas) + '</td></tr>').join('') + '</tbody></table></div></details>' +
+    (cats.length ? '<div class="cats">' + cats.map(k => '<span class="chip azul">' + esc(datos.categorias[k] || k) + ': ' + x.por_categoria[k].recibidas + ' · ' + x.por_categoria[k].cerradas + ' cerradas</span>').join('') + '</div>' : '') +
+    (x.abiertas_30 ? '<p class="nota" style="color:var(--warn);margin:10px 0 0">⚠ ' + x.abiertas_30 + ' tarea(s) abiertas hace más de 30 días.</p>' : '') + '</section>';
+}
+// Tooltip de cada barra (ratón y teclado)
+function tip(e) {
+  const b = e.target.closest && e.target.closest('[data-tip]'), t = $('#tip');
+  if (!b) { t.hidden = true; return; }
+  t.textContent = b.dataset.tip; t.hidden = false;
+  const r = b.getBoundingClientRect();
+  t.style.left = Math.min(innerWidth - t.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - t.offsetWidth / 2)) + 'px';
+  t.style.top = Math.max(8, r.top - t.offsetHeight - 8) + 'px';
+}
+document.addEventListener('mouseover', tip); document.addEventListener('focusin', tip);
+document.addEventListener('mouseout', e => { if (e.target.closest && e.target.closest('[data-tip]')) $('#tip').hidden = true; });
+$('#meses').addEventListener('change', cargar); $('#gestor').addEventListener('change', pintar);
+function demo(n) {
+  const hoy = new Date(), meses = []; for (let i = n - 1; i >= 0; i--) { const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1); meses.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
+  const g = (gestor, torres, base) => ({ gestor, torres, abiertas: base[0], abiertas_30: base[1], dias_promedio_cierre: base[2],
+    por_categoria: { mantenimiento: { recibidas: 21, cerradas: 14 }, limpieza: { recibidas: 9, cerradas: 8 }, compras: { recibidas: 6, cerradas: 2 }, personal: { recibidas: 3, cerradas: 3 } },
+    meses: meses.map((mes, i) => ({ mes, recibidas: (i * 7 + base[3]) % 23 + 4, cerradas: (i * 5 + base[3]) % 17 + 2, categorias: {} })) });
+  return { meses, categorias: { mantenimiento: 'Mantenimiento', limpieza: 'Limpieza', personal: 'Personal', compras: 'Compras y suministros', seguridad: 'Seguridad', administrativo: 'Administrativo', otro: 'Otro' },
+    gestores: [g('Mildred Pérez', ['Gil Roma XXXII', 'Torre Arpel 07', 'Apex Arroyo Hondo'], [12, 3, 6.5, 3]), g('Reyna Martínez', ['Los Hernandez VII', 'Torre Niza 7'], [7, 0, 4.2, 9])] };
+}
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'torres'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Tareas por gestor</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en el Portal Stili</a></div>'; }
+else { StiliModulos.montar(document.body, 'torres'); cargar(); }
+</script>
+</body>
+</html>

@@ -1342,7 +1342,7 @@ const Demo = (() => {
   }
   const err = (m, c) => { const e = new Error(m); e.codigo = c; return e; };
   const SEGMENTOS_D = { gerente: 'Gerente General', gestores: 'Gestores de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad / CxC / CxP' };
-  const SECCIONES_D = [   // copia de SECCIONES del servicio (v2.1)
+  const SECCIONES_D = [   // copia de SECCIONES del servicio (v2.2)
     ['tablero', 'panel', 'Lobby · Tablero y actividad', 'Ver: ocupación y actividad de las torres.', [1, 1, 1]],
     ['apartamento', 'panel', 'Lobby · Buscar apartamento', 'Ver: datos generales con teléfonos y documentos ocultos. Profundizar: teléfonos, documentos, fotos, código de puerta y wifi. Editar: ocupación máxima y residentes.', [1, 0, 0]],
     ['hosts', 'panel', 'Lobby · Hosts y renta corta', 'Ver: lista con teléfonos ocultos. Profundizar: datos completos. Editar: crear, editar y asignar apartamentos.', [1, 0, 0]],
@@ -1350,6 +1350,7 @@ const Demo = (() => {
     ['conflictos', 'panel', 'Lobby · Por revisar: conflictos (R1–R5)', 'Editar: transferir unidades entre hosts.', [1, 0, 0]],
     ['lista_negra', 'panel', 'Lobby · Lista negra', 'Ver: nombres y motivos. Profundizar: documentos completos. Editar: agregar personas y decidir solicitudes.', [1, 1, 0]],
     ['tor_fichas', 'torres', 'Torres · Ficha, proveedores, contratos y Junta', 'Ver: datos generales, proveedores, contratos y empleados. Profundizar: finanzas con el número de cuenta e historial de cambios.', [2, 1, 2]],
+    ['tor_tareas', 'torres', 'Torres · Levantamientos y tareas', 'Ver: tareas de cada torre y métricas por gestor. Editar: subir levantamientos, corregir la categoría y cerrar tareas.', [3, 1, 0]],
     ['tor_reclamaciones', 'torres', 'Torres · Reclamaciones y comunicados', 'Ver: reclamaciones de cada torre, conteo y comunicados emitidos.', [1, 0, 0]],
     ['tor_finanzas', 'torres', 'Torres · Finanzas y análisis con IA', 'Ver: análisis y discrepancias. Profundizar: abrir los estados subidos. Editar: subir estados bancarios y de Habitanto, analizar con IA y escribir en la memoria.', [1, 0, 3]],
     ['tor_presupuesto', 'torres', 'Finanzas · Presupuesto y alerta temprana', 'Ver: tablero de riesgo de todas sus torres. Editar: cargar y corregir el presupuesto de cada torre.', [1, 0, 3]],
