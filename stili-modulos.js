@@ -17,6 +17,8 @@
     { k: 'inicio', t: 'Inicio', href: 'portal/', siempre: true },
     { k: 'invitados', t: 'Invitados y Huéspedes', href: 'admin.html?m=invitados' },
     { k: 'torres', t: 'Torres', href: 'torres.html' },
+    { k: 'presupuesto', t: 'Presupuesto', href: 'presupuesto.html' },
+    { k: 'cumpleanos', t: 'Cumpleaños', href: 'cumpleanos.html' },
     { k: 'nomina', t: 'Nómina', externo: true },
     { k: 'usuarios', t: 'Usuarios', href: 'admin.html?m=usuarios' },
     { k: 'recursos', t: 'Recursos', href: 'portal/#descargables', siempre: true },

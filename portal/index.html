@@ -219,6 +219,8 @@ async function cargar() {
     let h = '';
     if (a.invitados || a.panel) h += tile('🛎', 'Invitados y Huéspedes', 'Lobby, visitantes, hosts y huéspedes, encuestas, lista negra, documentos y personal.', 'href="../admin.html?m=invitados"');
     if (a.torres) h += tile('🏢', 'Torres', 'Ficha de cada torre: datos legales, finanzas, proveedores, contratos, reclamaciones y comunicados.', 'href="../torres.html"');
+    if (a.presupuesto) h += tile('📊', 'Presupuesto', 'Semáforo financiero de cada torre: presupuesto vs real, cobranza, liquidez y alerta temprana.', 'href="../presupuesto.html"');
+    if (a.cumpleanos) h += tile('🎂', 'Cumpleaños', 'Junta Directiva, empleados de las torres y equipo Stili, con avisos por correo.', 'href="../cumpleanos.html"', 'oro');
     if (a.nomina) h += tile('💼', 'Nómina y RRHH', 'Empleados, novedades, nóminas, licencias, vacaciones y reportes legales. Se abre en otra pestaña.', 'href="#" data-nomina="1"', 'oro');
     else if (a.nomina_permiso && !a.nomina_configurada) h += tile('💼', 'Nómina y RRHH', 'Falta la dirección de la Nómina (URL_NOMINA en la pestaña Config).', 'href="#" data-sin="1"', 'oro');
     if (a.usuarios) h += tile('👥', 'Usuarios y permisos', 'Crear usuarios de la empresa, asignar segmento, torres y permisos por módulo.', 'href="../admin.html?m=usuarios"');

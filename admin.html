@@ -222,7 +222,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
     <button class="tab" role="tab" data-v="documentos" aria-selected="false">Documentos y normas</button>
     <button class="tab" role="tab" data-v="encuestas" aria-selected="false">Encuestas <span class="n" id="n-enc" hidden>0</span></button>
     <button class="tab" role="tab" data-v="hosts" aria-selected="false">Hosts y propietarios</button>
-    <button class="tab" role="tab" data-v="torres" aria-selected="false">Cargar torre</button>
+    <button class="tab" role="tab" data-v="torres" aria-selected="false">Apartamentos del lobby</button>
     <button class="tab" role="tab" data-v="conflictos" aria-selected="false">Conflictos <span class="n" id="n-conf" hidden>0</span></button>
     <button class="tab" role="tab" data-v="negra" aria-selected="false">Lista negra <span class="n" id="n-sol" hidden>0</span></button>
     <button class="tab" role="tab" data-v="personal" aria-selected="false">Personal</button>
@@ -307,9 +307,10 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
   <section id="v-torres" hidden>
     <div class="grid g2">
       <div class="card">
-        <h2>Cargar una torre</h2>
+        <h2>Apartamentos del lobby</h2>
+        <p class="nota" style="margin-top:0">Las torres se crean en el módulo <a href="torres.html">Torres</a> («+ Nueva torre»), con su gestor responsable. Aquí se cargan los apartamentos del lobby de una torre que ya existe.</p>
         <form class="form" id="f-torre">
-          <label class="campo ancho">Nombre de la torre<input type="text" id="t-nombre" placeholder="Torre Mirador 3"></label>
+          <label class="campo ancho">Torre<input type="text" id="t-nombre" placeholder="Escriba o elija la torre" list="t-nombre-lista"><datalist id="t-nombre-lista"></datalist></label>
           <label class="campo">Prefijo de códigos<input type="text" id="t-prefijo" placeholder="MIR3" maxlength="10"></label>
           <label class="campo">Piso desde<input type="text" id="t-desde" inputmode="numeric" value="1"></label>
           <label class="campo">Piso hasta<input type="text" id="t-hasta" inputmode="numeric" placeholder="12"></label>
@@ -317,7 +318,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
           <label class="campo">Ocupación máxima por apartamento<input type="text" id="t-cap" inputmode="numeric" placeholder="6 (vacío = sin límite)"></label>
           <label class="campo ancho">…o pegue la lista de apartamentos<textarea id="t-lista" placeholder="1A 1B 2A 2B PH1" style="min-height:70px"></textarea></label>
           <div class="nota ancho" id="t-prev" style="grid-column:1/-1"></div>
-          <div class="acciones" style="grid-column:1/-1"><button class="btn primario" type="submit">Cargar torre</button></div>
+          <div class="acciones" style="grid-column:1/-1"><button class="btn primario" type="submit">Cargar apartamentos</button></div>
         </form>
       </div>
       <div class="card" id="t-resultado"><h2>Después de cargar</h2><ol class="nota" style="margin:0;padding-left:18px;line-height:1.7">
@@ -410,7 +411,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
             <label class="campo ancho" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="as-transferir" style="width:auto"> Si ya tiene otro host, transferirlo a este (el anterior pierde el acceso)</label>
             <div><button class="btn primario" type="submit">Asignar</button></div>
           </form>
-          <p class="nota">El apartamento debe existir en «Cargar torre». La ocupación máxima la fija Stili en «Apartamento»; el host puede poner un límite menor, nunca mayor.</p>
+          <p class="nota">El apartamento debe existir en «Apartamentos del lobby». La ocupación máxima la fija Stili en «Apartamento»; el host puede poner un límite menor, nunca mayor.</p>
         </div>
         <div class="card" id="hs-invitar" hidden>
           <h2>Invitación para <span id="inv-nombre"></span></h2>
@@ -601,7 +602,7 @@ function vista(v) {
   $$('main > section').forEach(s => { s.hidden = s.id !== 'v-' + v; });
   if (MODULO === 'invitados') { CFG.vista = v; guardarCfg(); }
   if (window.StiliModulos) StiliModulos.mas($('.tabs'), { items: ':scope > .tab' });
-  ({ tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, usuarios: cargarUsuarios, papelera: cargarPapelera, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
+  ({ torres: () => { const l = (S.tablero ? S.tablero.torres.map(x => x.torre) : []); $('#t-nombre-lista').innerHTML = l.map(x => '<option value="' + esc(x) + '">').join(''); }, tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, usuarios: cargarUsuarios, papelera: cargarPapelera, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
 }
 $$('.tab').forEach(t => t.addEventListener('click', () => vista(t.dataset.v)));
 
@@ -725,7 +726,7 @@ function pintarTablero(r) {
       '<div><div class="horas" title="Entradas por hora, hoy">' + t.por_hora.map((n, h) => '<i class="' + (h === hora ? 'ahora' : '') + '" style="height:' + Math.max(3, 100 * n / maxH) + '%"></i>').join('') + '</div>' +
       '<div class="nota" style="display:flex;justify-content:space-between;font-size:12px"><span>0 h</span><span>Entradas hoy: ' + t.entradas_hoy + '</span><span>23 h</span></div></div>' +
     '</article>';
-  }).join('') : '<div class="vacio">No hay torres cargadas todavía. Use «Cargar torre».</div>';
+  }).join('') : '<div class="vacio">No hay torres todavía. Créelas en el módulo Torres (+ Nueva torre).</div>';
   $$('#torres .torre').forEach(b => { const ir = () => { vista('apto'); $('#a-torre').value = b.dataset.torre; $('#a-apto').focus(); }; b.onclick = ir; b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } }; });
   $('#feed').innerHTML = (r.actividad || []).slice(0, 18).map(a => '<li><span class="h">' + fmtHora(a.fecha) + '</span><span class="o">' + esc(a.origen) + '</span><span class="d"><b>' + esc(a.accion.replace(/_/g, ' ')) + '</b> · ' + esc(a.detalle) + (a.quien ? ' <span class="nota">(' + esc(a.quien) + ')</span>' : '') + '</span></li>').join('') || '<li class="nota">Sin actividad.</li>';
   const at = [];

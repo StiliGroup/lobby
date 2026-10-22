@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cumpleaños · Stili</title>
+<meta name="description" content="Cumpleaños de la Junta Directiva, los empleados de las torres y el equipo Stili.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css">
+<script src="config.js"></script>
+<script src="stili-modulos.js"></script>
+<style>
+.filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filtros button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 14px; font-weight: 600; cursor: pointer; color: var(--fg); }
+.filtros button[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.filtros input { padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--fg); min-width: 200px; }
+.hoy { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.persona { display: flex; gap: 12px; align-items: center; }
+.persona .dia { flex: 0 0 56px; height: 56px; border-radius: 12px; background: var(--navy); color: #fff; display: grid; place-items: center; text-align: center; line-height: 1.05; font-weight: 700; }
+.persona .dia small { display: block; font-size: 11px; font-weight: 600; color: #DCB40C; }
+.persona.es-hoy .dia { background: #DCB40C; color: #13293D; } .persona.es-hoy .dia small { color: #13293D; }
+.persona b { display: block; }
+.grupo { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; }
+.grupo.junta { background: var(--oro-suave); color: var(--oro-oscuro); } .grupo.torres { background: var(--azul-suave); color: var(--navy); } .grupo.stili { background: var(--ok-suave); color: var(--ok); }
+.meses { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.meses h3 { margin: 0 0 8px; font-size: 15px; color: var(--navy); }
+.meses li { font-size: 14px; margin-bottom: 4px; }
+.faltan td input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--fg); }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Módulo</small><b>Cumpleaños</b></div><span class="nota" id="avisos" style="color:#C9D3DF"></span></div></header>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<script>
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const GRUPO = { junta: 'Junta Directiva', torres: 'Empleado de torre', stili: 'Equipo Stili' };
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+let D = null, grupo = 'todos', q = '';
+const sinT = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+async function cargar() {
+  try { D = DEMO ? demo() : await StiliModulos.api('cumpleanos'); pintar(); }
+  catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
+}
+function cuando(d) { return d === 0 ? 'Hoy' : d === 1 ? 'Mañana' : 'En ' + d + ' días'; }
+function tarjeta(c) {
+  const [dd, mm] = c.dia.split('/');
+  return '<div class="card persona' + (c.dias === 0 ? ' es-hoy' : '') + '"><div class="dia">' + dd + '<small>' + MESES[Number(mm) - 1].slice(0, 3).toUpperCase() + '</small></div><div style="min-width:0"><b>' + esc(c.nombre) + '</b>' +
+    '<span class="nota">' + esc(c.detalle) + (c.grupo !== 'stili' ? ' · ' + esc(c.torre) : '') + '</span><div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="grupo ' + c.grupo + '">' + GRUPO[c.grupo] + '</span>' +
+    '<span class="nota">' + cuando(c.dias) + ' · cumple ' + c.edad + '</span>' + (c.telefono ? ' <a href="https://wa.me/1' + esc(String(c.telefono).replace(/\D/g, '').slice(-10)) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') + '</div></div></div>';
+}
+function pintar() {
+  $('#avisos').textContent = D.avisos_a ? 'Avisos por correo a ' + D.avisos_a + ' (4 días antes y el mismo día)' : '';
+  const ver = D.cumpleanos.filter(c => (grupo === 'todos' || c.grupo === grupo) && (!q || sinT(c.nombre + ' ' + c.torre + ' ' + c.detalle).includes(q)));
+  const prox = ver.filter(c => c.dias <= 30);
+  const porMes = {}; ver.forEach(c => { (porMes[c.mes] = porMes[c.mes] || []).push(c); });
+  const hoyMes = new Date().getMonth() + 1, orden = MESES.map((_, i) => ((hoyMes - 1 + i) % 12) + 1);
+  const cuenta = g => D.cumpleanos.filter(c => g === 'todos' || c.grupo === g).length;
+  const faltan = D.faltan.filter(f => grupo === 'todos' || f.grupo === grupo);
+  $('#contenido').innerHTML =
+    '<div class="kpis" style="margin:0">' + [['Hoy', D.cumpleanos.filter(c => c.dias === 0).length], ['Próximos 7 días', D.cumpleanos.filter(c => c.dias <= 7).length], ['Próximos 30 días', D.cumpleanos.filter(c => c.dias <= 30).length],
+      ['Con fecha', D.cumpleanos.length], ['Sin fecha', D.faltan.length]].map(([n, v]) => '<div class="kpi"><span>' + n + '</span><b>' + v + '</b></div>').join('') + '</div>' +
+    '<div class="filtros" role="group" aria-label="Filtrar">' + [['todos', 'Todos'], ['junta', 'Junta Directiva'], ['torres', 'Empleados de torres'], ['stili', 'Equipo Stili']]
+      .map(([k, n]) => '<button type="button" data-g="' + k + '" aria-pressed="' + (grupo === k) + '">' + n + ' · ' + cuenta(k) + '</button>').join('') +
+      '<input type="search" id="buscar" placeholder="Buscar persona o torre…" value="' + esc(q) + '" aria-label="Buscar"></div>' +
+    '<section><h2>Próximos 30 días</h2>' + (prox.length ? '<div class="hoy">' + prox.map(tarjeta).join('') + '</div>' : '<div class="vacio">No hay cumpleaños en los próximos 30 días.</div>') + '</section>' +
+    '<section><h2>Todo el año</h2><div class="meses">' + orden.map(m => '<div class="card"><h3>' + MESES[m - 1] + ' · ' + (porMes[m] || []).length + '</h3>' + ((porMes[m] || []).length ?
+      '<ul style="padding-left:18px;margin:0">' + porMes[m].sort((a, b) => a.dia.localeCompare(b.dia)).map(c => '<li><b>' + c.dia.split('/')[0] + '</b> · ' + esc(c.nombre) + ' <small class="nota">' + esc(c.grupo === 'stili' ? 'Stili' : c.torre) + '</small></li>').join('') + '</ul>' : '<span class="nota">—</span>') + '</div>').join('') + '</div></section>' +
+    (faltan.length ? '<section class="card faltan"><h2>Falta la fecha de nacimiento · ' + faltan.length + '</h2><p class="nota" style="margin-top:0">Complete las fechas para que entren en los avisos. Las del equipo Stili se corrigen en la Nómina (ficha del empleado).</p>' +
+      '<div class="tabla"><table><thead><tr><th>Persona</th><th>Grupo</th><th>Torre</th><th>Fecha de nacimiento</th></tr></thead><tbody>' +
+      faltan.slice(0, 200).map(f => '<tr><td><b>' + esc(f.nombre) + '</b><br><small>' + esc(f.detalle) + '</small></td><td><span class="grupo ' + f.grupo + '">' + GRUPO[f.grupo] + '</span></td><td>' + esc(f.torre) + '</td><td>' +
+        (f.grupo !== 'stili' && D.puede && D.puede[f.grupo] ? '<input type="date" data-fijar="' + esc(f.grupo + '|' + f.id) + '" aria-label="Fecha de nacimiento de ' + esc(f.nombre) + '">' : '<span class="nota">' + (f.grupo === 'stili' ? 'En la Nómina' : 'Sin permiso') + '</span>') + '</td></tr>').join('') +
+      '</tbody></table></div></section>' : '');
+  const b = $('#buscar'); b.addEventListener('input', () => { q = sinT(b.value.trim()); const pos = b.selectionStart; pintar(); const n = $('#buscar'); n.focus(); n.setSelectionRange(pos, pos); });
+}
+document.addEventListener('click', e => { const g = e.target.closest('[data-g]'); if (g) { grupo = g.dataset.g; pintar(); } });
+document.addEventListener('change', async e => {
+  const i = e.target.closest('[data-fijar]'); if (!i || !i.value) return;
+  const [g, id] = i.dataset.fijar.split('|');
+  try { D = DEMO ? D : await StiliModulos.api('cumple_fijar', { grupo: g, id, nacimiento: i.value }); pintar(); }
+  catch (err) { alert(err.message); }
+});
+function demo() {
+  const c = (nombre, grupo, detalle, torre, dia, dias, edad, tel) => ({ nombre, grupo, detalle, torre, dia, dias, edad, telefono: tel, mes: Number(dia.split('/')[1]) });
+  const h = new Date(), f = n => { const d = new Date(Date.now() + n * 864e5); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); };
+  return { avisos_a: 'stiligroup2@gmail.com', puede: { junta: true, torres: true },
+    cumpleanos: [c('Emily McDougal', 'junta', 'Presidenta', 'Torre Niza 7', f(0), 0, 51, '809-555-0101'), c('Pedro Gómez', 'torres', 'portero', 'Torre Arpel 07', f(4), 4, 38, ''),
+      c('Mildred Pérez', 'stili', 'Gestora de Cuentas', 'Stili Group', f(12), 12, 34, '809-555-0123'), c('Juan Collado', 'junta', 'Tesorero', 'Flor Maria', f(45), 45, 60, ''),
+      c('Anny Tejada', 'stili', 'Encargada de RRHH y Operaciones', 'Stili Group', f(130), 130, 41, '')],
+    faltan: [{ grupo: 'torres', id: 'E2', nombre: 'JUANA SANTOS', detalle: 'conserje', torre: 'Torre Niza 7' }, { grupo: 'stili', id: 'AC-lina', nombre: 'Lina', detalle: 'Analista de RRHH', torre: 'Stili Group' }] };
+}
+StiliModulos.montar(document.body, 'cumpleanos');
+if (!DEMO && !StiliModulos.leer().sesion) $('#contenido').innerHTML = '<div class="card entrar"><h2>Cumpleaños</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en el Portal Stili</a></div>';
+else cargar();
+</script>
+</body>
+</html>

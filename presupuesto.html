@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Presupuesto · Stili</title>
+<meta name="description" content="Presupuesto de cada torre y alerta temprana de crisis financiera.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css">
+<script src="config.js"></script>
+<script src="stili-modulos.js"></script>
+<style>
+.filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filtros button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 14px; font-weight: 600; cursor: pointer; }
+.filtros button[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.torres-g { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.tt { display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: var(--fg); border-top: 5px solid var(--line); }
+.tt.rojo { border-top-color: var(--crit); } .tt.ambar { border-top-color: var(--warn); } .tt.verde { border-top-color: var(--ok); }
+.tt h3 { margin: 0; font-size: 17px; color: var(--navy); }
+.tt ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 12px; color: var(--muted); }
+.mini b { display: block; font-size: 15px; color: var(--fg); }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Módulo</small><b>Presupuesto y alerta temprana</b></div>
+  <label class="nota" style="color:#C9D3DF">Año <select id="anio" style="border-radius:8px;padding:6px"></select></label></div></header>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const pct = v => v === null || v === undefined ? '—' : Math.round(v * 100) + ' %';
+const NOMBRE = { rojo: 'Riesgo alto', ambar: 'Atención', verde: 'Sana', incompleto: 'Faltan datos', sin_datos: 'Sin datos' };
+let datos = null, filtro = 'todas';
+const anioActual = new Date().getFullYear();
+$('#anio').innerHTML = [anioActual + 1, anioActual, anioActual - 1].map(a => '<option' + (a === anioActual ? ' selected' : '') + '>' + a + '</option>').join('');
+$('#anio').addEventListener('change', cargar);
+
+async function cargar() {
+  $('#contenido').innerHTML = '<p class="nota">Cargando…</p>';
+  try {
+    datos = DEMO ? demo() : await StiliModulos.api('presupuesto_datos', { anio: $('#anio').value });
+    pintar();
+  } catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
+}
+function pintar() {
+  const c = {}; datos.torres.forEach(t => { c[t.estado] = (c[t.estado] || 0) + 1; });
+  const lista = datos.torres.filter(t => filtro === 'todas' || t.estado === filtro);
+  $('#contenido').innerHTML =
+    '<div class="card"><div class="kpis" style="margin:0">' + [['rojo', 'Riesgo alto'], ['ambar', 'Atención'], ['verde', 'Sanas'], ['incompleto', 'Faltan datos'], ['sin_datos', 'Sin datos']]
+      .map(([k, n]) => '<div class="kpi"><span>' + n + '</span><b style="color:var(--' + ({ rojo: 'crit', ambar: 'warn', verde: 'ok' }[k] || 'muted') + ')">' + (c[k] || 0) + '</b></div>').join('') + '</div>' +
+      '<p class="nota" style="margin:10px 0 0">El semáforo compara el presupuesto aprobado con lo que muestran los estados analizados en Finanzas (promedio de los últimos 3 meses): ejecución del gasto, ingresos, cobranza, liquidez y fondo de reserva.</p></div>' +
+    '<div class="filtros" role="group" aria-label="Filtrar">' + [['todas', 'Todas'], ['rojo', 'Riesgo alto'], ['ambar', 'Atención'], ['verde', 'Sanas'], ['incompleto', 'Faltan datos'], ['sin_datos', 'Sin datos']]
+      .map(([k, n]) => '<button type="button" data-f="' + k + '" aria-pressed="' + (filtro === k) + '">' + n + '</button>').join('') + '</div>' +
+    '<div class="torres-g">' + (lista.map(t => '<a class="card tt ' + t.estado + '" href="torres.html#' + encodeURIComponent(t.clave) + '" data-sec="presupuesto"><div class="cab" style="margin:0"><h3>' + esc(t.torre) + '</h3><span class="semaforo ' + t.estado + '">● ' + NOMBRE[t.estado] + '</span></div>' +
+      (t.señales.length ? '<ul>' + t.señales.slice(0, 3).map(s => '<li>' + esc(s.texto) + '</li>').join('') + '</ul>' : '<span class="nota">' + (t.estado === 'verde' ? 'Sin señales de riesgo.' : t.estado === 'sin_datos' ? 'Falta cargar el presupuesto y analizar estados.' : (t.rubros ? 'Falta analizar estados en Finanzas.' : 'Falta cargar el presupuesto.')) + '</span>') +
+      '<div class="mini"><div>Gasto<b>' + pct(t.indicadores.ejecucion_gasto) + '</b></div><div>Cobranza<b>' + pct(t.indicadores.cobranza) + '</b></div><div>Liquidez<b>' + (t.indicadores.liquidez_meses === null ? '—' : t.indicadores.liquidez_meses.toFixed(1) + ' m') + '</b></div></div></a>').join('') ||
+      '<div class="vacio">No hay torres en este grupo.</div>') + '</div>';
+}
+document.addEventListener('click', e => {
+  const f = e.target.closest('[data-f]'); if (f) { filtro = f.dataset.f; pintar(); }
+  const a = e.target.closest('a[data-sec]'); if (a) StiliModulos.guardar({ torre_seccion: 'presupuesto' });
+});
+function demo() {
+  const t = (torre, clave, estado, s, g, c, l) => ({ torre, clave, estado, rubros: 4, señales: s.map(x => ({ nivel: estado, texto: x })), indicadores: { ejecucion_gasto: g, cobranza: c, liquidez_meses: l } });
+  return { anio: '2026', torres: [t('Torre Niza 7', 'NIZA7', 'rojo', ['Se cobra solo el 70 % de las cuotas.', 'El saldo del banco cubre 0.7 meses de gasto.'], 1.16, 0.7, 0.7),
+    t('Torre Arpel 07', 'ARPEL', 'ambar', ['Gasta 12 % más de lo presupuestado.'], 1.12, 0.92, 2.3), t('Apex Arroyo Hondo', 'APEXAH', 'verde', [], 0.97, 0.96, 3.1),
+    t('Coral Park', 'CORAP', 'incompleto', [], null, null, null), Object.assign(t('Vigabon', 'VIGA', 'sin_datos', [], null, null, null), { rubros: 0 })] };
+}
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'presupuesto'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Presupuesto</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en el Portal Stili</a></div>'; }
+else { StiliModulos.montar(document.body, 'presupuesto'); cargar(); }
+</script>
+</body>
+</html>
