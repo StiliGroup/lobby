@@ -72,6 +72,20 @@ async function api(accion, datos) {
   return j;
 }
 
+// v2.3 · velocidad: lo último que vio aparece al instante y se actualiza en segundo plano.
+// No se guardan en el equipo los accesos institucionales ni la banca en línea.
+const MEMO = 'stili-torres-' + String(cfg().sesion || '').split('.')[0];
+function memoria(k) { try { return (JSON.parse(localStorage.getItem(MEMO) || '{}'))[k] || null; } catch (e) { return null; } }
+function recordar(k, v) {
+  try {
+    const m = JSON.parse(localStorage.getItem(MEMO) || '{}');
+    if (v && typeof v === 'object') { v = Object.assign({}, v); delete v.accesos; delete v.bancos; }
+    m[k] = v; const txt = JSON.stringify(m);
+    if (txt.length < 3e6) localStorage.setItem(MEMO, txt);
+  } catch (e) { /* sin almacenamiento */ }
+}
+const ocupado = () => !!(S.editando || (document.activeElement && document.activeElement.closest && document.activeElement.closest('#contenido form')));
+
 // ------------------------------------------------------------------ Selector de torres (agrupado por gestor, con buscador)
 const plural = (n, uno, varios) => n + ' ' + (n === 1 ? uno : varios);
 function sinTildes(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
@@ -100,11 +114,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') abrirLista(f
 // ------------------------------------------------------------------ Secciones de la torre
 // v2.1 · en el orden en que más se usan. Apartamentos, Personal y Reglamentos se trajeron del Lobby.
 const SECCIONES = [
-  ['reclamaciones', 'Reclamaciones y comunicados'], ['tareas', 'Tareas y levantamientos'], ['finanzas', 'Finanzas y presupuesto'], ['proveedores', 'Proveedores y contratos'],
+  ['reclamaciones', 'Reclamaciones y comunicados'], ['tareas', 'Tareas y levantamientos'], ['pedidos', 'Pedidos de limpieza'], ['finanzas', 'Finanzas y presupuesto'], ['proveedores', 'Proveedores y contratos'],
   ['apartamentos', 'Apartamentos'], ['personal', 'Personal del lobby'], ['junta', 'Junta Directiva'], ['accesos', 'Accesos y servicios'],
   ['documentos', 'Reglamentos y documentos'], ['general', 'Generales y legales'], ['historial', 'Notas e historial'],
 ];
-const CORTO = { reclamaciones: 'Reclamaciones', tareas: 'Tareas', finanzas: 'Finanzas', proveedores: 'Proveedores', apartamentos: 'Apartamentos', personal: 'Personal', junta: 'Junta',
+const CORTO = { reclamaciones: 'Reclamaciones', tareas: 'Tareas', pedidos: 'Pedidos', finanzas: 'Finanzas', proveedores: 'Proveedores', apartamentos: 'Apartamentos', personal: 'Personal', junta: 'Junta',
   accesos: 'Accesos', documentos: 'Reglamentos', general: 'Generales', historial: 'Historial' };   // en el teléfono
 const SECCION_VIEJA = { presupuesto: 'finanzas', contratos: 'proveedores', comunicados: 'reclamaciones', empleados: 'personal', notas: 'historial' };
 const lobby = () => (S.lista && S.lista.lobby) || {};
@@ -112,6 +126,7 @@ function tieneSeccion(k, d) {
   const ficha = d.ver_ficha !== false;
   if (k === 'reclamaciones') return !!d.reclamaciones;
   if (k === 'tareas') return !!(S.lista && S.lista.tareas > 0);
+  if (k === 'pedidos') return !!(S.lista && S.lista.pedidos > 0);
   if (k === 'finanzas') return ficha || !!(S.lista && (S.lista.finanzas || S.lista.presupuesto));
   if (k === 'apartamentos') return lobby().apartamentos > 0;
   if (k === 'personal') return lobby().personal > 0 || (ficha && d.empleados.length > 0);
@@ -181,6 +196,7 @@ function pintarSeccion() {
     d.proveedores.map(p => '<tr><td><b>' + esc(p.servicio) + '</b></td><td>' + esc(p.empresa) + '</td><td>' + esc(p.contacto) + '</td><td>' + tel(p.telefono) + '</td><td>' + (p.correo ? '<a href="mailto:' + esc(p.correo) + '">' + esc(p.correo) + '</a>' : '') + '</td><td><small>' + esc(p.notas) + '</small></td></tr>'),
     'Todavía no hay proveedores registrados para esta torre.') + '</div>';
   if (k === 'tareas') h = '<div id="tar"><p class="nota">Cargando tareas…</p></div>';
+  if (k === 'pedidos') h = '<div id="ped"><p class="nota">Cargando pedidos…</p></div>';
   if (k === 'apartamentos') h = marco('torres', 'Apartamentos del lobby');
   if (k === 'personal') h = lobby().personal > 0 ? marco('personal', 'Personal del lobby') : '<div class="card"><h2>Personal del lobby · ' + d.empleados.length + '</h2>' + tabla(['Nombre', 'Puesto', 'Cédula'],
     d.empleados.map(e => '<tr><td><b>' + esc(e.nombre) + '</b></td><td>' + esc(e.puesto) + '</td><td>' + esc(e.documento) + '</td></tr>'), 'No hay empleados asignados a esta torre.') +
@@ -203,6 +219,7 @@ function pintarSeccion() {
     d.historial.map(x => '<tr><td>' + esc(x.fecha) + '</td><td>' + esc(x.usuario) + '</td><td>' + esc(x.campo) + '<br><small>' + esc(x.accion) + '</small></td><td><small>' + esc(x.antes) + '</small></td><td>' + esc(x.despues) + '</td></tr>'), 'Sin cambios registrados.') + '</div>' : '');
   $('#seccion').innerHTML = h;
   if (k === 'tareas') cargarTareas();
+  if (k === 'pedidos') cargarPedidos();
   if (k === 'finanzas' && S.lista.finanzas) cargarFinanzas();
   if (k === 'finanzas' && S.lista.presupuesto) cargarPresupuesto();
 }
@@ -212,9 +229,23 @@ async function abrirTorre(clave) {
   const t = S.lista.torres.find(x => x.clave === clave);
   $('#sel-nombre').textContent = t ? t.torre : clave; $('#sel-gestor').textContent = t ? t.gestor : '';
   history.replaceState(null, '', '#' + encodeURIComponent(clave));
-  $('#contenido').innerHTML = '<p class="nota">Cargando ' + esc(t ? t.torre : clave) + '…</p>';
+  const previo = DEMO ? null : memoria('detalle|' + clave);
+  if (previo) pintarTorre(previo);
+  else $('#contenido').innerHTML = '<p class="nota">Cargando ' + esc(t ? t.torre : clave) + '…</p>';
   try {
-    const d = S.detalle = await api('torre_detalle', { torre: clave });
+    const d = await api('torre_detalle', { torre: clave });
+    if (S.torre !== clave) return;                       // ya abrió otra torre
+    if (!DEMO) recordar('detalle|' + clave, d);
+    if (previo && JSON.stringify(Object.assign({}, d, { accesos: undefined, bancos: undefined })) === JSON.stringify(Object.assign({}, previo, { accesos: undefined, bancos: undefined })) && !d.accesos && !d.bancos) return;
+    if (previo && ocupado()) { S.detalle = d; return; }  // no se le borra lo que está escribiendo
+    pintarTorre(d);
+  } catch (err) {
+    if (!previo) $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>';
+  }
+}
+function pintarTorre(d) {
+  {
+    S.detalle = d;
     S.seccion = SECCION_VIEJA[S.seccion] || S.seccion;
     if (S.seccion === 'completar') S.seccion = primeraSeccion(d);
     if (!tieneSeccion(S.seccion, d)) S.seccion = primeraSeccion(d);
@@ -231,7 +262,7 @@ async function abrirTorre(clave) {
       '<div id="seccion"></div>';
     S.editando = null; pintarTabs(); pintarSeccion();
     const gs = $('#g-sel'); if (gs) gs.addEventListener('change', () => cambiarGestor(gs.value));
-  } catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
+  }
 }
 
 
@@ -329,7 +360,7 @@ async function leerArchivo(f) {
 }
 // ------------------------------------------------------------------ Tareas y levantamientos (v2.2)
 const PRIORIDAD = { alta: 'rojo', media: 'ambar', baja: 'azul' };
-const FILTRO_T = { estado: 'abierta', categoria: '' };
+const FILTRO_T = { estado: 'abierta', categoria: '', oficio: '' };
 async function cargarTareas(datos) {
   try { S.tar = datos || await api('tareas_datos', { torre: S.torre }); pintarTareas(); }
   catch (err) { $('#tar').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
@@ -337,26 +368,33 @@ async function cargarTareas(datos) {
 function pintarTareas() {
   const d = S.tar, cats = d.categorias, ab = d.tareas.filter(t => t.estado !== 'cerrada');
   const porCat = {}; ab.forEach(t => { porCat[t.categoria] = (porCat[t.categoria] || 0) + 1; });
-  const lista = d.tareas.filter(t => (FILTRO_T.estado === 'todas' || (FILTRO_T.estado === 'cerrada') === (t.estado === 'cerrada')) && (!FILTRO_T.categoria || t.categoria === FILTRO_T.categoria));
+  const ofi = d.oficios || {}, porOfi = {}; ab.filter(t => t.oficio).forEach(t => { porOfi[t.oficio] = (porOfi[t.oficio] || 0) + 1; });
+  const lista = d.tareas.filter(t => (FILTRO_T.estado === 'todas' || (FILTRO_T.estado === 'cerrada') === (t.estado === 'cerrada')) && (!FILTRO_T.categoria || t.categoria === FILTRO_T.categoria) &&
+    (!FILTRO_T.oficio || t.oficio === FILTRO_T.oficio));
   const opCat = sel => Object.keys(cats).map(k => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(cats[k]) + '</option>').join('');
+  const opOfi = sel => '<option value="ninguno">— Sin oficio</option>' + Object.keys(ofi).map(k => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(ofi[k]) + '</option>').join('');
   $('#tar').innerHTML =
-    '<div class="card"><div class="cab"><h2>Tareas de la torre</h2><a class="btn" href="tareas.html">Métricas por gestor →</a></div>' +
+    '<div class="card"><div class="cab"><h2>Tareas de la torre</h2><span><a class="btn" href="tareas.html#oficios">Suplidores por oficio →</a> <a class="btn" href="tareas.html">Métricas por gestor →</a></span></div>' +
     '<div class="kpis">' + [['Abiertas', ab.length], ['Cerradas', d.tareas.length - ab.length], ['Prioridad alta', ab.filter(t => t.prioridad === 'alta').length], ['Levantamientos', d.reportes.length]]
       .map(([n, v]) => '<div class="kpi"><span>' + n + '</span><b>' + v + '</b></div>').join('') + '</div>' +
-    (Object.keys(porCat).length ? '<div class="chips" style="margin:0 0 12px">' + Object.keys(porCat).map(k => '<button type="button" class="chip azul" data-fcat="' + k + '">' + esc(cats[k]) + ' · ' + porCat[k] + '</button>').join('') + '</div>' : '') +
+    (Object.keys(porCat).length ? '<div class="chips" style="margin:0 0 8px">' + Object.keys(porCat).map(k => '<button type="button" class="chip azul" data-fcat="' + k + '">' + esc(cats[k]) + ' · ' + porCat[k] + '</button>').join('') + '</div>' : '') +
+    (Object.keys(porOfi).length ? '<div class="chips" style="margin:0 0 12px"><span class="nota">Por oficio:</span> ' + Object.keys(porOfi).sort((a, b) => porOfi[b] - porOfi[a]).map(k => '<button type="button" class="chip' + (FILTRO_T.oficio === k ? ' oro' : '') + '" data-fofi="' + k + '">' + esc(ofi[k] || k) + ' · ' + porOfi[k] + '</button>').join('') +
+      (FILTRO_T.oficio ? ' <button type="button" class="chip" data-fofi="">Quitar filtro ✕</button>' : '') + '</div>' : '') +
     (d.puede_editar ? '<form class="form subir-lev" id="f-lev"><label class="ancho subida">Subir levantamiento (PDF de Report &amp; Run, fotos o Excel)<input type="file" name="archivo" accept=".pdf,.xlsx,.xls,.csv,image/*" required></label>' +
       '<label>Título (opcional)<input name="titulo" placeholder="Levantamiento octubre"></label><label>Nota para la IA (opcional)<input name="nota" placeholder="Ej.: la puerta del ascensor ya se cotizó"></label>' +
       '<div class="acciones-fila"><button class="btn primario" id="b-lev"' + (d.ia ? '' : ' disabled title="Falta la clave de la IA"') + '>Subir y clasificar con IA</button></div><p class="nota" id="lev-msg" role="status"></p></form>' : '') +
     '<div class="filtros-t"><div class="seg">' + [['abierta', 'Abiertas'], ['cerrada', 'Cerradas'], ['todas', 'Todas']].map(([k, n]) => '<button type="button" data-fest="' + k + '" aria-pressed="' + (FILTRO_T.estado === k) + '">' + n + '</button>').join('') + '</div>' +
       '<select id="fcat" aria-label="Categoría"><option value="">Todas las categorías</option>' + opCat(FILTRO_T.categoria) + '</select></div>' +
-    tabla(['#', 'Tarea', 'Categoría', 'Prioridad', 'Responsable', 'Fecha', ''], lista.map(t => '<tr' + (t.estado === 'cerrada' ? ' class="cerrada"' : '') + '><td>' + esc(t.numero) + '</td><td><b>' + esc(t.descripcion) + '</b>' +
+    tabla(['#', 'Tarea', 'Categoría', 'Oficio', 'Prioridad', 'Responsable', 'Fecha', ''], lista.map(t => '<tr' + (t.estado === 'cerrada' ? ' class="cerrada"' : '') + '><td>' + esc(t.numero) + '</td><td><b>' + esc(t.descripcion) + '</b>' +
       (t.detalle ? '<br><small>' + esc(t.detalle) + '</small>' : '') + (t.estado === 'cerrada' ? '<br><small>✓ Cerrada el ' + esc(t.cerrada_en) + ' por ' + esc(t.cerrada_por) + (t.nota_cierre ? ': ' + esc(t.nota_cierre) : '') + '</small>' : '') + '</td><td>' +
-      (d.puede_editar ? '<select data-tcat="' + esc(t.id) + '" aria-label="Categoría">' + opCat(t.categoria) + '</select>' : esc(cats[t.categoria] || t.categoria)) + (t.subcategoria ? '<br><small>' + esc(t.subcategoria) + '</small>' : '') + '</td>' +
+      (d.puede_editar ? '<select data-tcat="' + esc(t.id) + '" aria-label="Categoría">' + opCat(t.categoria) + '</select>' : esc(cats[t.categoria] || t.categoria)) + (t.subcategoria ? '<br><small>' + esc(t.subcategoria) + '</small>' : '') + '</td><td>' +
+      (d.puede_editar ? '<select data-tofi="' + esc(t.id) + '" aria-label="Oficio">' + opOfi(t.oficio) + '</select>' : esc(ofi[t.oficio] || '—')) + '</td>' +
       '<td><span class="chip ' + (PRIORIDAD[t.prioridad] || '') + '">' + esc(t.prioridad) + '</span></td><td>' + esc(t.responsable) + '</td><td>' + esc(t.fecha) + '</td><td>' +
       (d.puede_editar ? (t.estado === 'cerrada' ? '<button type="button" class="btn" data-tabrir="' + esc(t.id) + '">Reabrir</button>' : '<button type="button" class="btn primario" data-tcerrar="' + esc(t.id) + '">Cerrar</button>') : '') + '</td></tr>'),
       FILTRO_T.estado === 'abierta' ? 'No hay tareas abiertas.' : 'No hay tareas en este filtro.') + '</div>' +
-    '<div class="card"><h2>Levantamientos recibidos</h2>' + tabla(['Fecha', 'Título', 'Tareas', 'Subido por', 'Resumen de la IA'], d.reportes.map(r => '<tr><td>' + esc(r.fecha) + '</td><td><b>' + esc(r.titulo) + '</b>' +
-      (r.url ? '<br><a href="' + esc(r.url) + '" target="_blank" rel="noopener">Abrir archivo ↗</a>' : '') + '</td><td>' + esc(r.tareas) + '</td><td>' + esc(r.subido_por) + '<br><small>' + (r.origen === 'bot' ? 'Bot de Telegram' : 'Portal') + '</small></td><td><small>' + esc(r.resumen) + '</small></td></tr>'),
+    '<div class="card"><h2>Levantamientos recibidos</h2>' + tabla(['Fecha', 'Título', 'Tareas', 'Subido por', 'Resumen de la IA'].concat(d.puede_eliminar ? [''] : []), d.reportes.map(r => '<tr><td>' + esc(r.fecha) + '</td><td><b>' + esc(r.titulo) + '</b>' +
+      (r.url ? '<br><a href="' + esc(r.url) + '" target="_blank" rel="noopener">Abrir archivo ↗</a>' : '') + '</td><td>' + esc(r.tareas) + '</td><td>' + esc(r.subido_por) + '<br><small>' + (r.origen === 'bot' ? 'Bot de Telegram' : 'Portal') + '</small></td><td><small>' + esc(r.resumen) + '</small></td>' +
+      (d.puede_eliminar ? '<td><button type="button" class="btn peligro" data-lev-eliminar="' + esc(r.id) + '" data-lev-titulo="' + esc(r.titulo) + '" data-lev-n="' + esc(r.tareas) + '">Eliminar</button></td>' : '') + '</tr>'),
       'Todavía no hay levantamientos. ' + (d.puede_editar ? 'Suba el PDF de la inspección o envíelo al Bot de Torres.' : '')) + '</div>';
   const f = $('#f-lev'); if (f) f.addEventListener('submit', subirLevantamiento);
 }
@@ -379,6 +417,14 @@ document.addEventListener('click', async e => {
   const est = e.target.closest('[data-fest]'), fc = e.target.closest('[data-fcat]');
   if (est) { FILTRO_T.estado = est.dataset.fest; return pintarTareas(); }
   if (fc) { FILTRO_T.categoria = fc.dataset.fcat; FILTRO_T.estado = 'abierta'; return pintarTareas(); }
+  const fo = e.target.closest('[data-fofi]'); if (fo) { FILTRO_T.oficio = fo.dataset.fofi; FILTRO_T.estado = 'abierta'; return pintarTareas(); }
+  const le = e.target.closest('[data-lev-eliminar]');
+  if (le) {
+    if (!confirm('¿Eliminar el levantamiento «' + le.dataset.levTitulo + '» y sus ' + le.dataset.levN + ' tareas? Queda 30 días en la papelera y se puede restaurar.')) return;
+    try { await cargarTareas(await api('reporte_eliminar', { id: le.dataset.levEliminar })); toast('Levantamiento eliminado. Está en la papelera 30 días.'); }
+    catch (err) { toast(err.message, true); }
+    return;
+  }
   const c = e.target.closest('[data-tcerrar]'), a = e.target.closest('[data-tabrir]');
   if (!c && !a) return;
   const nota = c ? prompt('Nota de cierre (opcional): qué se hizo, proveedor, costo…', '') : '';
@@ -388,8 +434,67 @@ document.addEventListener('click', async e => {
 });
 document.addEventListener('change', async e => {
   if (e.target.id === 'fcat') { FILTRO_T.categoria = e.target.value; return pintarTareas(); }
+  const o = e.target.closest('[data-tofi]');
+  if (o) { try { S.tar = await api('tarea_actualizar', { id: o.dataset.tofi, oficio: o.value }); } catch (err) { alert(err.message); } return; }
   const s = e.target.closest('[data-tcat]'); if (!s) return;
   try { S.tar = await api('tarea_actualizar', { id: s.dataset.tcat, categoria: s.value }); } catch (err) { alert(err.message); }
+});
+// ------------------------------------------------------------------ Pedidos de productos de limpieza (v2.3)
+const ESTADO_PED = { pedido: 'azul', aprobado: 'azul', comprado: 'ambar', entregado: 'verde', cancelado: '' };
+async function cargarPedidos(datos) {
+  try { S.ped = datos || await api('pedidos_datos', { torre: S.torre }); pintarPedidos(); }
+  catch (err) { $('#ped').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
+}
+const filaProducto = (p, cat) => '<div class="prod"><input list="cat-limpieza" name="producto" placeholder="Producto" value="' + esc(p.producto || '') + '" aria-label="Producto">' +
+  '<input name="cantidad" placeholder="Cant." value="' + esc(p.cantidad || '') + '" aria-label="Cantidad" inputmode="decimal">' +
+  '<input name="unidad" placeholder="Unidad (galón, paquete…)" value="' + esc(p.unidad || '') + '" aria-label="Unidad">' +
+  '<button type="button" class="btn" data-prod-quitar aria-label="Quitar producto">✕</button></div>';
+function pintarPedidos() {
+  const d = S.ped, mes = new Date().toISOString().slice(0, 7);
+  const gastoMes = (d.gasto_por_mes.find(g => g.mes === mes) || {}).monto || 0;
+  const tres = d.gasto_por_mes.slice(-3).reduce((a, g) => a + g.monto, 0);
+  const op = sel => Object.keys(d.estados).map(k => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(d.estados[k]) + '</option>').join('');
+  $('#ped').innerHTML = '<datalist id="cat-limpieza">' + d.catalogo.map(c => '<option value="' + esc(c) + '">').join('') + '</datalist>' +
+    '<div class="card"><h2>Pedidos de limpieza</h2><div class="kpis">' + [['En curso', d.abiertos], ['Gasto este mes', dinero(gastoMes)], ['Gasto últimos 3 meses', dinero(tres)], ['Pedidos', d.pedidos.length]]
+      .map(([n, v]) => '<div class="kpi"><span>' + n + '</span><b>' + v + '</b></div>').join('') + '</div>' +
+    (d.puede_editar ? '<details class="nuevo-ped"' + (d.pedidos.length ? '' : ' open') + '><summary><b>+ Nuevo pedido</b></summary><form class="form" id="f-ped">' +
+      '<label>Fecha<input type="date" name="fecha_pedido" value="' + new Date().toISOString().slice(0, 10) + '"></label><label>Lo pide<input name="solicitado_por" placeholder="Conserje, portero, gestor…"></label>' +
+      '<div class="ancho"><span class="lbl">Productos</span><div id="prods">' + [{}, {}, {}].map(filaProducto).join('') + '</div><button type="button" class="btn" id="prod-mas">+ Otro producto</button></div>' +
+      '<label>Proveedor (opcional)<input name="proveedor" placeholder="Ofiklin, colmado…"></label><label>Monto RD$ (opcional)<input name="monto" type="number" step="0.01" min="0"></label>' +
+      '<label class="ancho">Notas<input name="notas"></label><div class="acciones-fila"><button class="btn primario">Guardar pedido</button></div></form></details>' : '') +
+    tabla(['Fecha', 'Productos', 'Estado', 'Proveedor', 'Monto', 'Lo pidió', ''], d.pedidos.map(p => '<tr><td>' + esc(p.fecha_pedido) + '</td><td>' +
+      p.productos.map(x => esc([x.cantidad, x.unidad, x.producto].filter(Boolean).join(' '))).join('<br>') + (p.notas ? '<br><small>' + esc(p.notas) + '</small>' : '') + '</td><td>' +
+      (d.puede_editar ? '<select data-ped-estado="' + esc(p.id) + '" aria-label="Estado">' + op(p.estado) + '</select>' : '<span class="chip ' + (ESTADO_PED[p.estado] || '') + '">' + esc(d.estados[p.estado] || p.estado) + '</span>') +
+      (p.fecha_entrega && p.estado === 'entregado' ? '<br><small>Entregado ' + esc(p.fecha_entrega) + '</small>' : '') + '</td><td>' + esc(p.proveedor) + '</td><td>' + (p.monto ? dinero(p.monto) : '—') + '</td><td>' + esc(p.solicitado_por) +
+      '</td><td>' + (d.puede_editar ? '<button type="button" class="btn" data-ped-monto="' + esc(p.id) + '">Monto y proveedor</button>' : '') + '</td></tr>'),
+      'Todavía no hay pedidos de limpieza en esta torre.') + '</div>' +
+    (d.gasto_por_mes.length ? '<div class="card"><h2>Gasto en limpieza por mes</h2>' + tabla(['Mes', 'Comprado o entregado'], d.gasto_por_mes.slice().reverse().map(g => '<tr><td>' + esc(g.mes) + '</td><td>' + dinero(g.monto) + '</td></tr>'), '') + '</div>' : '');
+  const f = $('#f-ped'); if (f) f.addEventListener('submit', guardarPedido);
+}
+async function guardarPedido(e) {
+  e.preventDefault();
+  const f = e.target, productos = [...f.querySelectorAll('.prod')].map(r => ({ producto: r.querySelector('[name=producto]').value.trim(), cantidad: r.querySelector('[name=cantidad]').value.trim(), unidad: r.querySelector('[name=unidad]').value.trim() })).filter(x => x.producto);
+  if (!productos.length) return toast('Agregue al menos un producto.', true);
+  try {
+    await cargarPedidos(await api('pedido_guardar', { torre: S.torre, pedido: { torre: S.torre, fecha_pedido: f.fecha_pedido.value, solicitado_por: f.solicitado_por.value.trim(), productos,
+      proveedor: f.proveedor.value.trim(), monto: f.monto.value, notas: f.notas.value.trim() } }));
+    toast('Pedido guardado.');
+  } catch (err) { toast(err.message, true); }
+}
+document.addEventListener('click', async e => {
+  if (e.target.id === 'prod-mas') return $('#prods').insertAdjacentHTML('beforeend', filaProducto({}));
+  const q = e.target.closest('[data-prod-quitar]'); if (q) { const r = q.closest('.prod'); if (r.parentNode.children.length > 1) r.remove(); else r.querySelectorAll('input').forEach(i => { i.value = ''; }); return; }
+  const m = e.target.closest('[data-ped-monto]'); if (!m) return;
+  const p = S.ped.pedidos.find(x => x.id === m.dataset.pedMonto);
+  const monto = prompt('Monto pagado (RD$):', p.monto || ''); if (monto === null) return;
+  const proveedor = prompt('Proveedor:', p.proveedor || ''); if (proveedor === null) return;
+  try { await cargarPedidos(await api('pedido_guardar', { torre: S.torre, pedido: { id: p.id, monto, proveedor } })); } catch (err) { toast(err.message, true); }
+});
+document.addEventListener('change', async e => {
+  const s = e.target.closest('[data-ped-estado]'); if (!s) return;
+  const p = S.ped.pedidos.find(x => x.id === s.dataset.pedEstado), datos = { id: p.id, estado: s.value };
+  if (s.value === 'comprado' && !p.monto) { const m = prompt('¿Cuánto costó? (RD$, opcional)', ''); if (m) datos.monto = m; }
+  try { await cargarPedidos(await api('pedido_guardar', { torre: S.torre, pedido: datos })); } catch (err) { toast(err.message, true); s.value = p.estado; }
 });
 function informe(md) {
   const lineas = esc(md).split('\n'); let h = '', lista = false;
@@ -506,23 +611,33 @@ async function iniciar() {
     StiliModulos.montar(document.body, 'torres'); return;
   }
   StiliModulos.montar(document.body, 'torres');
+  const previa = DEMO ? null : memoria('lista');
+  if (previa) { S.lista = previa; mostrarLista(true); }
   try {
     S.lista = await api('torres_lista');
-    S.seccion = SECCION_VIEJA[cfg().torre_seccion] || cfg().torre_seccion || 'reclamaciones';
+    if (!DEMO) recordar('lista', S.lista);
+    if (previa) { if (JSON.stringify(previa) !== JSON.stringify(S.lista)) mostrarLista(false); return; }
+    mostrarLista(true);
+  } catch (err) {
+    if (!previa) $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (err.codigo === 'SESION' || err.codigo === 'SESION_VENCIDA' ? '<a class="btn primario" href="portal/">Entrar de nuevo</a>' : '') + '</div>';
+  }
+}
+function mostrarLista(abrir) {
+  {
+    S.seccion = S.torre ? S.seccion : (SECCION_VIEJA[cfg().torre_seccion] || cfg().torre_seccion || 'reclamaciones');
     $('#b-nueva').hidden = !S.lista.puede_crear; $('#b-tareas').hidden = !(S.lista.tareas > 0);
     if (!S.lista.torres.length) { $('#contenido').innerHTML = '<div class="vacio">' + (S.lista.puede_crear ? 'Todavía no hay torres. Use «+ Nueva torre».' : 'Su usuario no tiene torres asignadas. Pídalas al Gerente General.') + '</div>'; return; }
     $('#selector').hidden = false; $('#b-nueva').hidden = !S.lista.puede_crear;
+    if (!abrir) return;                     // solo se refrescó la lista (permisos o torres nuevas)
     const pedida = decodeURIComponent(location.hash.slice(1)) || cfg().torre_actual;
     const inicial = S.lista.torres.find(t => t.clave === pedida) || S.lista.torres[0];
     abrirTorre(inicial.clave);
-  } catch (err) {
-    $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (err.codigo === 'SESION' || err.codigo === 'SESION_VENCIDA' ? '<a class="btn primario" href="portal/">Entrar de nuevo</a>' : '') + '</div>';
   }
 }
 
 // ------------------------------------------------------------------ Datos de ejemplo (?demo) para revisar el diseño sin conexión
 const Demo = {
-  torres_lista: () => ({ bot: 'https://t.me/StiliTorresBot', nivel: 3, reclamaciones: true, puede_crear: true, finanzas: true, presupuesto: true, ficha: true, tareas: 3, lobby: { apartamentos: 3, personal: 3, documentos: 3 },
+  torres_lista: () => ({ bot: 'https://t.me/StiliTorresBot', nivel: 3, reclamaciones: true, puede_crear: true, finanzas: true, presupuesto: true, ficha: true, tareas: 3, pedidos: 3, elimina: true, lobby: { apartamentos: 3, personal: 3, documentos: 3 },
     equipo: [['NOM-1', 'Mildred Pérez', 'Gestora de Cuentas', 'Gestión de Cuentas'], ['NOM-2', 'Reyna Martínez', 'Gestora de Cuentas', 'Gestión de Cuentas'], ['NOM-3', 'Danna Carolina Ramírez', 'Gestora de Cuentas', 'Gestión de Cuentas'],
       ['NOM-4', 'Lissette López', 'Encargada de Contabilidad', 'Contabilidad'], ['NOM-5', 'Ronald Larrauri', 'Gerente General', 'Gerencia General']].map(([id, nombre, cargo, departamento]) => ({ id, nombre, cargo, departamento })),
     torres: [
@@ -530,11 +645,18 @@ const Demo = {
     ['Torre Niza 7', 'NIZA7', 'Reyna Martínez', 'Piantini', 1], ['Torre Prime Residences', 'PRIME', 'Danna Ramírez', 'Serrallés', 0], ['Torre Madelta VI', 'MAD6', 'Sin gestor asignado', '', 0]]
     .map(([torre, clave, gestor, direccion, abiertas]) => ({ torre, clave, gestor, direccion, abiertas })) }),
   torre_guardar: () => ({ gestor: 'Reyna Martínez', cambios: 1 }),
-  tareas_datos: () => ({ torre: 'Torre Niza 7', puede_editar: true, ia: true, categorias: { mantenimiento: 'Mantenimiento', limpieza: 'Limpieza', personal: 'Personal', compras: 'Compras y suministros', seguridad: 'Seguridad', administrativo: 'Administrativo', otro: 'Otro' },
+  pedidos_datos: () => ({ torre: 'Torre Niza 7', puede_editar: true, abiertos: 1, estados: { pedido: 'Pedido', aprobado: 'Aprobado', comprado: 'Comprado', entregado: 'Entregado', cancelado: 'Cancelado' },
+    catalogo: ['Cloro', 'Desinfectante', 'Fundas de basura grandes', 'Papel higiénico'], gasto_por_mes: [{ mes: '2026-09', monto: 3200 }, { mes: '2026-10', monto: 1850.5 }],
+    pedidos: [{ id: 'PD1', fecha_pedido: '20/10/2026', productos: [{ producto: 'Cloro', cantidad: '4', unidad: 'galones' }, { producto: 'Fundas de basura grandes', cantidad: '2', unidad: 'paquetes' }], estado: 'pedido', proveedor: '', monto: 0, solicitado_por: 'Conserje' },
+      { id: 'PD2', fecha_pedido: '05/10/2026', productos: [{ producto: 'Desinfectante', cantidad: '6', unidad: 'galones' }], estado: 'entregado', fecha_entrega: '07/10/2026', proveedor: 'Ofiklin', monto: 1850.5, solicitado_por: 'Reyna Martínez' }] }),
+  pedido_guardar: () => Demo.pedidos_datos(),
+  reporte_eliminar: () => Object.assign(Demo.tareas_datos(), { reportes: [] }),
+  tareas_datos: () => ({ torre: 'Torre Niza 7', puede_editar: true, puede_eliminar: true, ia: true,
+    oficios: { electricidad: 'Eléctrico', plomeria: 'Plomería', pintura: 'Pintura', herreria: 'Herrería y soldadura', otro: 'Otro oficio' }, categorias: { mantenimiento: 'Mantenimiento', limpieza: 'Limpieza', personal: 'Personal', compras: 'Compras y suministros', seguridad: 'Seguridad', administrativo: 'Administrativo', otro: 'Otro' },
     reportes: [{ id: 'RP1', titulo: 'Levantamiento octubre', fecha: '21/10/2026', subido_por: 'Reyna Martínez', origen: 'bot', tareas: 5, resumen: 'Retoques de pintura, plafones dañados y limpieza del parqueo.', url: '#' }],
     tareas: [['Soldar hierro de entrada de lobby', 'mantenimiento', 'soldadura', 'alta', 'técnico o proveedor', 'abierta'], ['Retoque de pintura en columnas del parqueo', 'mantenimiento', 'pintura', 'baja', 'técnico o proveedor', 'abierta'],
       ['Pulido de pisos del lobby', 'limpieza', 'pisos', 'media', 'conserjería', 'abierta'], ['Comprar alfombras del ascensor', 'compras', 'mobiliario', 'baja', 'gestor(a)', 'abierta'], ['Revisión de las cámaras', 'seguridad', 'CCTV', 'media', 'técnico o proveedor', 'cerrada']]
-      .map(([descripcion, categoria, subcategoria, prioridad, responsable, estado], i) => ({ id: 'T' + i, reporte_id: 'RP1', numero: i + 1, descripcion, categoria, subcategoria, prioridad, responsable, estado, fecha: '21/10/2026',
+      .map(([descripcion, categoria, subcategoria, prioridad, responsable, estado], i) => ({ id: 'T' + i, reporte_id: 'RP1', numero: i + 1, descripcion, categoria, subcategoria, prioridad, responsable, estado, fecha: '21/10/2026', oficio: { soldadura: 'herreria', pintura: 'pintura', CCTV: 'otro' }[subcategoria] || '',
         detalle: '', cerrada_en: estado === 'cerrada' ? '22/10/2026' : '', cerrada_por: estado === 'cerrada' ? 'Reyna Martínez' : '' })) }),
   fin_datos: () => ({ torre: 'Torre Niza 7', puede_editar: true, ia: true, tipos: { banco: 'Estado bancario', habitanto: 'Estado de Habitanto', presupuesto: 'Presupuesto', morosidad: 'Cuotas y morosidad', otro: 'Otro' },
     archivos: [{ id: 'FA1', tipo: 'banco', periodo: '2026-09', nombre: 'BHD septiembre.pdf', url: '#', subido_por: 'Lissette López', subido_en: '05/10/2026' },

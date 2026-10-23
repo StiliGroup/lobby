@@ -147,3 +147,19 @@
 
   window.StiliModulos = { montar, mas, refrescar, api, abrirNomina, leer, guardar, BASE, MODULOS };
 })();
+
+// v2.3 · protección de pantalla en todas las páginas del Portal (marca de agua con el nombre, sin capturas ni copias)
+(function () {
+  let cfg = {}; try { cfg = JSON.parse(localStorage.getItem('stili-admin') || '{}'); } catch (e) { /* sin almacenamiento */ }
+  const u = cfg.usuario || {};
+  window.STILI_PROTECCION = Object.assign({ quien: u.nombre || '', correo: u.correo || '',
+    registrar: tipo => {
+      const url = cfg.url || (window.STILI && window.STILI.servicio);
+      if (!url || !cfg.sesion) return;
+      try { navigator.sendBeacon(url, JSON.stringify({ accion: 'captura', sesion: cfg.sesion, tipo: tipo, pagina: location.pathname + location.hash })); } catch (e) { /* nada */ }
+    } }, window.STILI_PROTECCION || {});
+  const actual = document.currentScript && document.currentScript.src;
+  const s = document.createElement('script');
+  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=23') : 'stili-proteccion.js?v=23';
+  (document.head || document.documentElement).appendChild(s);
+})();

@@ -21,7 +21,7 @@
 .filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .filtros select { border-radius: 8px; padding: 7px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); max-width: 100%; }
 .gestores { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 14px; }
-.g h2 { margin: 0; font-size: 18px; color: var(--navy); text-transform: none; letter-spacing: 0; }
+.g h2 { margin: 0; font-size: 18px; color: var(--titulo); text-transform: none; letter-spacing: 0; }
 .g .torres { color: var(--muted); font-size: 13px; margin: 2px 0 10px; }
 .leyenda { display: flex; gap: 14px; font-size: 13px; color: var(--muted); margin: 4px 0 6px; }
 .leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
@@ -37,13 +37,24 @@
 .mini div { background: var(--panel-2); border-radius: 10px; padding: 8px 10px; font-size: 12px; color: var(--muted); }
 .mini b { display: block; font-size: 20px; color: var(--fg); }
 .cats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-details.tabla-mes summary { cursor: pointer; font-weight: 600; margin-top: 10px; color: var(--navy); }
+details.tabla-mes summary { cursor: pointer; font-weight: 600; margin-top: 10px; color: var(--titulo); }
 @media (max-width: 560px) { .mini { grid-template-columns: repeat(2, 1fr); } }
+.vistas { display: flex; background: rgba(255,255,255,.12); border-radius: 10px; padding: 3px; gap: 3px; }
+.vistas button { border: 0; background: transparent; color: #fff; padding: 7px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.vistas button[aria-pressed="true"] { background: #fff; color: #003A75; }
+.oficios { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 14px; }
+.of h2 { margin: 0 0 4px; font-size: 18px; color: var(--titulo); text-transform: none; letter-spacing: 0; }
+.of .t { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+.of .t h3 { margin: 0 0 6px; font-size: 15px; }
+.of ul { margin: 0; padding-left: 18px; } .of li { margin-bottom: 4px; }
+.of .prov { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.of .acciones-of { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 </style>
 </head>
 <body>
-<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Torres</small><b>Tareas por gestor</b></div>
-  <div class="filtros"><label class="nota" style="color:#C9D3DF">Período <select id="meses"><option value="3">3 meses</option><option value="6" selected>6 meses</option><option value="12">12 meses</option></select></label>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Torres</small><b id="titulo">Tareas por gestor</b></div>
+  <div class="seg vistas" role="tablist"><button type="button" data-vista="gestores" aria-pressed="true">Métricas por gestor</button><button type="button" data-vista="oficios" aria-pressed="false">Suplidores por oficio</button></div>
+  <div class="filtros" id="filtros"><label class="nota" style="color:#C9D3DF">Período <select id="meses"><option value="3">3 meses</option><option value="6" selected>6 meses</option><option value="12">12 meses</option></select></label>
   <label class="nota" style="color:#C9D3DF">Gestor <select id="gestor"><option value="">Todos</option></select></label></div></div></header>
 <main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
 <div class="tip" id="tip" hidden></div>
@@ -106,6 +117,55 @@ function tip(e) {
 document.addEventListener('mouseover', tip); document.addEventListener('focusin', tip);
 document.addEventListener('mouseout', e => { if (e.target.closest && e.target.closest('[data-tip]')) $('#tip').hidden = true; });
 $('#meses').addEventListener('change', cargar); $('#gestor').addEventListener('change', pintar);
+
+// v2.3 · Suplidores por oficio: todas las tareas abiertas de eléctricos, plomería, pintura… para hacer una sola llamada por suplidor
+const PRIO = { alta: 'rojo', media: 'ambar', baja: 'azul' };
+let oficios = null;
+function vista() { return location.hash === '#oficios' ? 'oficios' : 'gestores'; }
+function cambiarVista() {
+  const v = vista();
+  document.querySelectorAll('[data-vista]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vista === v)));
+  $('#filtros').hidden = v === 'oficios'; $('#titulo').textContent = v === 'oficios' ? 'Suplidores por oficio' : 'Tareas por gestor';
+  document.title = $('#titulo').textContent + ' · Stili';
+  if (v === 'oficios') cargarOficios(); else cargar();
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-vista]'); if (!b) return; history.replaceState(null, '', b.dataset.vista === 'oficios' ? '#oficios' : location.pathname + location.search); cambiarVista(); });
+async function cargarOficios() {
+  $('#contenido').innerHTML = '<p class="nota">Cargando…</p>';
+  try { oficios = DEMO ? demoOficios() : await StiliModulos.api('tareas_oficios'); pintarOficios(); }
+  catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
+}
+function textoOficio(o) {
+  return o.nombre + ' · trabajos pendientes en ' + o.torres.length + (o.torres.length === 1 ? ' torre' : ' torres') + '\n\n' + o.torres.map(t => t.torre + ':\n' +
+    t.tareas.map(x => '  - ' + x.descripcion + (x.prioridad === 'alta' ? ' (URGENTE)' : '')).join('\n')).join('\n\n');
+}
+function pintarOficios() {
+  const l = oficios.oficios;
+  $('#contenido').innerHTML = '<div class="card"><p class="nota" style="margin:0">Tareas abiertas de mantenimiento agrupadas por oficio, de todas sus torres. Llame una vez al suplidor con la lista completa. ' +
+    'El oficio lo pone la IA al leer el levantamiento; se corrige en Torres → Tareas.</p></div>' +
+    (l.length ? '<div class="oficios">' + l.map((o, i) => '<section class="card of"><h2>' + esc(o.nombre) + '</h2><div class="chips"><span class="chip azul">' + o.abiertas + (o.abiertas === 1 ? ' abierta' : ' abiertas') + '</span>' +
+      (o.alta ? '<span class="chip rojo">' + o.alta + (o.alta === 1 ? ' urgente' : ' urgentes') + '</span>' : '') + '<span class="chip">' + o.torres.length + (o.torres.length === 1 ? ' torre' : ' torres') + '</span></div>' +
+      o.torres.map(t => '<div class="t"><h3><a href="torres.html#' + esc(t.clave) + '">' + esc(t.torre) + '</a></h3><ul>' + t.tareas.map(x => '<li>' + esc(x.descripcion) +
+        ' <span class="chip ' + (PRIO[x.prioridad] || '') + '">' + esc(x.prioridad) + '</span>' + (x.fecha ? ' <small class="nota">' + esc(x.fecha) + '</small>' : '') + '</li>').join('') + '</ul>' +
+        (t.proveedores.length ? '<div class="prov">Proveedor de la torre: ' + t.proveedores.map(p => esc(p.empresa || p.servicio) + (p.contacto ? ' (' + esc(p.contacto) + ')' : '') +
+          (p.telefono ? ' · <a href="tel:' + esc(p.telefono) + '">' + esc(p.telefono) + '</a>' : '')).join(' · ') + '</div>' : '<div class="prov">Sin proveedor registrado para este oficio en la torre.</div>') + '</div>').join('') +
+      '<div class="acciones-of"><button type="button" class="btn" data-copiar="' + i + '">Copiar la lista para el suplidor</button>' +
+      '<a class="btn" href="https://wa.me/?text=' + encodeURIComponent(textoOficio(o)) + '" target="_blank" rel="noopener">Enviar por WhatsApp</a></div></section>').join('') + '</div>'
+      : '<div class="vacio">No hay tareas abiertas de técnicos o suplidores.</div>');
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-copiar]'); if (!b) return;
+  try { await navigator.clipboard.writeText(textoOficio(oficios.oficios[Number(b.dataset.copiar)])); b.textContent = '✓ Copiada'; setTimeout(() => { b.textContent = 'Copiar la lista para el suplidor'; }, 2000); }
+  catch (err) { alert('No se pudo copiar.'); }
+});
+function demoOficios() {
+  const t = (torre, clave, tareas, prov) => ({ torre, clave, tareas: tareas.map(([descripcion, prioridad]) => ({ descripcion, prioridad, fecha: '21/10/2026' })), proveedores: prov || [] });
+  return { oficios: [
+    { oficio: 'electricidad', nombre: 'Eléctrico', abiertas: 4, alta: 1, torres: [t('Gil Roma XXXII', 'GILR32', [['Cambiar luces quemadas del parqueo', 'alta'], ['Revisar tomacorriente del lobby', 'media']]),
+      t('Los Hernandez VII', 'HER7', [['Breaker de la bomba se dispara', 'media'], ['Reflector de la entrada', 'baja']], [{ empresa: 'Electro Juan', contacto: 'Juan', telefono: '809-555-0101' }])] },
+    { oficio: 'plomeria', nombre: 'Plomería', abiertas: 2, alta: 0, torres: [t('Los Hernandez VII', 'HER7', [['Fuga en lavamanos del baño de servicio', 'media'], ['Inodoro del lobby corre', 'media']])] },
+    { oficio: 'pintura', nombre: 'Pintura', abiertas: 1, alta: 0, torres: [t('Gil Roma XXXII', 'GILR32', [['Retoque de pintura en columnas', 'baja']])] }] };
+}
 function demo(n) {
   const hoy = new Date(), meses = []; for (let i = n - 1; i >= 0; i--) { const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1); meses.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
   const g = (gestor, torres, base) => ({ gestor, torres, abiertas: base[0], abiertas_30: base[1], dias_promedio_cierre: base[2],
@@ -115,7 +175,7 @@ function demo(n) {
     gestores: [g('Mildred Pérez', ['Gil Roma XXXII', 'Torre Arpel 07', 'Apex Arroyo Hondo'], [12, 3, 6.5, 3]), g('Reyna Martínez', ['Los Hernandez VII', 'Torre Niza 7'], [7, 0, 4.2, 9])] };
 }
 if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'torres'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Tareas por gestor</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en el Portal Stili</a></div>'; }
-else { StiliModulos.montar(document.body, 'torres'); cargar(); }
+else { StiliModulos.montar(document.body, 'torres'); cambiarVista(); }
 </script>
 </body>
 </html>

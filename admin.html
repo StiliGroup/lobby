@@ -16,7 +16,7 @@
 :root {
   --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
   --navy: #003A75; --teal: #29417F; --teal-suave: #E3E8F4; --gold: #B8880C; --gold-suave: #F6EDD6;
-  --ok: #1E7D4F; --ok-suave: #DDF1E6; --warn: #A86500; --warn-suave: #FCEBCF; --crit: #B3261E; --crit-suave: #FBE3E1;
+  --ok: #17683F; --ok-suave: #DDF1E6; --warn: #8A5300; --warn-suave: #FCEBCF; --crit: #B3261E; --crit-suave: #FBE3E1;
   --sobre-oscuro: #FFFFFF; --sombra: 0 1px 2px rgba(19, 41, 61, .06), 0 4px 16px rgba(19, 41, 61, .06);
   --f-ui: "Montserrat", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -25,14 +25,14 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
-    --navy: #002B57; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A;
+    --navy: #002B57; --sobre-teal: #0C1822; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A;
     --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18;
     --sombra: 0 1px 2px rgba(0, 0, 0, .3); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
-  --navy: #002B57; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A;
+  --navy: #002B57; --sobre-teal: #0C1822; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A;
   --ok: #4CC08A; --ok-suave: #143024; --warn: #E9A63A; --warn-suave: #35270F; --crit: #F07C73; --crit-suave: #3A1A18;
   --sombra: 0 1px 2px rgba(0, 0, 0, .3); color-scheme: dark;
 }
@@ -126,7 +126,8 @@ input[type=text], input[type=search], input[type=password], input[type=date], in
 textarea { min-height: 110px; resize: vertical; line-height: 1.45; }
 .check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--fg); font-weight: 500; }
 .btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 10px 16px; font-weight: 700; color: var(--fg); }
-.btn.primario { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn.primario { background: var(--teal); border-color: var(--teal); color: var(--sobre-teal, #fff); }
+.btn.peligro { background: #B3261E !important; border-color: #B3261E !important; color: #fff !important; }
 .btn.oro { background: var(--gold); border-color: var(--gold); color: #13293D; }
 .btn.peligro { background: var(--crit); border-color: var(--crit); color: #fff; }
 .btn.chico { padding: 6px 11px; font-size: 13px; }
@@ -635,6 +636,9 @@ $$('.tab').forEach(t => t.addEventListener('click', () => vista(t.dataset.v)));
 // ------------------------------------------------------------------ Permisos (v1.7)
 const TAB_SECCION = { tablero: 'tablero', apto: 'apartamento', documentos: 'documentos', encuestas: 'encuestas', hosts: 'hosts', torres: 'torres', conflictos: 'conflictos', negra: 'lista_negra', personal: 'personal' };
 const nivel = sec => S.sistema ? (S.sistema.gerente ? 3 : ((S.sistema.permisos || {})[sec] || 0)) : 0;
+// v2.3 · eliminar es solo del Gerente General (el Asistente Administrativo tiene todo lo demás)
+const elimina = () => !!(S.sistema && (S.sistema.elimina !== undefined ? S.sistema.elimina : S.sistema.gerente));
+const general = () => !!(S.sistema && (S.sistema.general !== undefined ? S.sistema.general : S.sistema.gerente));
 function aplicarPermisos() {
   const sis = S.sistema || {};
   $$('.tab').forEach(t => { const sec = TAB_SECCION[t.dataset.v]; if (sec) t.hidden = nivel(sec) < 1; });
@@ -700,7 +704,7 @@ async function cargarSistema() {
     $('#pill-con').innerHTML = '<span class="p' + (DEMO() ? ' demo' : '') + '"></span><span>' + (DEMO() ? 'Demostración' : 'En línea · v' + esc(S.sistema.version)) + '</span>';
     const g = S.sistema.rol === 'gerente';
     $('#pill-rol').className = 'pill' + (g ? ' rol-gerente' : '');
-    const SEG = { gerente: 'Gerente General', gestores: 'Gestor de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad' };
+    const SEG = { gerente: 'Gerente General', asistente: 'Asistente Administrativo', gestores: 'Gestor de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad' };
     $('#pill-rol').className = 'pill' + (S.sistema.gerente ? ' rol-gerente' : '');
     $('#pill-rol').textContent = (SEG[S.sistema.segmento] || (g ? 'Gerente' : 'Equipo')) + ' · ' + (S.sistema.nombre || '') + (S.sistema.torres ? ' · ' + S.sistema.torres.join(', ') : '');
     aplicarPermisos();
@@ -1014,7 +1018,7 @@ async function cargarNegra() {
   try { pintarNegra(await api('lista_negra')); } catch (e) { $('#negra').innerHTML = '<tr><td colspan="6">' + esc(e.message) + '</td></tr>'; }
 }
 function pintarNegra(r) {
-  const edit = r.puede_editar && nivel('lista_negra') >= 3, borrar = !!(S.sistema && S.sistema.gerente);
+  const edit = r.puede_editar && nivel('lista_negra') >= 3, borrar = elimina();
   $('#negra-agregar').hidden = !edit;
   const torres = S.tablero ? S.tablero.torres.map(t => t.torre) : [];
   $('#n-torre').innerHTML = '<option value="">Todas las torres (también huéspedes)</option>' + torres.map(t => '<option>' + esc(t) + '</option>').join('');
@@ -1045,7 +1049,7 @@ function pintarHosts() {
   $('#hosts').innerHTML = lista.map(h => '<tr><td><b>' + esc(h.nombre) + '</b><br><span class="nota mono">' + esc(h.id_host) + '</span> <span class="chip ' + (h.tipo === 'propietario' ? 'oro' : 'teal') + '">' + (h.tipo === 'propietario' ? 'Propietario' : 'Host') + '</span>' +
     (g ? '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn chico" data-editar-host="' + esc(h.id_host) + '">Editar</button>' + (h.estatus !== 'suspendido' ? '<button class="btn chico" data-invitar="' + esc(h.id_host) + '">Invitar</button>' : '') + '</div>' : '') + '</td>' +
     '<td class="mono">' + esc(h.telefono) + '</td><td>' + (h.unidades.map(u => '<span class="chip">' + esc((u.torre ? u.torre.replace(/^Torre\s+/i, '') + ' · ' : '') + u.apto) +
-      (S.sistema && S.sistema.gerente ? ' <button class="x" title="Quitar (solo Gerente General)" data-quitar="' + esc(h.id_host) + '|' + esc(u.codigo) + '">✕</button>' : '') + '</span>').join(' ') || '<span class="nota">Ninguno</span>') + '</td>' +
+      (elimina() ? ' <button class="x" title="Quitar (solo Gerente General)" data-quitar="' + esc(h.id_host) + '|' + esc(u.codigo) + '">✕</button>' : '') + '</span>').join(' ') || '<span class="nota">Ninguno</span>') + '</td>' +
     '<td>' + (h.estatus === 'suspendido' ? '<span class="chip rojo">Suspendido</span>' : '<span class="chip verde">Activo</span>') + '<br>' +
       (h.vinculado ? '<span class="chip verde" style="margin-top:6px">Telegram ✓</span>' : '<span class="chip ambar" style="margin-top:6px" title="Aún no compartió su número en el bot">Sin Telegram</span>') + '</td></tr>').join('')
     || '<tr><td colspan="4" class="nota">' + (q ? 'Nadie coincide con la búsqueda.' : 'Todavía no hay hosts. Cree el primero a la derecha.') + '</td></tr>';
@@ -1126,7 +1130,7 @@ async function cargarPapelera() {
 }
 function pintarPapelera(r) {
   $('#pap-filas').innerHTML = (r.papelera || []).map(p => '<tr><td>' + esc(fmtFH(p.fecha)) + '</td><td>' + esc(p.usuario) + '</td><td>' + esc(p.descripcion) + '</td><td>' + esc(fmtFecha(p.vence)) +
-    '</td><td style="white-space:nowrap"><button class="btn chico primario" data-restaurar="' + esc(p.id) + '">Restaurar</button> <button class="btn chico" data-borrar="' + esc(p.id) + '">Borrar ya</button></td></tr>').join('') ||
+    '</td><td style="white-space:nowrap"><button class="btn chico primario" data-restaurar="' + esc(p.id) + '">Restaurar</button>' + (elimina() ? ' <button class="btn chico" data-borrar="' + esc(p.id) + '">Borrar ya</button>' : '') + '</td></tr>').join('') ||
     '<tr><td colspan="5" class="nota">La papelera está vacía.</td></tr>';
 }
 async function buscarDatos() {
@@ -1136,7 +1140,7 @@ async function buscarDatos() {
     $('#d-info').textContent = r.filas.length + ' de ' + r.total + ' registros' + (r.filas.length === 100 ? ' (se muestran los 100 más recientes; busque para filtrar)' : '') + '.';
     $('#d-cab').innerHTML = '<tr>' + r.columnas.map(c => '<th>' + esc(c.replace(/_/g, ' ')) + '</th>').join('') + '<th></th></tr>';
     $('#d-filas').innerHTML = r.filas.map(f => '<tr>' + f.valores.map(v => '<td>' + esc(v) + '</td>').join('') +
-      '<td><button class="btn chico peligro" data-eliminar="' + esc(f.clave) + '" data-desc="' + esc(f.valores.filter(Boolean).slice(0, 3).join(' · ')) + '">Eliminar</button></td></tr>').join('') ||
+      '<td>' + (elimina() ? '<button class="btn chico peligro" data-eliminar="' + esc(f.clave) + '" data-desc="' + esc(f.valores.filter(Boolean).slice(0, 3).join(' · ')) + '">Eliminar</button>' : '') + '</td></tr>').join('') ||
       '<tr><td class="nota" colspan="' + (r.columnas.length + 1) + '">Sin resultados.</td></tr>';
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -1165,15 +1169,16 @@ async function cargarUsuarios() {
 function pintarUsuarios() {
   const r = S.usuarios; if (!r) return;
   const prevSeg = $('#u-segmento').value || 'gestores';
-  const esGerente = !!(S.sistema && S.sistema.gerente);
-  $('#u-segmento').innerHTML = Object.entries(r.segmentos).filter(([k]) => k !== 'gerente').concat(esGerente ? [['gerente', r.segmentos.gerente]] : []).map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('');
+  const esGerente = general();
+  const altos = ['gerente', 'asistente'];
+  $('#u-segmento').innerHTML = Object.entries(r.segmentos).filter(([k]) => altos.indexOf(k) < 0).concat(esGerente ? altos.filter(k => r.segmentos[k]).map(k => [k, r.segmentos[k]]) : []).map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('');
   $('#u-segmento').value = prevSeg; ajustarGestiona();
   const torres = S.tablero ? S.tablero.torres.map(t => t.torre) : [];
   $('#u-torres-lista').innerHTML = ['TODAS'].concat(torres).map(t => '<option value="' + esc(t) + '">').join('');
   $('#usuarios').innerHTML = r.usuarios.map(u => '<tr><td><b>' + esc(u.nombre) + '</b><br><span class="nota">' + esc(u.correo) + '</span>' +
     '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">' + (u.gerente && !esGerente ? '' : '<button class="btn chico" data-u-editar="' + esc(u.id) + '">Editar</button>') +
     (u.gerente && (u.id === (S.sistema && S.sistema.id) || !esGerente) ? '' : '<button class="btn chico" data-u-clave="' + esc(u.id) + '">Nueva clave</button>') +
-    (u.id === (S.sistema && S.sistema.id) || u.gerente || !esGerente ? '' : '<button class="btn chico peligro" data-u-eliminar="' + esc(u.id) + '">Eliminar</button>') + '</div></td>' +
+    (u.id === (S.sistema && S.sistema.id) || u.gerente || !elimina() ? '' : '<button class="btn chico peligro" data-u-eliminar="' + esc(u.id) + '">Eliminar</button>') + '</div></td>' +
     '<td><span class="chip ' + (u.gerente ? 'oro' : 'teal') + '">' + esc(u.segmento_nombre) + '</span>' + (u.gestiona_usuarios && !u.gerente ? '<br><span class="chip oro" style="margin-top:4px">Gestiona usuarios</span>' : '') + '</td><td>' + esc(u.torres_texto) + '</td><td>' +
     (!u.activo ? '<span class="chip">Inactivo</span>' : u.bloqueado ? '<span class="chip rojo">Bloqueado</span>' : u.debe_cambiar ? '<span class="chip ambar">Clave temporal</span>' : '<span class="chip verde">Activo</span>') +
     (u.ultimo_acceso ? '<br><span class="nota">Entró ' + fmtFH(u.ultimo_acceso) + '</span>' : '<br><span class="nota">Nunca ha entrado</span>') + '</td></tr>').join('');
@@ -1191,7 +1196,7 @@ function editarUsuario(u) {
   $('#u-gestiona').checked = !!(u && u.gestiona_usuarios && !u.gerente); ajustarGestiona(); $('#u-guardar').textContent = u ? 'Guardar cambios' : 'Crear usuario';
   $('#u-titulo').textContent = u ? 'Editar · ' + u.nombre : 'Nuevo usuario';
 }
-function ajustarGestiona() { $('#u-gestiona-c').hidden = !(S.sistema && S.sistema.gerente) || $('#u-segmento').value === 'gerente'; }
+function ajustarGestiona() { $('#u-gestiona-c').hidden = !(S.sistema && S.sistema.gerente) || ['gerente', 'asistente'].indexOf($('#u-segmento').value) >= 0; }
 $('#u-segmento').addEventListener('change', ajustarGestiona);
 function mostrarTemporal(r) {
   const u = r.usuarios.find(x => x.id === r.id); if (!r.clave_temporal || !u) return;
@@ -1341,7 +1346,7 @@ const Demo = (() => {
     return { documentos: JSON.parse(JSON.stringify(docs)), temas: TEMAS, tipos: TIPOS, torres: torres.map(t => t.torre), temas_cubiertos: cub, puede_editar: g, faltan: ['salida_huesped', 'horario_trabajo'].filter(k => !cub[k]) };
   }
   const err = (m, c) => { const e = new Error(m); e.codigo = c; return e; };
-  const SEGMENTOS_D = { gerente: 'Gerente General', gestores: 'Gestores de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad / CxC / CxP' };
+  const SEGMENTOS_D = { gerente: 'Gerente General', asistente: 'Asistente Administrativo', gestores: 'Gestores de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad / CxC / CxP' };
   const SECCIONES_D = [   // copia de SECCIONES del servicio (v2.2)
     ['tablero', 'panel', 'Lobby · Tablero y actividad', 'Ver: ocupación y actividad de las torres.', [1, 1, 1]],
     ['apartamento', 'panel', 'Lobby · Buscar apartamento', 'Ver: datos generales con teléfonos y documentos ocultos. Profundizar: teléfonos, documentos, fotos, código de puerta y wifi. Editar: ocupación máxima y residentes.', [1, 0, 0]],
@@ -1351,6 +1356,7 @@ const Demo = (() => {
     ['lista_negra', 'panel', 'Lobby · Lista negra', 'Ver: nombres y motivos. Profundizar: documentos completos. Editar: agregar personas y decidir solicitudes.', [1, 1, 0]],
     ['tor_fichas', 'torres', 'Torres · Ficha, proveedores, contratos y Junta', 'Ver: datos generales, proveedores, contratos y empleados. Profundizar: finanzas con el número de cuenta e historial de cambios.', [2, 1, 2]],
     ['tor_tareas', 'torres', 'Torres · Levantamientos y tareas', 'Ver: tareas de cada torre y métricas por gestor. Editar: subir levantamientos, corregir la categoría y cerrar tareas.', [3, 1, 0]],
+    ['tor_pedidos', 'torres', 'Torres · Pedidos de limpieza', 'Ver: pedidos de productos de limpieza de cada torre y su gasto. Editar: crear pedidos y cambiar su estado (aprobado, comprado, entregado).', [3, 1, 3]],
     ['tor_reclamaciones', 'torres', 'Torres · Reclamaciones y comunicados', 'Ver: reclamaciones de cada torre, conteo y comunicados emitidos.', [1, 0, 0]],
     ['tor_finanzas', 'torres', 'Torres · Finanzas y análisis con IA', 'Ver: análisis y discrepancias. Profundizar: abrir los estados subidos. Editar: subir estados bancarios y de Habitanto, analizar con IA y escribir en la memoria.', [1, 0, 3]],
     ['tor_presupuesto', 'torres', 'Finanzas · Presupuesto y alerta temprana', 'Ver: tablero de riesgo de todas sus torres. Editar: cargar y corregir el presupuesto de cada torre.', [1, 0, 3]],
