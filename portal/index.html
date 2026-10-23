@@ -23,13 +23,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
-    --navy: #002B57; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18;
+    --navy: #002B57; --sobre-teal: #0C1822; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18;
     --sombra: none;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
-  --navy: #002B57; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18; --sombra: none;
+  --navy: #002B57; --sobre-teal: #0C1822; --teal: #8FB3E8; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18; --sombra: none;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -50,7 +50,8 @@ h1 { font-size: 24px; margin: 0 0 4px; }
 label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 input { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--fg); width: 100%; }
 .btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--fg); border-radius: 9px; padding: 11px 18px; font-weight: 700; cursor: pointer; }
-.btn.primario { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn.primario { background: var(--teal); border-color: var(--teal); color: var(--sobre-teal, #fff); }
+.btn.peligro { background: #B3261E !important; border-color: #B3261E !important; color: #fff !important; }
 .btn:disabled { opacity: .55; cursor: wait; }
 .msg { min-height: 1.4em; color: var(--crit); font-size: 14px; }
 .msg.ok { color: var(--teal); }
@@ -84,7 +85,7 @@ input { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; b
 .cumple div { display: flex; flex-direction: column; font-size: 14px; }
 .cumple span { color: var(--muted); font-size: 12.5px; }
 .cumple .hoy-si b::after { content: " 🎂"; }
-.hoy-c .ver { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 600; }
+.hoy-c .ver { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--teal); }
 @media (max-width: 760px) { .hoy { grid-template-columns: 1fr; } }
 .tile small { color: var(--muted); font-size: 13px; }
 h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 26px 0 10px; font-weight: 700; }
@@ -137,9 +138,10 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
 
   <section id="clave" hidden>
     <div class="card" style="max-width:420px;margin:6vh auto 0">
-      <h1>Cree su clave personal</h1>
-      <p class="sub">Es su primera entrada o le restablecieron la clave. Mínimo 8 caracteres, con letras y números.</p>
+      <h1 id="k-titulo">Cree su clave personal</h1>
+      <p class="sub" id="k-sub">Es su primera entrada o le restablecieron la clave. Mínimo 8 caracteres, con letras y números.</p>
       <form id="f-clave">
+        <label id="k-actual-c" hidden>Clave actual<input type="password" id="k-actual" autocomplete="current-password"></label>
         <label>Clave nueva<input type="password" id="k-nueva" autocomplete="new-password" required minlength="8"></label>
         <label>Repita la clave<input type="password" id="k-repite" autocomplete="new-password" required minlength="8"></label>
         <button class="btn primario" style="width:100%">Guardar</button>
@@ -162,13 +164,21 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
       <p><b>Claude · asistente de IA del equipo</b><br><span class="nota">Redacte comunicados y circulares, revise contratos y actas, resuma correos y resuelva dudas del día a día. Entre con su cuenta de Claude de Stili. No pegue claves ni datos de salud de empleados.</span></p>
       <a class="btn primario" href="https://claude.ai" target="_blank" rel="noopener" style="text-decoration:none">Abrir Claude</a>
     </div>
-    <div id="recursos-c"><h2 id="descargables">Recursos Stili · banco de descargables</h2>
-      <p class="nota" style="margin:-4px 0 14px">Archivos oficiales de la línea gráfica. El logo se usa siempre tal como viene: no se redibuja, no se gira y no se le cambian los colores. Su firma de correo, su foto de WhatsApp y su tarjeta personales las crea la Nómina; pídalas a RRHH.</p>
-      <div class="recursos" id="recursos"></div></div>
     <div class="instalar" id="instalar">
       <p><b>Instale el Portal en esta computadora</b><br><span class="nota" id="inst-texto">Queda como una aplicación con su ícono en el escritorio y en el menú Inicio.</span></p>
       <button class="btn primario" id="b-instalar" hidden>Instalar</button>
     </div>
+  </section>
+
+  <!-- v2.3 · Mi espacio: lo personal de cada trabajador de Stili (sus datos, su firma y tarjeta, y el banco de descargables) -->
+  <section id="mi" hidden>
+    <p><a href="#" data-ir-inicio="1">← Inicio</a></p>
+    <h1>Mi espacio</h1>
+    <p class="sub" id="mi-perfil"></p>
+    <div class="tiles" id="mi-tiles"></div>
+    <div id="recursos-c"><h2 id="descargables">Recursos Stili · banco de descargables</h2>
+      <p class="nota" style="margin:-4px 0 14px">Archivos oficiales de la línea gráfica. El logo se usa siempre tal como viene: no se redibuja, no se gira y no se le cambian los colores.</p>
+      <div class="recursos" id="recursos"></div></div>
   </section>
 </main>
 <div class="toast" id="toast" hidden></div>
@@ -198,8 +208,9 @@ async function api(accion, datos) {
   }
   return j;
 }
-function ver(id) { ['login', 'clave', 'inicio'].forEach(x => { $('#' + x).hidden = x !== id; }); $('#b-salir').hidden = id === 'login';
-  if (id !== 'inicio') { const b = $('#modulos'); b.innerHTML = ''; $('#barra-login').hidden = false; } }
+function ver(id) { ['login', 'clave', 'inicio', 'mi'].forEach(x => { $('#' + x).hidden = x !== id; }); $('#b-salir').hidden = id === 'login';
+  if (id === 'mi' || id === 'inicio') scrollTo(0, 0);
+  if (id !== 'inicio' && id !== 'mi') { const b = $('#modulos'); b.innerHTML = ''; $('#barra-login').hidden = false; } }
 function salir(msg) { sesion = ''; guardarCfg({ sesion: '', modulos: {}, usuario: {} }); ver('login'); $('#l-msg').textContent = msg || ''; setTimeout(() => $('#l-correo').focus(), 50); }
 
 $('#f-login').addEventListener('submit', async e => {
@@ -221,7 +232,7 @@ $('#f-login').addEventListener('submit', async e => {
 $('#f-clave').addEventListener('submit', async e => {
   e.preventDefault();
   if ($('#k-nueva').value !== $('#k-repite').value) { $('#k-msg').textContent = 'Las dos claves no coinciden.'; return; }
-  try { const r = await api('cambiar_clave', { nueva: $('#k-nueva').value }); sesion = r.sesion; guardarCfg({ sesion }); $('#f-clave').reset(); cargar(); toast('Clave guardada.'); }
+  try { const r = await api('cambiar_clave', { nueva: $('#k-nueva').value, actual: $('#k-actual').value }); sesion = r.sesion; guardarCfg({ sesion }); $('#f-clave').reset(); cargar(); toast('Clave guardada.'); }
   catch (err) { $('#k-msg').textContent = err.message; }
 });
 $('#b-salir').addEventListener('click', () => salir('Sesión cerrada.'));
@@ -229,26 +240,44 @@ $('#b-salir').addEventListener('click', () => salir('Sesión cerrada.'));
 function tile(icono, titulo, texto, attrs, clase) {
   return '<a class="tile ' + (clase || '') + '" ' + attrs + '><span class="ic" aria-hidden="true">' + icono + '</span><span><b>' + esc(titulo) + '</b><small>' + esc(texto) + '</small></span></a>';
 }
+// v2.3 · velocidad: lo último que vio cada persona aparece al instante (guardado en este equipo) y se actualiza en segundo plano
+const MEMO = 'stili-inicio-' + (sesion || '').split('.')[0];
+const memoria = () => { try { return JSON.parse(localStorage.getItem(MEMO) || '{}'); } catch (e) { return {}; } };
+const recordar = (k, v) => { try { const m = memoria(); m[k] = v; localStorage.setItem(MEMO, JSON.stringify(m)); } catch (e) { /* sin almacenamiento */ } };
 /** Pendientes de hoy y cumpleaños de la semana: lo primero que ve cada persona al entrar. */
-async function cargarPendientes(a) {
-  try {
-    const r = await api('pendientes');
-    const ir = { finanzas: 'Finanzas', reclamaciones: 'Reclamaciones', contratos: 'Contratos', lobby: 'Lobby', completar: 'Completar', tareas: 'Tareas' };
+function pintarPendientes(r, a) {
+    const ir = { finanzas: 'Finanzas', reclamaciones: 'Reclamaciones', contratos: 'Contratos', lobby: 'Lobby', completar: 'Completar', tareas: 'Tareas', pedidos: 'Pedidos' };
     $('#pend').innerHTML = r.items.length ? r.items.slice(0, 10).map(i => '<a class="' + esc(i.nivel) + '" href="../' + esc(i.enlace) + '"' + (i.seccion ? ' data-sec="' + esc(i.seccion) + '"' : '') + '><span class="p"></span><span><b>' + esc(i.titulo) + '</b>' +
       (i.detalle ? '<small>' + esc(i.detalle) + '</small>' : '') + '</span><span class="ir">' + esc(ir[i.tipo] || '') + ' →</span></a>').join('') +
       (r.items.length > 10 ? '<div class="nada">Y ' + (r.items.length - 10) + ' más.</div>' : '') : '<div class="nada">Nada pendiente por ahora. ✓</div>';
     $('#cumple-c').hidden = !a.cumpleanos;
     $('#cumple').innerHTML = (r.cumpleanos || []).length ? r.cumpleanos.map(c => '<div class="' + (c.dias === 0 ? 'hoy-si' : '') + '"><b>' + esc(c.nombre) + '</b><span>' + (c.dias === 0 ? 'Hoy' : c.dias === 1 ? 'Mañana' : 'En ' + c.dias + ' días') +
-      ' · ' + esc(c.torre || '') + '</span></div>').join('') : '<div class="nada" style="color:var(--muted)">Nadie cumple años esta semana.</div>';
+      ' · ' + esc(c.torre || '') + '</span></div>').join('') : '<div class="nada">Nadie cumple años esta semana.</div>';
     $('#hoy').hidden = false;
-  } catch (err) { $('#hoy').hidden = true; }   // con un servicio anterior a la v2.1 simplemente no se muestra
+}
+async function cargarPendientes(a) {
+  const m = memoria(); if (m.pendientes) pintarPendientes(m.pendientes, a);
+  try {
+    const r = await api('pendientes');
+    recordar('pendientes', r); pintarPendientes(r, a); return;
+  } catch (err) { if (!m.pendientes) $('#hoy').hidden = true; }   // sin conexión se queda lo último que vio
 }
 document.addEventListener('click', e => { const l = e.target.closest('#pend a[data-sec]'); if (l) guardarCfg({ torre_seccion: l.dataset.sec }); });
 async function cargar() {
-  ver('inicio');
-  $('#tiles').innerHTML = '<p class="nota">Cargando…</p>';
+  ver(location.hash === '#mi' ? 'mi' : 'inicio');
+  const m = memoria();
+  if (m.portal) { pintarPortal(m.portal); if (m.pendientes) pintarPendientes(m.pendientes, m.portal.accesos); }
+  else $('#tiles').innerHTML = '<p class="nota">Cargando…</p>';
+  const pend = m.portal && m.portal.accesos ? cargarPendientes(m.portal.accesos) : null;   // en paralelo con «portal»
   try {
     const r = await api('portal');
+    recordar('portal', r);
+    pintarPortal(r);
+    if (!pend) cargarPendientes(r.accesos);
+  } catch (err) { if (!m.portal) $('#tiles').innerHTML = '<p class="msg">' + esc(err.message) + '</p>'; }
+}
+function pintarPortal(r) {
+  {
     const u = r.usuario, a = r.accesos;
     if (u.debe_cambiar) return ver('clave');
     $('#saludo').textContent = 'Hola, ' + (u.nombre || '').split(' ')[0];
@@ -264,15 +293,32 @@ async function cargar() {
     if (a.nomina) h += tile('💼', 'Nómina y RRHH', 'Empleados, novedades, nóminas, licencias, vacaciones y reportes legales. Se abre en otra pestaña.', 'href="#" data-nomina="1"', 'oro');
     else if (a.nomina_permiso && !a.nomina_configurada) h += tile('💼', 'Nómina y RRHH', 'Falta la dirección de la Nómina (URL_NOMINA en la pestaña Config).', 'href="#" data-sin="1"', 'oro');
     if (admin) h += tile('⚙️', 'Administración', 'Usuarios y permisos' + (a.papelera ? ', papelera' : '') + ' y ajustes del sistema.', 'href="../admin.html?m=admin"');
-    cargarPendientes(a);
+    h += tile('🙋', 'Mi espacio', 'Mis datos, mi firma de correo, foto de WhatsApp y tarjeta, y los descargables de la marca (logos, hoja timbrada, plantillas).', 'href="#mi" data-mi="1"');
     $('#tiles').innerHTML = h || '<p class="nota">Su usuario todavía no tiene secciones asignadas. Pídalas al Gerente General.</p>';
+    pintarMi(u, a);
     const bots = [[a.bot_torres, '🏢', 'Bot de Torres', 'Ficha de cada torre, proveedores, contratos, reclamaciones y comunicados.'],
       [a.bot_nomina, '🤖', 'Bot de Nómina y RRHH', 'Reportar novedades, licencias y vacaciones desde el teléfono.'],
       [a.bot_checkin, '🛎', 'Bot de Check-in', 'Hosts y huéspedes de renta corta (administración).']].filter(b => b[0]);
     $('#bots').innerHTML = bots.map(b => tile(b[1], b[2], b[3], 'href="' + esc(b[0]) + '" target="_blank" rel="noopener"')).join('');
     $('#bots-c').hidden = !bots.length;
-  } catch (err) { $('#tiles').innerHTML = '<p class="msg">' + esc(err.message) + '</p>'; }
+    if (window.stiliMarca) stiliMarca({ quien: u.nombre, correo: u.correo });
+  }
 }
+function pintarMi(u, a) {
+  const torres = (u.torres || []).join(', ');
+  $('#mi-perfil').textContent = [...new Set([u.nombre, u.cargo, u.segmento_nombre, u.correo, torres && torres !== 'TODAS' ? 'Torres: ' + torres : 'Todas las torres'].filter(Boolean))].join(' · ');
+  let h = '';
+  if (a.mi_imagen) h += tile('🪪', 'Mi firma, WhatsApp y tarjeta', 'Su firma de correo, su foto de perfil de WhatsApp y su tarjeta de presentación oficiales, listas para descargar. Se abre en la Nómina.', 'href="#" data-nomina="/mi-imagen"', 'oro');
+  h += tile('🔑', 'Cambiar mi clave', 'La misma clave sirve para el Portal, la Nómina y el Panel.', 'href="#" data-clave="1"');
+  $('#mi-tiles').innerHTML = h;
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-mi], [data-ir-inicio], [data-clave]'); if (!t) return;
+  e.preventDefault();
+  if (t.dataset.clave) { $('#k-actual-c').hidden = false; $('#k-actual').required = true; $('#k-titulo').textContent = 'Cambiar mi clave';
+    $('#k-sub').textContent = 'Escriba su clave actual y la nueva (mínimo 8 caracteres, con letras y números).'; return ver('clave'); }
+  if (t.dataset.mi) { history.replaceState(null, '', '#mi'); ver('mi'); } else { history.replaceState(null, '', location.pathname); ver('inicio'); }
+});
 document.addEventListener('click', async e => {
   const t = e.target.closest('.tile'); if (!t) return;
   if (t.dataset.sin) { e.preventDefault(); return toast('La dirección de la Nómina no está configurada todavía.', 'error'); }
@@ -282,7 +328,7 @@ document.addEventListener('click', async e => {
     try {
       const r = await api('sso_ticket');
       if (!r.url_nomina) throw new Error('La dirección de la Nómina no está configurada (URL_NOMINA en la pestaña Config).');
-      const url = r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket);
+      const url = r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket) + (t.dataset.nomina.startsWith('/') ? '&ir=' + encodeURIComponent(t.dataset.nomina) : '');
       if (ventana) ventana.location = url; else location.href = url;
     } catch (err) { if (ventana) ventana.close(); toast(err.message, 'error'); }
   }
@@ -339,7 +385,7 @@ $('#b-instalar').addEventListener('click', async () => { if (!aviso) return; avi
 })();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
-if (sesion) cargar().then(() => { if (location.hash.length > 1) { const d = document.getElementById(location.hash.slice(1)); if (d) d.scrollIntoView({ behavior: 'smooth' }); } }); else salir('');
+if (sesion) cargar().then(() => { if (location.hash.length > 1 && location.hash !== '#mi') { const d = document.getElementById(location.hash.slice(1)); if (d) d.scrollIntoView({ behavior: 'smooth' }); } }); else salir('');
 </script>
 </body>
 </html>
