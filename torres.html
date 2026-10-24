@@ -360,7 +360,11 @@ async function leerArchivo(f) {
 }
 // ------------------------------------------------------------------ Tareas y levantamientos (v2.2)
 const PRIORIDAD = { alta: 'rojo', media: 'ambar', baja: 'azul' };
-const FILTRO_T = { estado: 'abierta', categoria: '', oficio: '' };
+const FILTRO_T = { estado: 'abierta', categoria: '', oficio: '', estatus: '' };
+// v2.4 · estatus de cada tarea (la Junta aprobó o detuvo, en cotización, enviada a suplidor…)
+const COLOR_EST = { pendiente: '', cotizando: 'azul', en_junta: 'ambar', aprobada: 'verde', detenida: 'rojo', asignada: 'azul', en_proceso: 'azul', facturada: 'verde', pospuesta: 'ambar', cerrada: 'verde' };
+const nombreEst = (d, k) => k === 'cerrada' ? 'Cerrada' : (d.estatus || {})[k] || k;
+let tareaAbierta = '';
 async function cargarTareas(datos) {
   try { S.tar = datos || await api('tareas_datos', { torre: S.torre }); pintarTareas(); }
   catch (err) { $('#tar').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
@@ -369,8 +373,9 @@ function pintarTareas() {
   const d = S.tar, cats = d.categorias, ab = d.tareas.filter(t => t.estado !== 'cerrada');
   const porCat = {}; ab.forEach(t => { porCat[t.categoria] = (porCat[t.categoria] || 0) + 1; });
   const ofi = d.oficios || {}, porOfi = {}; ab.filter(t => t.oficio).forEach(t => { porOfi[t.oficio] = (porOfi[t.oficio] || 0) + 1; });
+  const porEst = {}; ab.forEach(t => { const k = t.estatus || 'pendiente'; if (k !== 'pendiente') porEst[k] = (porEst[k] || 0) + 1; });
   const lista = d.tareas.filter(t => (FILTRO_T.estado === 'todas' || (FILTRO_T.estado === 'cerrada') === (t.estado === 'cerrada')) && (!FILTRO_T.categoria || t.categoria === FILTRO_T.categoria) &&
-    (!FILTRO_T.oficio || t.oficio === FILTRO_T.oficio));
+    (!FILTRO_T.oficio || t.oficio === FILTRO_T.oficio) && (!FILTRO_T.estatus || (t.estatus || 'pendiente') === FILTRO_T.estatus));
   const opCat = sel => Object.keys(cats).map(k => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(cats[k]) + '</option>').join('');
   const opOfi = sel => '<option value="ninguno">— Sin oficio</option>' + Object.keys(ofi).map(k => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(ofi[k]) + '</option>').join('');
   $('#tar').innerHTML =
@@ -380,24 +385,87 @@ function pintarTareas() {
     (Object.keys(porCat).length ? '<div class="chips" style="margin:0 0 8px">' + Object.keys(porCat).map(k => '<button type="button" class="chip azul" data-fcat="' + k + '">' + esc(cats[k]) + ' · ' + porCat[k] + '</button>').join('') + '</div>' : '') +
     (Object.keys(porOfi).length ? '<div class="chips" style="margin:0 0 12px"><span class="nota">Por oficio:</span> ' + Object.keys(porOfi).sort((a, b) => porOfi[b] - porOfi[a]).map(k => '<button type="button" class="chip' + (FILTRO_T.oficio === k ? ' oro' : '') + '" data-fofi="' + k + '">' + esc(ofi[k] || k) + ' · ' + porOfi[k] + '</button>').join('') +
       (FILTRO_T.oficio ? ' <button type="button" class="chip" data-fofi="">Quitar filtro ✕</button>' : '') + '</div>' : '') +
+    (Object.keys(porEst).length ? '<div class="chips" style="margin:0 0 12px"><span class="nota">Estatus:</span> ' + Object.keys(porEst).map(k => '<button type="button" class="chip ' + (COLOR_EST[k] || '') +
+      (FILTRO_T.estatus === k ? ' oro' : '') + '" data-fest2="' + k + '">' + esc(nombreEst(d, k)) + ' · ' + porEst[k] + '</button>').join('') +
+      (FILTRO_T.estatus ? ' <button type="button" class="chip" data-fest2="">Quitar filtro ✕</button>' : '') + '</div>' : '') +
+    (d.puede_editar ? '<details class="nueva-tarea"><summary>➕ Nueva tarea sin levantamiento</summary><form class="form" id="f-tnueva"><label class="ancho">Qué hay que hacer *<input name="descripcion" required minlength="4" placeholder="Ej.: mantenimiento del aire acondicionado del lobby"></label>' +
+      '<label>Oficio<select name="oficio"><option value="">Que lo deduzca el sistema</option>' + Object.keys(ofi).map(k => '<option value="' + k + '">' + esc(ofi[k]) + '</option>').join('') + '</select></label>' +
+      '<label>Prioridad<select name="prioridad"><option value="media">Media</option><option value="alta">Alta</option><option value="baja">Baja</option></select></label>' +
+      '<label class="ancho">Detalle<input name="detalle"></label><div class="acciones-fila ancho"><button class="btn primario">Crear tarea</button></div></form></details>' : '') +
     (d.puede_editar ? '<form class="form subir-lev" id="f-lev"><label class="ancho subida">Subir levantamiento (PDF de Report &amp; Run, fotos o Excel)<input type="file" name="archivo" accept=".pdf,.xlsx,.xls,.csv,image/*" required></label>' +
       '<label>Título (opcional)<input name="titulo" placeholder="Levantamiento octubre"></label><label>Nota para la IA (opcional)<input name="nota" placeholder="Ej.: la puerta del ascensor ya se cotizó"></label>' +
       '<div class="acciones-fila"><button class="btn primario" id="b-lev"' + (d.ia ? '' : ' disabled title="Falta la clave de la IA"') + '>Subir y clasificar con IA</button></div><p class="nota" id="lev-msg" role="status"></p></form>' : '') +
     '<div class="filtros-t"><div class="seg">' + [['abierta', 'Abiertas'], ['cerrada', 'Cerradas'], ['todas', 'Todas']].map(([k, n]) => '<button type="button" data-fest="' + k + '" aria-pressed="' + (FILTRO_T.estado === k) + '">' + n + '</button>').join('') + '</div>' +
       '<select id="fcat" aria-label="Categoría"><option value="">Todas las categorías</option>' + opCat(FILTRO_T.categoria) + '</select></div>' +
-    tabla(['#', 'Tarea', 'Categoría', 'Oficio', 'Prioridad', 'Responsable', 'Fecha', ''], lista.map(t => '<tr' + (t.estado === 'cerrada' ? ' class="cerrada"' : '') + '><td>' + esc(t.numero) + '</td><td><b>' + esc(t.descripcion) + '</b>' +
-      (t.detalle ? '<br><small>' + esc(t.detalle) + '</small>' : '') + (t.estado === 'cerrada' ? '<br><small>✓ Cerrada el ' + esc(t.cerrada_en) + ' por ' + esc(t.cerrada_por) + (t.nota_cierre ? ': ' + esc(t.nota_cierre) : '') + '</small>' : '') + '</td><td>' +
+    tabla(['#', 'Tarea', 'Estatus', 'Categoría', 'Oficio', 'Prioridad', 'Fecha', ''], lista.map(t => '<tr' + (t.estado === 'cerrada' ? ' class="cerrada"' : '') + '><td>' + esc(t.numero) + '</td><td><b>' + esc(t.descripcion) + '</b>' +
+      (t.detalle ? '<br><small>' + esc(t.detalle) + '</small>' : '') + (t.responsable ? '<br><small>' + esc(t.responsable) + '</small>' : '') +
+      (t.estado === 'cerrada' ? '<br><small>✓ Cerrada el ' + esc(t.cerrada_en) + ' por ' + esc(t.cerrada_por) + (t.nota_cierre ? ': ' + esc(t.nota_cierre) : '') + '</small>' : '') +
+      (t.suplidor ? '<br><small>🛠 ' + esc(t.suplidor) + (t.orden_id ? ' · ' + esc(t.orden_id) : '') + '</small>' : '') +
+      (t.ultimo_comentario ? '<div class="ult-com">💬 <b>' + esc(t.ultimo_comentario_por) + '</b> ' + esc(t.ultimo_comentario_en) + ': ' + esc(t.ultimo_comentario) + '</div>' : '') +
+      '<button type="button" class="enlace-btn" data-tdet="' + esc(t.id) + '" aria-expanded="' + (tareaAbierta === t.id) + '">' + (tareaAbierta === t.id ? 'Ocultar' : 'Estatus y comentarios' + (t.comentarios ? ' (' + t.comentarios + ')' : '')) +
+      (d.puede_editar && t.estado !== 'cerrada' && t.oficio && !t.orden_id ? ' · Enviar a suplidor' : '') + '</button></td>' +
+      '<td><span class="chip ' + (COLOR_EST[t.estatus] || '') + '">' + esc(nombreEst(d, t.estatus || 'pendiente')) + '</span>' + (t.estatus_por && t.estatus !== 'pendiente' ? '<br><small>' + esc(t.estatus_por) + '</small>' : '') + '</td><td>' +
       (d.puede_editar ? '<select data-tcat="' + esc(t.id) + '" aria-label="Categoría">' + opCat(t.categoria) + '</select>' : esc(cats[t.categoria] || t.categoria)) + (t.subcategoria ? '<br><small>' + esc(t.subcategoria) + '</small>' : '') + '</td><td>' +
       (d.puede_editar ? '<select data-tofi="' + esc(t.id) + '" aria-label="Oficio">' + opOfi(t.oficio) + '</select>' : esc(ofi[t.oficio] || '—')) + '</td>' +
-      '<td><span class="chip ' + (PRIORIDAD[t.prioridad] || '') + '">' + esc(t.prioridad) + '</span></td><td>' + esc(t.responsable) + '</td><td>' + esc(t.fecha) + '</td><td>' +
-      (d.puede_editar ? (t.estado === 'cerrada' ? '<button type="button" class="btn" data-tabrir="' + esc(t.id) + '">Reabrir</button>' : '<button type="button" class="btn primario" data-tcerrar="' + esc(t.id) + '">Cerrar</button>') : '') + '</td></tr>'),
+      '<td><span class="chip ' + (PRIORIDAD[t.prioridad] || '') + '">' + esc(t.prioridad) + '</span></td><td>' + esc(t.fecha) + '</td><td>' +
+      (d.puede_editar ? (t.estado === 'cerrada' ? '<button type="button" class="btn" data-tabrir="' + esc(t.id) + '">Reabrir</button>' : '<button type="button" class="btn primario" data-tcerrar="' + esc(t.id) + '">Cerrar</button>') : '') + '</td></tr>' +
+      (tareaAbierta === t.id ? '<tr class="det-tarea"><td colspan="8">' + panelTarea(d, t) + '</td></tr>' : '')),
       FILTRO_T.estado === 'abierta' ? 'No hay tareas abiertas.' : 'No hay tareas en este filtro.') + '</div>' +
     '<div class="card"><h2>Levantamientos recibidos</h2>' + tabla(['Fecha', 'Título', 'Tareas', 'Subido por', 'Resumen de la IA'].concat(d.puede_eliminar ? [''] : []), d.reportes.map(r => '<tr><td>' + esc(r.fecha) + '</td><td><b>' + esc(r.titulo) + '</b>' +
       (r.url ? '<br><a href="' + esc(r.url) + '" target="_blank" rel="noopener">Abrir archivo ↗</a>' : '') + '</td><td>' + esc(r.tareas) + '</td><td>' + esc(r.subido_por) + '<br><small>' + (r.origen === 'bot' ? 'Bot de Telegram' : 'Portal') + '</small></td><td><small>' + esc(r.resumen) + '</small></td>' +
       (d.puede_eliminar ? '<td><button type="button" class="btn peligro" data-lev-eliminar="' + esc(r.id) + '" data-lev-titulo="' + esc(r.titulo) + '" data-lev-n="' + esc(r.tareas) + '">Eliminar</button></td>' : '') + '</tr>'),
       'Todavía no hay levantamientos. ' + (d.puede_editar ? 'Suba el PDF de la inspección o envíelo al Bot de Torres.' : '')) + '</div>';
   const f = $('#f-lev'); if (f) f.addEventListener('submit', subirLevantamiento);
+  const fn = $('#f-tnueva'); if (fn) fn.addEventListener('submit', nuevaTarea);
 }
+/** v2.4 · Estatus, comentarios y envío a suplidor de una tarea (se abre debajo de la fila). */
+function panelTarea(d, t) {
+  const hist = (d.comentarios || {})[t.id] || [];
+  const est = d.estatus || {}, abierta = t.estado !== 'cerrada';
+  const mismos = d.tareas.filter(x => x.id !== t.id && x.estado !== 'cerrada' && x.oficio && x.oficio === t.oficio && !x.orden_id && ['detenida', 'pospuesta'].indexOf(x.estatus) < 0);
+  const sups = (d.suplidores || []).slice().sort((a, b) => (b.oficios.indexOf(t.oficio) >= 0) - (a.oficios.indexOf(t.oficio) >= 0) || (b.telegram - a.telegram));
+  const orden = t.orden_id ? (d.ordenes || []).find(o => o.id === t.orden_id) : null;
+  return '<div class="panel-tarea">' +
+    (d.puede_editar && abierta ? '<form class="form" data-fest-form="' + esc(t.id) + '"><label>Estatus<select name="estatus">' + Object.keys(est).map(k => '<option value="' + k + '"' + ((t.estatus || 'pendiente') === k ? ' selected' : '') + '>' + esc(est[k]) + '</option>').join('') + '</select></label>' +
+      '<label class="ancho">Comentario <small class="nota">(obligatorio si la Junta la detiene o se pospone)</small><textarea name="comentario" rows="2" placeholder="Ej.: la Junta pidió dos cotizaciones más antes de aprobar"></textarea></label>' +
+      '<div class="acciones-fila ancho"><button class="btn primario">Guardar estatus y comentario</button></div></form>' : '') +
+    (orden ? '<div class="orden-t"><b>Orden ' + esc(orden.id) + '</b> · ' + esc(orden.suplidor) + ' · <span class="chip">' + esc((d.estados_orden || {})[orden.estado] || orden.estado) + '</span>' +
+      (orden.factura ? ' · Factura ' + esc('RD$ ' + Number(orden.factura.total || 0).toLocaleString('es-DO', { minimumFractionDigits: 2 })) : '') + (orden.respuesta_nota ? '<br><small>' + esc(orden.respuesta_nota) + '</small>' : '') +
+      (d.puede_editar && ['por_enviar', 'enviada', 'sin_telegram', 'aceptada', 'rechazada'].indexOf(orden.estado) >= 0 ? ' <button type="button" class="btn" data-ocancelar="' + esc(orden.id) + '">Cancelar orden</button>' : '') + '</div>' : '') +
+    (d.puede_editar && abierta && !t.orden_id ? (sups.length ? '<form class="form" data-fot="' + esc(t.id) + '"><label>Enviar a suplidor<select name="suplidor_id" required><option value=""></option>' +
+      sups.map(p => '<option value="' + esc(p.id) + '">' + (p.telegram ? '📲 ' : '☎ ') + esc(p.nombre) + (p.oficios.indexOf(t.oficio) >= 0 ? '' : ' (otro oficio)') + '</option>').join('') + '</select></label>' +
+      '<label>Nota para el suplidor<input name="nota" placeholder="Horario, a quién buscar en el lobby…"></label>' +
+      (mismos.length ? '<label class="chk ancho" style="flex-direction:row;gap:8px;align-items:center"><input type="checkbox" name="incluir" checked style="width:auto"> Incluir las otras ' + mismos.length + ' tarea(s) de ' + esc((d.oficios || {})[t.oficio] || t.oficio) + ' de esta torre en la misma orden</label>' : '') +
+      '<p class="nota ancho" style="margin:0">📲 = inscrito en el Bot de Torres: le llega por Telegram y responde ahí. ☎ = sin Telegram: le preparamos el mensaje para WhatsApp.</p>' +
+      '<div class="acciones-fila ancho"><button class="btn primario">Enviar orden de trabajo</button></div></form>'
+      : '<p class="nota">No hay suplidores para esta torre. ' + (d.ve_suplidores ? 'Agréguelos en <a href="tareas.html#suplidores">Tareas → Suplidores</a>.' : 'Pídale al Gerente General que los registre.') + '</p>') : '') +
+    '<div class="hist-tarea"><b>Historial</b>' + (hist.length ? '<ul>' + hist.map(c => '<li><small>' + esc(c.fecha) + ' · ' + esc(c.usuario) + (c.origen === 'bot' ? ' (Telegram)' : '') + '</small>' +
+      (c.estatus ? ' <span class="chip ' + (COLOR_EST[c.estatus] || '') + '">' + esc(nombreEst(d, c.estatus)) + '</span>' : '') + '<br>' + esc(c.texto) + '</li>').join('') + '</ul>' : '<p class="nota">Sin comentarios todavía.</p>') + '</div></div>';
+}
+async function nuevaTarea(e) {
+  e.preventDefault();
+  const f = e.target;
+  try { const r = await api('tarea_nueva', { torre: S.torre, tarea: { descripcion: f.descripcion.value.trim(), oficio: f.oficio.value, prioridad: f.prioridad.value, detalle: f.detalle.value.trim() } });
+    FILTRO_T.estado = 'abierta'; tareaAbierta = r.id; await cargarTareas(r); toast('Tarea creada.'); }
+  catch (err) { toast(err.message, true); }
+}
+document.addEventListener('submit', async e => {
+  const fe = e.target.closest('[data-fest-form]'), fo = e.target.closest('[data-fot]');
+  if (!fe && !fo) return;
+  e.preventDefault();
+  const b = e.target.querySelector('button'); if (b) b.disabled = true;
+  try {
+    if (fe) { await cargarTareas(await api('tarea_actualizar', { id: fe.dataset.festForm, estatus: fe.estatus.value, comentario: fe.comentario.value.trim() })); toast('Guardado.'); }
+    else {
+      const r = await api('orden_crear', { tarea_id: fo.dataset.fot, suplidor_id: fo.suplidor_id.value, nota: fo.nota.value.trim(), incluir_oficio: !!(fo.incluir && fo.incluir.checked) });
+      await cargarTareas(r);
+      const o = r.orden || {};
+      if (o.telegram) toast('Orden ' + o.id + ' (' + o.tareas + ' tarea' + (o.tareas === 1 ? '' : 's') + ') para ' + o.suplidor + ': el Bot de Torres se la envía por Telegram en menos de un minuto.');
+      else { toast(o.suplidor + ' no está en Telegram. Envíele la orden por WhatsApp.'); if (o.whatsapp) $('#tar').insertAdjacentHTML('afterbegin', '<div class="card aviso-ok"><b>Orden ' + esc(o.id) + '</b> para ' + esc(o.suplidor) +
+        ' (sin Telegram). <a class="btn primario" href="' + esc(o.whatsapp) + '" target="_blank" rel="noopener">Enviar por WhatsApp</a></div>'); }
+    }
+  } catch (err) { toast(err.message, true); if (b) b.disabled = false; }
+});
 async function subirLevantamiento(e) {
   e.preventDefault();
   const f = e.target, file = f.archivo.files[0]; if (!file) return;
@@ -418,6 +486,11 @@ document.addEventListener('click', async e => {
   if (est) { FILTRO_T.estado = est.dataset.fest; return pintarTareas(); }
   if (fc) { FILTRO_T.categoria = fc.dataset.fcat; FILTRO_T.estado = 'abierta'; return pintarTareas(); }
   const fo = e.target.closest('[data-fofi]'); if (fo) { FILTRO_T.oficio = fo.dataset.fofi; FILTRO_T.estado = 'abierta'; return pintarTareas(); }
+  const fe2 = e.target.closest('[data-fest2]'); if (fe2) { FILTRO_T.estatus = fe2.dataset.fest2; FILTRO_T.estado = 'abierta'; return pintarTareas(); }
+  const td = e.target.closest('[data-tdet]'); if (td) { tareaAbierta = tareaAbierta === td.dataset.tdet ? '' : td.dataset.tdet; return pintarTareas(); }
+  const oc = e.target.closest('[data-ocancelar]');
+  if (oc) { const motivo = prompt('Motivo de la cancelación (el suplidor lo recibe):', ''); if (!motivo) return;
+    try { await cargarTareas(await api('orden_cancelar', { id: oc.dataset.ocancelar, motivo })); toast('Orden cancelada.'); } catch (err) { toast(err.message, true); } return; }
   const le = e.target.closest('[data-lev-eliminar]');
   if (le) {
     if (!confirm('¿Eliminar el levantamiento «' + le.dataset.levTitulo + '» y sus ' + le.dataset.levN + ' tareas? Queda 30 días en la papelera y se puede restaurar.')) return;
@@ -657,7 +730,15 @@ const Demo = {
     tareas: [['Soldar hierro de entrada de lobby', 'mantenimiento', 'soldadura', 'alta', 'técnico o proveedor', 'abierta'], ['Retoque de pintura en columnas del parqueo', 'mantenimiento', 'pintura', 'baja', 'técnico o proveedor', 'abierta'],
       ['Pulido de pisos del lobby', 'limpieza', 'pisos', 'media', 'conserjería', 'abierta'], ['Comprar alfombras del ascensor', 'compras', 'mobiliario', 'baja', 'gestor(a)', 'abierta'], ['Revisión de las cámaras', 'seguridad', 'CCTV', 'media', 'técnico o proveedor', 'cerrada']]
       .map(([descripcion, categoria, subcategoria, prioridad, responsable, estado], i) => ({ id: 'T' + i, reporte_id: 'RP1', numero: i + 1, descripcion, categoria, subcategoria, prioridad, responsable, estado, fecha: '21/10/2026', oficio: { soldadura: 'herreria', pintura: 'pintura', CCTV: 'otro' }[subcategoria] || '',
-        detalle: '', cerrada_en: estado === 'cerrada' ? '22/10/2026' : '', cerrada_por: estado === 'cerrada' ? 'Reyna Martínez' : '' })) }),
+        detalle: '', cerrada_en: estado === 'cerrada' ? '22/10/2026' : '', cerrada_por: estado === 'cerrada' ? 'Reyna Martínez' : '',
+        estatus: estado === 'cerrada' ? 'cerrada' : ['en_junta', 'detenida', 'pendiente', 'cotizando'][i] || 'pendiente', comentarios: i === 1 ? 2 : 0,
+        ultimo_comentario: i === 1 ? 'La Junta pidió dos cotizaciones más' : '', ultimo_comentario_por: i === 1 ? 'Reyna Martínez' : '', ultimo_comentario_en: i === 1 ? '22/10/2026' : '' })),
+    estatus: { pendiente: 'Pendiente', cotizando: 'En cotización', en_junta: 'Esperando aprobación de la Junta', aprobada: 'Aprobada por la Junta', detenida: 'Detenida por la Junta', asignada: 'Enviada a suplidor', en_proceso: 'En ejecución', facturada: 'Facturada', pospuesta: 'Pospuesta' },
+    comentarios: { T1: [{ fecha: '22/10/2026 10:15', usuario: 'Reyna Martínez', texto: 'La Junta pidió dos cotizaciones más', estatus: 'detenida' }, { fecha: '21/10/2026 16:00', usuario: 'Reyna Martínez', texto: 'Cotización enviada al presidente', estatus: 'en_junta' }] },
+    suplidores: [{ id: 'SU1', nombre: 'Pinturas del Caribe', telefono: '809-555-3333', oficios: ['pintura'], telegram: true }, { id: 'SU2', nombre: 'Herrería Díaz', telefono: '809-555-4444', oficios: ['herreria'], telegram: false }],
+    ordenes: [], estados_orden: { por_enviar: 'Por enviar', enviada: 'Enviada al suplidor' }, ve_suplidores: true }),
+  tarea_actualizar: () => Demo.tareas_datos(), tarea_nueva: () => Object.assign(Demo.tareas_datos(), { id: 'T0' }),
+  orden_crear: () => Object.assign(Demo.tareas_datos(), { orden: { id: 'OT-DEMO', telegram: true, suplidor: 'Pinturas del Caribe', tareas: 1 } }),
   fin_datos: () => ({ torre: 'Torre Niza 7', puede_editar: true, ia: true, tipos: { banco: 'Estado bancario', habitanto: 'Estado de Habitanto', presupuesto: 'Presupuesto', morosidad: 'Cuotas y morosidad', otro: 'Otro' },
     archivos: [{ id: 'FA1', tipo: 'banco', periodo: '2026-09', nombre: 'BHD septiembre.pdf', url: '#', subido_por: 'Lissette López', subido_en: '05/10/2026' },
       { id: 'FA2', tipo: 'habitanto', periodo: '2026-09', nombre: 'Habitanto estado sept.xlsx', url: '#', subido_por: 'Lissette López', subido_en: '05/10/2026' }],

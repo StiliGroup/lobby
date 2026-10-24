@@ -159,3 +159,13 @@ tr.cerrada td b { text-decoration: line-through; }
 .prod { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, .7fr) minmax(0, 1.4fr) auto; gap: 6px; margin-bottom: 6px; }
 .prod input { width: 100%; }
 @media (max-width: 600px) { .prod { grid-template-columns: 1fr 1fr; } .prod input[name=producto] { grid-column: 1 / -1; } }
+/* v2.4 · estatus y comentarios de tareas, envío a suplidor */
+.ult-com { margin-top: 6px; font-size: 12.5px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 8px; }
+.ult-com b { color: var(--fg); font-weight: 600; }
+.enlace-btn { background: none; border: 0; padding: 4px 0 0; color: var(--titulo); font: 600 12.5px Montserrat, system-ui, sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; display: block; }
+tr.det-tarea > td { background: var(--panel-2); }
+.panel-tarea { display: grid; gap: 14px; padding: 6px 2px; }
+.panel-tarea form { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.hist-tarea ul { margin: 6px 0 0; padding-left: 18px; } .hist-tarea li { margin-bottom: 8px; font-size: 13px; }
+.orden-t { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+details.nueva-tarea { margin: 0 0 12px; } details.nueva-tarea summary { cursor: pointer; font-weight: 600; color: var(--titulo); margin-bottom: 10px; }

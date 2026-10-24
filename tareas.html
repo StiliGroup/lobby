@@ -49,11 +49,18 @@ details.tabla-mes summary { cursor: pointer; font-weight: 600; margin-top: 10px;
 .of ul { margin: 0; padding-left: 18px; } .of li { margin-bottom: 4px; }
 .of .prov { font-size: 13px; color: var(--muted); margin-top: 6px; }
 .of .acciones-of { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.marcas { display: flex; flex-wrap: wrap; gap: 6px; }
+.marcas label { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; font-size: 13px; cursor: pointer; background: var(--panel); color: var(--fg); }
+.marcas input { width: auto; margin: 0; }
+.marcas label:has(input:checked) { border-color: var(--titulo); background: var(--panel-2); font-weight: 600; }
+.inv { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; margin-top: 8px; font-size: 13px; word-break: break-all; }
+td .acciones-fila { display: flex; gap: 6px; flex-wrap: wrap; }
+.fact { font-size: 13px; } .fact b { font-size: 15px; }
 </style>
 </head>
 <body>
 <header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Torres</small><b id="titulo">Tareas por gestor</b></div>
-  <div class="seg vistas" role="tablist"><button type="button" data-vista="gestores" aria-pressed="true">Métricas por gestor</button><button type="button" data-vista="oficios" aria-pressed="false">Suplidores por oficio</button></div>
+  <div class="seg vistas" role="tablist"><button type="button" data-vista="gestores" aria-pressed="true">Métricas por gestor</button><button type="button" data-vista="oficios" aria-pressed="false">Por oficio</button><button type="button" data-vista="suplidores" aria-pressed="false">Suplidores</button><button type="button" data-vista="ordenes" aria-pressed="false">Órdenes y facturas</button></div>
   <div class="filtros" id="filtros"><label class="nota" style="color:#C9D3DF">Período <select id="meses"><option value="3">3 meses</option><option value="6" selected>6 meses</option><option value="12">12 meses</option></select></label>
   <label class="nota" style="color:#C9D3DF">Gestor <select id="gestor"><option value="">Todos</option></select></label></div></div></header>
 <main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
@@ -121,15 +128,17 @@ $('#meses').addEventListener('change', cargar); $('#gestor').addEventListener('c
 // v2.3 · Suplidores por oficio: todas las tareas abiertas de eléctricos, plomería, pintura… para hacer una sola llamada por suplidor
 const PRIO = { alta: 'rojo', media: 'ambar', baja: 'azul' };
 let oficios = null;
-function vista() { return location.hash === '#oficios' ? 'oficios' : 'gestores'; }
+const VISTAS = { gestores: 'Tareas por gestor', oficios: 'Tareas por oficio', suplidores: 'Suplidores', ordenes: 'Órdenes de trabajo y facturas' };
+function vista() { const h = location.hash.slice(1); return VISTAS[h] ? h : 'gestores'; }
 function cambiarVista() {
   const v = vista();
   document.querySelectorAll('[data-vista]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vista === v)));
-  $('#filtros').hidden = v === 'oficios'; $('#titulo').textContent = v === 'oficios' ? 'Suplidores por oficio' : 'Tareas por gestor';
+  $('#filtros').hidden = v !== 'gestores'; $('#titulo').textContent = VISTAS[v];
   document.title = $('#titulo').textContent + ' · Stili';
-  if (v === 'oficios') cargarOficios(); else cargar();
+  ({ oficios: cargarOficios, suplidores: cargarSuplidores, ordenes: cargarOrdenes }[v] || cargar)();
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-vista]'); if (!b) return; history.replaceState(null, '', b.dataset.vista === 'oficios' ? '#oficios' : location.pathname + location.search); cambiarVista(); });
+document.addEventListener('click', e => { const b = e.target.closest('[data-vista]'); if (!b) return; history.replaceState(null, '', b.dataset.vista === 'gestores' ? location.pathname + location.search : '#' + b.dataset.vista); cambiarVista(); });
+addEventListener('hashchange', cambiarVista);
 async function cargarOficios() {
   $('#contenido').innerHTML = '<p class="nota">Cargando…</p>';
   try { oficios = DEMO ? demoOficios() : await StiliModulos.api('tareas_oficios'); pintarOficios(); }
@@ -158,6 +167,128 @@ document.addEventListener('click', async e => {
   try { await navigator.clipboard.writeText(textoOficio(oficios.oficios[Number(b.dataset.copiar)])); b.textContent = '✓ Copiada'; setTimeout(() => { b.textContent = 'Copiar la lista para el suplidor'; }, 2000); }
   catch (err) { alert('No se pudo copiar.'); }
 });
+// ------------------------------------------------------------------ v2.4 · Suplidores (inscritos en el Bot de Torres)
+let sup = null, supEdit = null;
+async function cargarSuplidores(r) {
+  if (!r) $('#contenido').innerHTML = '<p class="nota">Cargando…</p>';
+  try { sup = r || (DEMO ? demoSuplidores() : await StiliModulos.api('suplidores_datos')); pintarSuplidores(); }
+  catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
+}
+function formSuplidor(p) {
+  const marcadas = (lista, sel, nombre, txt) => '<div class="marcas">' + lista.map(k => '<label><input type="checkbox" name="' + nombre + '" value="' + esc(k) + '"' + (sel.indexOf(k) >= 0 ? ' checked' : '') + '>' + esc(txt ? txt(k) : k) + '</label>').join('') + '</div>';
+  return '<form class="card form" id="f-sup"><h2 style="grid-column:1/-1">' + (p.id ? 'Editar suplidor' : 'Nuevo suplidor') + '</h2>' +
+    '<label>Nombre o empresa *<input name="nombre" required value="' + esc(p.nombre) + '"></label><label>Persona de contacto<input name="contacto" value="' + esc(p.contacto) + '"></label>' +
+    '<label>Teléfono / WhatsApp<input name="telefono" inputmode="tel" value="' + esc(p.telefono) + '"></label><label>Correo<input name="correo" type="email" value="' + esc(p.correo) + '"></label>' +
+    '<label>RNC o cédula<input name="rnc" value="' + esc(p.rnc) + '"></label><label class="ancho">Notas<input name="notas" value="' + esc(p.notas) + '" placeholder="Horario, zona, condiciones…"></label>' +
+    '<div class="ancho"><span class="nota">Oficios *</span>' + marcadas(Object.keys(sup.oficios), p.oficios || [], 'oficios', k => sup.oficios[k]) + '</div>' +
+    '<div class="ancho"><span class="nota">Torres que atiende' + (sup.todas_las_torres ? ' (sin marcar = todas)' : '') + '</span>' + marcadas(sup.torres, p.torres || [], 'torres') + '</div>' +
+    '<div class="acciones-fila ancho"><button class="btn primario">Guardar</button><button type="button" class="btn" data-sup-cerrar="1">Cancelar</button></div><p class="nota ancho" id="sup-msg" role="status"></p></form>';
+}
+function pintarSuplidores() {
+  const d = sup, tg = p => p.telegram ? '<span class="chip verde">✓ En Telegram' + (p.telegram_usuario ? ' · @' + esc(p.telegram_usuario) : '') + '</span>'
+    : p.invitacion_pendiente ? '<span class="chip ambar">Invitación enviada</span>' : '<span class="chip">Sin Telegram</span>';
+  $('#contenido').innerHTML = '<div class="card"><div class="cab"><h2>Suplidores</h2>' + (d.puede_editar ? '<button type="button" class="btn primario" data-sup-nuevo="1">Nuevo suplidor</button>' : '') + '</div>' +
+    '<p class="nota" style="margin:0">Los suplidores inscritos en el Bot de Torres reciben por Telegram la orden de trabajo (torre y trabajo a realizar) cuando la gestora la autoriza, y envían por ahí la foto de su factura: ' +
+    'la factura llega sola al grupo de Cuentas por Pagar.' + (d.bot ? '' : ' <b>Falta encender el Bot de Torres una vez para tener su enlace.</b>') + '</p></div>' +
+    (supEdit ? formSuplidor(supEdit) : '') + '<div id="sup-inv"></div>' +
+    '<div class="card">' + tabla(['Suplidor', 'Oficios', 'Torres', 'Telegram', ''], d.suplidores.map(p => '<tr' + (p.activo ? '' : ' class="cerrada"') + '><td><b>' + esc(p.nombre) + '</b>' +
+      (p.contacto ? '<br><small>' + esc(p.contacto) + '</small>' : '') + (p.telefono ? '<br><small><a href="tel:' + esc(p.telefono) + '">' + esc(p.telefono) + '</a></small>' : '') + (p.activo ? '' : '<br><small>Inactivo</small>') + '</td><td>' +
+      p.oficios.map(o => '<span class="chip azul">' + esc(d.oficios[o] || o) + '</span>').join(' ') + '</td><td><small>' + (p.torres.length ? esc(p.torres.join(', ')) : 'Todas') + '</small></td><td>' + tg(p) + '</td><td>' +
+      (d.puede_editar ? '<div class="acciones-fila"><button type="button" class="btn" data-sup-editar="' + esc(p.id) + '">Editar</button>' + (p.activo && !p.telegram ? '<button type="button" class="btn primario" data-sup-invitar="' + esc(p.id) + '">Invitar a Telegram</button>' : '') +
+        '<button type="button" class="btn" data-sup-activo="' + esc(p.id) + '" data-val="' + (!p.activo) + '">' + (p.activo ? 'Desactivar' : 'Activar') + '</button></div>' : '') + '</td></tr>'),
+      'Todavía no hay suplidores. Agregue los de cada oficio (eléctrico, plomería, pintura…).') + '</div>' +
+    (d.puede_editar && d.sugeridos.length ? '<div class="card"><h2>Proveedores de sus torres que aún no son suplidores</h2><p class="nota">Vienen de Torres → Proveedores. Agréguelos con un toque y luego invítelos a Telegram.</p>' +
+      tabla(['Proveedor', 'Oficio', 'Torres', ''], d.sugeridos.map((g, i) => '<tr><td><b>' + esc(g.nombre) + '</b>' + (g.telefono ? '<br><small>' + esc(g.telefono) + '</small>' : '') + '</td><td>' +
+        g.oficios.map(o => esc(d.oficios[o])).join(', ') + '</td><td><small>' + esc(g.torres.join(', ')) + '</small></td><td><button type="button" class="btn" data-sup-sug="' + i + '">Agregar</button></td></tr>'), '') + '</div>' : '');
+  const f = $('#f-sup'); if (f) { f.addEventListener('submit', guardarSuplidor); f.scrollIntoView({ block: 'nearest' }); }
+}
+async function guardarSuplidor(e) {
+  e.preventDefault();
+  const f = e.target, v = n => [...f.querySelectorAll('input[name="' + n + '"]:checked')].map(x => x.value);
+  const s = { id: supEdit.id || '', nombre: f.nombre.value.trim(), contacto: f.contacto.value.trim(), telefono: f.telefono.value.trim(), correo: f.correo.value.trim(),
+    rnc: f.rnc.value.trim(), notas: f.notas.value.trim(), oficios: v('oficios'), torres: v('torres') };
+  try { const r = DEMO ? demoSuplidores() : await StiliModulos.api('suplidor_guardar', { suplidor: s }); supEdit = null; await cargarSuplidores(r); }
+  catch (err) { $('#sup-msg').textContent = err.message; }
+}
+document.addEventListener('click', async e => {
+  const n = e.target.closest('[data-sup-nuevo]'), ed = e.target.closest('[data-sup-editar]'), c = e.target.closest('[data-sup-cerrar]');
+  const inv = e.target.closest('[data-sup-invitar]'), act = e.target.closest('[data-sup-activo]'), sg = e.target.closest('[data-sup-sug]'), cp = e.target.closest('[data-copiar-txt]');
+  if (n) { supEdit = { oficios: [], torres: sup.todas_las_torres ? [] : sup.torres.slice() }; return pintarSuplidores(); }
+  if (ed) { supEdit = Object.assign({}, sup.suplidores.find(p => p.id === ed.dataset.supEditar)); return pintarSuplidores(); }
+  if (sg) { const g = sup.sugeridos[Number(sg.dataset.supSug)]; supEdit = { nombre: g.nombre, contacto: g.contacto, telefono: g.telefono, correo: g.correo, oficios: g.oficios, torres: g.torres }; return pintarSuplidores(); }
+  if (c) { supEdit = null; return pintarSuplidores(); }
+  if (act) { try { await cargarSuplidores(DEMO ? sup : await StiliModulos.api('suplidor_guardar', { suplidor: Object.assign({}, sup.suplidores.find(p => p.id === act.dataset.supActivo), { activo: act.dataset.val === 'true' }) })); } catch (err) { alert(err.message); } return; }
+  if (inv) {
+    try {
+      const r = DEMO ? { enlace: 'https://t.me/StiliTorresBot?start=sup_DEMO', texto: 'Hola, le saluda Stili Group…', whatsapp: 'https://wa.me/' } : await StiliModulos.api('suplidor_invitacion', { id: inv.dataset.supInvitar });
+      $('#sup-inv').innerHTML = '<div class="card"><h2>Invitación al Bot de Torres</h2><p class="nota">Envíela al suplidor. El enlace sirve una sola vez: al tocar «Iniciar», el bot lo inscribe y desde ahí recibe las órdenes.</p>' +
+        '<div class="inv">' + esc(r.texto) + '</div><div class="acciones-fila" style="margin-top:10px"><button type="button" class="btn" data-copiar-txt="' + esc(r.texto) + '">Copiar mensaje</button>' +
+        '<a class="btn primario" href="' + esc(r.whatsapp) + '" target="_blank" rel="noopener">Enviar por WhatsApp</a></div></div>';
+      $('#sup-inv').scrollIntoView({ block: 'nearest' }); if (!DEMO) cargarSuplidores();
+    } catch (err) { alert(err.message); }
+    return;
+  }
+  if (cp) { try { await navigator.clipboard.writeText(cp.dataset.copiarTxt); cp.textContent = '✓ Copiado'; } catch (err) { alert('No se pudo copiar.'); } }
+});
+
+// ------------------------------------------------------------------ v2.4 · Órdenes de trabajo y facturas
+let ord = null; const FILTRO_O = { estado: 'abiertas', torre: '' };
+const COLOR_ORDEN = { por_enviar: 'azul', enviada: 'azul', sin_telegram: 'ambar', aceptada: 'azul', rechazada: 'rojo', facturada: 'ambar', recibida: 'ambar', pagada: 'verde', cancelada: '' };
+const rd = n => 'RD$ ' + Number(n || 0).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+async function cargarOrdenes(r) {
+  if (!r) $('#contenido').innerHTML = '<p class="nota">Cargando…</p>';
+  try { ord = r || (DEMO ? demoOrdenes() : await StiliModulos.api('ordenes_datos')); pintarOrdenes(); }
+  catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
+}
+function pintarOrdenes() {
+  const d = ord, abiertas = ['por_enviar', 'enviada', 'sin_telegram', 'aceptada', 'facturada', 'recibida'];
+  const torres = [...new Set(d.ordenes.map(o => o.torre))].sort();
+  const lista = d.ordenes.filter(o => (FILTRO_O.estado === 'todas' || (FILTRO_O.estado === 'abiertas' ? abiertas.indexOf(o.estado) >= 0 : o.estado === FILTRO_O.estado)) && (!FILTRO_O.torre || o.torre === FILTRO_O.torre));
+  $('#contenido').innerHTML = '<div class="card"><div class="kpis" style="margin:0">' +
+    [['Abiertas', d.ordenes.filter(o => abiertas.indexOf(o.estado) >= 0).length], ['Esperando al suplidor', (d.resumen.enviada || 0) + (d.resumen.por_enviar || 0)], ['Sin Telegram (llamar)', d.resumen.sin_telegram || 0],
+      ['Facturas por pagar', d.por_pagar.cantidad], ['Monto por pagar', rd(d.por_pagar.total)]].map(([n, v]) => '<div class="kpi"><span>' + n + '</span><b>' + v + '</b></div>').join('') + '</div>' +
+    '<p class="nota" style="margin:10px 0 0">La gestora envía la orden desde Torres → Tareas o desde el Bot de Torres. El suplidor la acepta en Telegram y envía la foto de la factura: el bot la lee y la pasa al grupo de Cuentas por Pagar.</p></div>' +
+    '<div class="card"><div class="filtros-t"><select id="fo-estado" aria-label="Estado"><option value="abiertas">Abiertas</option><option value="todas">Todas</option>' +
+      Object.keys(d.estados).map(k => '<option value="' + k + '">' + esc(d.estados[k]) + '</option>').join('') + '</select><select id="fo-torre" aria-label="Torre"><option value="">Todas las torres</option>' +
+      torres.map(t => '<option>' + esc(t) + '</option>').join('') + '</select></div>' +
+    tabla(['Orden', 'Torre', 'Suplidor', 'Trabajo', 'Estado', 'Factura', ''], lista.map(o => '<tr><td><b class="mono">' + esc(o.id) + '</b><br><small>' + esc(o.creado_en) + '<br>' + esc(o.solicitado_por) + '</small></td>' +
+      '<td>' + esc(o.torre) + '<br><small>' + esc(o.oficio_nombre) + '</small></td><td>' + esc(o.suplidor) + '</td><td><small>' + esc(o.descripcion).replace(/\n/g, '<br>') + '</small>' +
+      (o.respuesta_nota ? '<br><small><b>Nota:</b> ' + esc(o.respuesta_nota) + '</small>' : '') + '</td><td><span class="chip ' + (COLOR_ORDEN[o.estado] || '') + '">' + esc(d.estados[o.estado] || o.estado) + '</span>' +
+      (o.cxp_por ? '<br><small>' + esc(o.cxp_por) + ' · ' + esc(o.cxp_en) + '</small>' : '') + '</td><td class="fact">' + (o.factura ? '<b>' + rd(o.factura.total) + '</b>' +
+        (o.factura.ncf ? '<br>NCF ' + esc(o.factura.ncf) : '') + (o.factura.itbis ? '<br>ITBIS ' + rd(o.factura.itbis) : '') + (o.factura.fecha ? '<br>' + esc(o.factura.fecha) : '') + (o.factura.emisor ? '<br><small>' + esc(o.factura.emisor) + (o.factura.rnc ? ' · RNC ' + esc(o.factura.rnc) : '') + '</small>' : '') : '—') + '</td><td><div class="acciones-fila">' +
+      (d.puede_cxp && o.factura && o.estado === 'facturada' ? '<button type="button" class="btn" data-cxp="recibida" data-id="' + esc(o.id) + '">Recibida</button>' : '') +
+      (d.puede_cxp && o.factura && ['facturada', 'recibida'].indexOf(o.estado) >= 0 ? '<button type="button" class="btn primario" data-cxp="pagada" data-id="' + esc(o.id) + '">Pagada</button>' : '') +
+      (d.puede_cancelar && ['por_enviar', 'enviada', 'sin_telegram', 'aceptada', 'rechazada'].indexOf(o.estado) >= 0 ? '<button type="button" class="btn" data-ocancelar="' + esc(o.id) + '">Cancelar</button>' : '') + '</div></td></tr>'),
+      'No hay órdenes en este filtro.') + '</div>';
+  $('#fo-estado').value = FILTRO_O.estado; $('#fo-torre').value = FILTRO_O.torre;
+}
+document.addEventListener('change', e => { if (e.target.id === 'fo-estado') { FILTRO_O.estado = e.target.value; pintarOrdenes(); } if (e.target.id === 'fo-torre') { FILTRO_O.torre = e.target.value; pintarOrdenes(); } });
+document.addEventListener('click', async e => {
+  const c = e.target.closest('[data-cxp]'), x = e.target.closest('[data-ocancelar]');
+  if (c) { if (c.dataset.cxp === 'pagada' && !confirm('¿Confirmar que la factura de ' + c.dataset.id + ' ya se pagó? Se le avisa al suplidor.')) return;
+    try { await cargarOrdenes(DEMO ? ord : await StiliModulos.api('orden_cxp', { id: c.dataset.id, estado: c.dataset.cxp })); } catch (err) { alert(err.message); } return; }
+  if (x) { const motivo = prompt('Motivo de la cancelación (el suplidor lo recibe):', ''); if (!motivo) return;
+    try { await cargarOrdenes(DEMO ? ord : await StiliModulos.api('orden_cancelar', { id: x.dataset.ocancelar, motivo, volver: 'ordenes' })); } catch (err) { alert(err.message); } }
+});
+function tabla(cab, filas, vacio) {
+  return filas.length ? '<div class="tabla"><table><thead><tr>' + cab.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' + filas.join('') + '</tbody></table></div>' : (vacio ? '<div class="vacio">' + esc(vacio) + '</div>' : '');
+}
+function demoSuplidores() {
+  return { oficios: { electricidad: 'Eléctrico', plomeria: 'Plomería', pintura: 'Pintura', aire_acondicionado: 'Aire acondicionado' }, torres: ['Gil Roma XXXII', 'Los Hernandez VII'], bot: 'https://t.me/StiliTorresBot',
+    puede_editar: true, todas_las_torres: true, suplidores: [
+      { id: 'SU1', nombre: 'Plomería Rápida', contacto: 'Juan Pérez', telefono: '809-555-1234', oficios: ['plomeria'], torres: [], telegram: true, telegram_usuario: 'juanplomero', activo: true },
+      { id: 'SU2', nombre: 'Frío Total SRL', contacto: 'Carlos', telefono: '829-555-7788', oficios: ['aire_acondicionado'], torres: ['Gil Roma XXXII'], telegram: false, invitacion_pendiente: true, activo: true },
+      { id: 'SU3', nombre: 'Electro Juan', telefono: '809-555-0101', oficios: ['electricidad'], torres: ['Los Hernandez VII'], telegram: false, activo: true }],
+    sugeridos: [{ nombre: 'Pinturas del Caribe', telefono: '809-555-3333', oficios: ['pintura'], torres: ['Gil Roma XXXII'] }] };
+}
+function demoOrdenes() {
+  return { estados: { por_enviar: 'Por enviar', enviada: 'Enviada al suplidor', sin_telegram: 'Sin Telegram (llamar)', aceptada: 'Aceptada', rechazada: 'Rechazada', facturada: 'Factura recibida', recibida: 'Recibida por CxP', pagada: 'Pagada', cancelada: 'Cancelada' },
+    resumen: { enviada: 1, facturada: 1, sin_telegram: 1 }, por_pagar: { cantidad: 1, total: 11800 }, puede_cxp: true, puede_cancelar: true, ve_factura: true,
+    ordenes: [{ id: 'OT-261023-A1', torre: 'Gil Roma XXXII', oficio_nombre: 'Plomería', suplidor: 'Plomería Rápida', descripcion: '1. Fuga en el baño del lobby\n2. Cambiar llave de paso de la cisterna', estado: 'facturada', creado_en: '23/10/2026 09:10', solicitado_por: 'Mildred Pérez',
+      factura: { total: 11800, itbis: 1800, ncf: 'B0100000123', fecha: '23/10/2026', emisor: 'Plomería Rápida', rnc: '131000000' } },
+      { id: 'OT-261023-B2', torre: 'Los Hernandez VII', oficio_nombre: 'Aire acondicionado', suplidor: 'Frío Total SRL', descripcion: 'Mantenimiento del aire acondicionado del lobby', estado: 'enviada', creado_en: '23/10/2026 10:02', solicitado_por: 'Reyna Martínez' },
+      { id: 'OT-261022-C3', torre: 'Gil Roma XXXII', oficio_nombre: 'Eléctrico', suplidor: 'Electro Juan', descripcion: 'Cambiar luces quemadas del parqueo', estado: 'sin_telegram', creado_en: '22/10/2026 16:40', solicitado_por: 'Mildred Pérez' }] };
+}
 function demoOficios() {
   const t = (torre, clave, tareas, prov) => ({ torre, clave, tareas: tareas.map(([descripcion, prioridad]) => ({ descripcion, prioridad, fecha: '21/10/2026' })), proveedores: prov || [] });
   return { oficios: [

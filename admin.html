@@ -694,7 +694,7 @@ $('#b-nomina').addEventListener('click', async () => {
   try {
     const r = await api('sso_ticket');
     if (!r.url_nomina) return toast('La dirección de la Nómina no está configurada (URL_NOMINA en Config).', 'error');
-    window.open(r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket), '_blank', 'noopener');
+    location.href = r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket);   // v2.4 · misma ventana
   } catch (err) { toast(err.message, 'error'); }
 });
 

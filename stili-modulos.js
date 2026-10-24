@@ -100,14 +100,13 @@
     return j;
   }
 
-  async function abrirNomina() {
-    const ventana = window.open('', '_blank');
+  // v2.4 · una sola pantalla: la Nómina se abre en la misma ventana (con «← Inicio del Portal» en su menú)
+  async function abrirNomina(ir) {
     try {
       const r = await api('sso_ticket');
       if (!r.url_nomina) throw new Error('La dirección de la Nómina no está configurada (URL_NOMINA en la pestaña Config).');
-      const url = r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket);
-      if (ventana) ventana.location = url; else location.href = url;
-    } catch (err) { if (ventana) ventana.close(); alert(err.message); }
+      location.href = r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket) + (ir ? '&ir=' + encodeURIComponent(ir) : '');
+    } catch (err) { alert(err.message); }
   }
 
   function pintar(cont, actual) {
@@ -116,7 +115,7 @@
     actual = DENTRO_DE[actual] || actual;
     const nav = cont.querySelector('.sm-nav');
     nav.innerHTML = MODULOS.filter(m => c.sesion && ve(m) || m.k === 'inicio').map(m =>
-      '<a href="' + (m.externo ? '#' : BASE + m.href) + '" data-mod="' + m.k + '"' + (m.k === actual ? ' aria-current="page"' : '') + '>' + esc(m.t) + (m.externo ? ' ↗' : '') + '</a>').join('');
+      '<a href="' + (m.externo ? '#' : BASE + m.href) + '" data-mod="' + m.k + '"' + (m.k === actual ? ' aria-current="page"' : '') + '>' + esc(m.t) + '</a>').join('');
     nav.querySelectorAll('[data-mod="nomina"]').forEach(x => x.addEventListener('click', e => { e.preventDefault(); abrirNomina(); }));
     cont.querySelector('.sm-usuario').textContent = c.sesion && u.nombre ? u.nombre + ' · ' + (u.segmento_nombre || '') : '';
     cont.querySelector('.sm-salir').hidden = !c.sesion;
@@ -145,7 +144,41 @@
     return r;
   }
 
-  window.StiliModulos = { montar, mas, refrescar, api, abrirNomina, leer, guardar, BASE, MODULOS };
+  // ---------------------------------------------------------------- v2.4 · una sola pantalla
+  // Los módulos cambian dentro de la misma ventana con una transición suave; los archivos (Drive, PDF) se ven en un visor encima.
+  (function () {
+    const s = document.createElement('style'); s.id = 'sm-una-pantalla';
+    s.textContent = '@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}' +
+      '#sm-visor{position:fixed;inset:0;z-index:9000;background:rgba(10,20,32,.72);display:flex;flex-direction:column;padding:14px}#sm-visor[hidden]{display:none}' +
+      '#sm-visor .b{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#fff;margin-bottom:8px;font:600 14px Montserrat,system-ui,sans-serif}' +
+      '#sm-visor iframe{flex:1;border:0;border-radius:10px;background:#fff;width:100%}#sm-visor a,#sm-visor button{background:#fff;color:#003A75;border:0;border-radius:8px;padding:7px 14px;font:600 13px Montserrat,system-ui,sans-serif;cursor:pointer;text-decoration:none}';
+    (document.head || document.documentElement).appendChild(s);
+  })();
+  function visor(src, titulo, original) {
+    let v = document.getElementById('sm-visor');
+    if (!v) {
+      v = document.createElement('div'); v.id = 'sm-visor'; v.hidden = true; v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true');
+      v.innerHTML = '<div class="b"><span class="t"></span><span><a class="o" href="#" rel="noopener" target="_blank">Abrir aparte</a> <button type="button">Cerrar ✕</button></span></div><iframe title="Documento"></iframe>';
+      document.body.appendChild(v);
+      const cerrar = () => { v.hidden = true; v.querySelector('iframe').src = 'about:blank'; };
+      v.querySelector('button').addEventListener('click', cerrar);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !v.hidden) cerrar(); });
+    }
+    v.querySelector('.t').textContent = (titulo || 'Documento').replace(/\s*↗\s*$/, '').trim();
+    v.querySelector('.o').href = original || src;
+    v.querySelector('iframe').src = src; v.hidden = false;
+  }
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a || e.defaultPrevented || e.button || e.ctrlKey || e.metaKey || e.shiftKey || a.closest('#sm-visor') || a.hasAttribute('download')) return;
+    let u; try { u = new URL(a.getAttribute('href'), location.href); } catch (err) { return; }
+    const drive = /(^|\.)(drive|docs)\.google\.com$/.test(u.hostname) && u.pathname.match(/\/(?:file|document|spreadsheets|presentation)\/d\/([\w-]+)/);
+    if (drive) { e.preventDefault(); return visor(u.origin + u.pathname.replace(/\/(edit|view)$/, '').replace(/\/$/, '') + '/preview', a.textContent, a.href); }
+    if (a.hasAttribute('data-visor')) { e.preventDefault(); return visor(u.href, a.textContent, a.href); }
+    if (a.target === '_blank' && u.origin === location.origin) a.removeAttribute('target');      // páginas del Portal: en la misma ventana
+  }, true);
+
+  window.StiliModulos = { montar, mas, refrescar, api, abrirNomina, leer, guardar, visor, BASE, MODULOS };
 })();
 
 // v2.3 · protección de pantalla en todas las páginas del Portal (marca de agua con el nombre, sin capturas ni copias)
