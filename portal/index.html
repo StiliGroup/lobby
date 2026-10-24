@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Portal Stili</title>
+<title>Stili Soft</title>
 <meta name="description" content="Entrada única del equipo de Stili Group: Panel, Nómina, bots de Telegram, Claude y recursos de marca.">
 <meta name="theme-color" content="#003A75">
 <link rel="manifest" href="manifest.webmanifest">
@@ -56,6 +56,7 @@ input { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; b
 .msg { min-height: 1.4em; color: var(--crit); font-size: 14px; }
 .msg.ok { color: var(--teal); }
 #login .card { max-width: 420px; margin: 6vh auto 0; }
+#codigo a { color: var(--teal); font-weight: 600; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; }
 .tile { display: flex; gap: 14px; align-items: flex-start; text-align: left; text-decoration: none; color: var(--fg); background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r); padding: 16px; box-shadow: var(--sombra); cursor: pointer; width: 100%; transition: border-color .15s, transform .15s; }
@@ -116,7 +117,7 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
 <div id="modulos"></div>
 <header class="barra" id="barra-login">
   <img src="icono-192.png" alt="">
-  <div><b>Portal Stili</b><br><span>Stili Group · un solo usuario para todo</span></div>
+  <div><b>Stili Soft</b><br><span>Stili Group · un solo usuario para todo</span></div>
   <div class="der"><button class="btn-barra" id="b-salir" hidden>Salir</button></div>
 </header>
 
@@ -125,7 +126,7 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
     <div class="card">
       <img src="logo.png" alt="Stili Group" style="width:190px;display:block;margin-bottom:14px">
       <h1>Entrar</h1>
-      <p class="sub">Use su correo de Stili y su clave (la misma del Panel y la Nómina).</p>
+      <p class="sub">Use su correo de Stili y su clave (la misma del Panel y la Nómina). Después le pediremos un código que llega a su Telegram o a su correo.</p>
       <form id="f-login">
         <label>Correo<input type="email" id="l-correo" autocomplete="username" required></label>
         <label>Clave<input type="password" id="l-clave" autocomplete="current-password" required></label>
@@ -133,6 +134,20 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
         <p class="msg" id="l-msg" role="status"></p>
       </form>
       <p class="nota" id="l-portero" hidden></p>
+    </div>
+  </section>
+
+  <section id="codigo" hidden>
+    <div class="card" style="max-width:420px;margin:6vh auto 0">
+      <h1>Código de verificación</h1>
+      <p class="sub" id="c-sub">Le enviamos un código de 6 dígitos.</p>
+      <form id="f-codigo">
+        <label>Código<input id="c-codigo" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+        <label style="flex-direction:row;gap:8px;align-items:flex-start;font-weight:400"><input type="checkbox" id="c-recordar" style="width:auto;margin-top:3px"> Recordar este equipo 30 días. Márquelo solo si el equipo es suyo y no lo comparte.</label>
+        <button class="btn primario" id="c-entrar" style="width:100%">Verificar y entrar</button>
+        <p class="msg" id="c-msg" role="status"></p>
+      </form>
+      <p class="nota"><a href="#" id="c-reenviar">Enviar otro código</a> · <a href="#" id="c-volver">Volver</a></p>
     </div>
   </section>
 
@@ -186,12 +201,22 @@ h2 { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: v
 <script>
 const $ = s => document.querySelector(s);
 const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-// La sesión se guarda donde la busca el Panel Stili (misma dirección), así el Panel abre sin pedir clave otra vez.
+// La sesión se guarda donde la busca Stili Soft (misma dirección), así el Panel abre sin pedir clave otra vez.
 const CLAVE_LS = 'stili-admin';
 function leerCfg() { try { return JSON.parse(localStorage.getItem(CLAVE_LS) || '{}'); } catch (e) { return {}; } }
 function guardarCfg(c) { try { localStorage.setItem(CLAVE_LS, JSON.stringify(Object.assign(leerCfg(), c))); } catch (e) { /* sin almacenamiento */ } }
 const SERVICIO = () => leerCfg().url || (window.STILI && window.STILI.servicio) || '';
 let sesion = leerCfg().sesion || '';
+// v2.5 · «Recordar este equipo»: se guarda aparte, así «Salir» no lo borra (vence a los 30 días o al cambiar la clave)
+const EQUIPO_LS = 'stili-equipo';
+function leerEquipo() { try { return localStorage.getItem(EQUIPO_LS) || ''; } catch (e) { return ''; } }
+function guardarEquipo(t) { try { if (t) localStorage.setItem(EQUIPO_LS, t); } catch (e) { /* sin almacenamiento */ } }
+let reto = '';
+async function publico(datos) {
+  const j = await fetch(SERVICIO(), { method: 'POST', body: JSON.stringify(datos) }).then(x => x.json());
+  if (!j.ok) { const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo; throw e; }
+  return j;
+}
 
 function toast(t, tipo) {
   const el = $('#toast'); el.textContent = t; el.className = 'toast' + (tipo ? ' ' + tipo : ''); el.hidden = false;
@@ -208,7 +233,7 @@ async function api(accion, datos) {
   }
   return j;
 }
-function ver(id) { ['login', 'clave', 'inicio', 'mi'].forEach(x => { $('#' + x).hidden = x !== id; }); $('#b-salir').hidden = id === 'login';
+function ver(id) { ['login', 'codigo', 'clave', 'inicio', 'mi'].forEach(x => { $('#' + x).hidden = x !== id; }); $('#b-salir').hidden = id === 'login';
   if (id === 'mi' || id === 'inicio') scrollTo(0, 0);
   if (id !== 'inicio' && id !== 'mi') { const b = $('#modulos'); b.innerHTML = ''; $('#barra-login').hidden = false; } }
 function salir(msg) { sesion = ''; guardarCfg({ sesion: '', modulos: {}, usuario: {} }); ver('login'); $('#l-msg').textContent = msg || ''; setTimeout(() => $('#l-correo').focus(), 50); }
@@ -216,23 +241,44 @@ function salir(msg) { sesion = ''; guardarCfg({ sesion: '', modulos: {}, usuario
 $('#f-login').addEventListener('submit', async e => {
   e.preventDefault(); $('#l-entrar').disabled = true; $('#l-msg').className = 'msg'; $('#l-msg').textContent = 'Entrando…'; $('#l-portero').hidden = true;
   try {
-    const r = await fetch(SERVICIO(), { method: 'POST', body: JSON.stringify({ accion: 'login', correo: $('#l-correo').value.trim(), clave: $('#l-clave').value, origen: 'portal' }) }).then(x => x.json());
-    if (!r.ok) throw new Error(r.error);
+    const r = await publico({ accion: 'login', correo: $('#l-correo').value.trim(), clave: $('#l-clave').value, origen: 'portal', equipo: leerEquipo() });
     if (r.portero) {
       $('#l-msg').textContent = '';
       $('#l-portero').hidden = false;
       $('#l-portero').innerHTML = esc(r.mensaje) + ' <a href="' + esc(r.url_lobby || '../index.html') + '">Abrir la app del lobby</a>';
       return;
     }
-    sesion = r.sesion; guardarCfg({ sesion: r.sesion, admin: '' }); $('#l-clave').value = ''; $('#l-msg').textContent = '';
-    if (r.usuario.debe_cambiar) return ver('clave');
-    cargar();
+    $('#l-clave').value = ''; $('#l-msg').textContent = '';
+    if (r.segundo_paso) return pedirCodigo(r);
+    entro(r);
   } catch (err) { $('#l-msg').textContent = err.message; } finally { $('#l-entrar').disabled = false; }
 });
+function entro(r) {
+  guardarEquipo(r.equipo); sesion = r.sesion; guardarCfg({ sesion: r.sesion, admin: '' });
+  if (r.usuario.debe_cambiar) return ver('clave');
+  cargar();
+}
+function pedirCodigo(r) {
+  reto = r.reto; $('#f-codigo').reset(); $('#c-msg').textContent = '';
+  $('#c-sub').textContent = 'Le enviamos un código de 6 dígitos a ' + r.destino + '. Vence en ' + r.minutos + ' minutos.';
+  ver('codigo'); setTimeout(() => $('#c-codigo').focus(), 50);
+}
+$('#f-codigo').addEventListener('submit', async e => {
+  e.preventDefault(); $('#c-entrar').disabled = true; $('#c-msg').textContent = 'Verificando…';
+  try { entro(await publico({ accion: 'login_codigo', reto, codigo: $('#c-codigo').value.trim(), recordar: $('#c-recordar').checked })); }
+  catch (err) { if (err.codigo === 'CODIGO_VENCIDO') { reto = ''; ver('login'); $('#l-msg').textContent = err.message; } else { $('#c-msg').textContent = err.message; $('#c-codigo').select(); } }
+  finally { $('#c-entrar').disabled = false; }
+});
+$('#c-reenviar').addEventListener('click', async e => {
+  e.preventDefault(); $('#c-msg').textContent = 'Enviando otro código…';
+  try { pedirCodigo(await publico({ accion: 'login_reenviar', reto })); $('#c-msg').textContent = 'Le enviamos un código nuevo. El anterior ya no sirve.'; }
+  catch (err) { if (err.codigo === 'CODIGO_VENCIDO') { ver('login'); $('#l-msg').textContent = err.message; } else $('#c-msg').textContent = err.message; }
+});
+$('#c-volver').addEventListener('click', e => { e.preventDefault(); reto = ''; ver('login'); });
 $('#f-clave').addEventListener('submit', async e => {
   e.preventDefault();
   if ($('#k-nueva').value !== $('#k-repite').value) { $('#k-msg').textContent = 'Las dos claves no coinciden.'; return; }
-  try { const r = await api('cambiar_clave', { nueva: $('#k-nueva').value, actual: $('#k-actual').value }); sesion = r.sesion; guardarCfg({ sesion }); $('#f-clave').reset(); cargar(); toast('Clave guardada.'); }
+  try { const r = await api('cambiar_clave', { nueva: $('#k-nueva').value, actual: $('#k-actual').value, equipo: leerEquipo() }); sesion = r.sesion; guardarCfg({ sesion }); guardarEquipo(r.equipo); $('#f-clave').reset(); cargar(); toast('Clave guardada.'); }
   catch (err) { $('#k-msg').textContent = err.message; }
 });
 $('#b-salir').addEventListener('click', () => salir('Sesión cerrada.'));
@@ -372,7 +418,7 @@ pintarRecursos();
 let aviso = null;
 const instalada = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); aviso = e; $('#b-instalar').hidden = false; });
-window.addEventListener('appinstalled', () => { $('#instalar').hidden = true; toast('Portal Stili instalado.'); });
+window.addEventListener('appinstalled', () => { $('#instalar').hidden = true; toast('Stili Soft instalado.'); });
 $('#b-instalar').addEventListener('click', async () => { if (!aviso) return; aviso.prompt(); await aviso.userChoice; aviso = null; $('#b-instalar').hidden = true; });
 (function textoInstalar() {
   if (instalada()) { $('#instalar').hidden = true; return; }

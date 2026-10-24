@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Aprobar acceso · Stili Soft</title>
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
+<script src="../config.js"></script>
+<style>
+:root {
+  --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
+  --teal: #29417F; --sobre-teal: #fff; --teal-suave: #E3E8F4; --gold: #8A6608; --gold-suave: #F6EDD6; --crit: #B3261E; --crit-suave: #FBE3E1; --ok: #1E6B3A; --ok-suave: #E1F2E7;
+  --r: 14px; --sombra: 0 1px 2px rgba(19,41,61,.06), 0 4px 16px rgba(19,41,61,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+    --teal: #8FB3E8; --sobre-teal: #0C1822; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18; --ok: #7FD39B; --ok-suave: #16301F; --sombra: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+  --teal: #8FB3E8; --sobre-teal: #0C1822; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18; --ok: #7FD39B; --ok-suave: #16301F; --sombra: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: Montserrat, "Segoe UI", system-ui, sans-serif; font-size: 15px; line-height: 1.45; min-height: 100vh; }
+button, input, textarea { font: inherit; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+header { background: #003A75; color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #DCB40C; }
+header img { width: 34px; height: 34px; border-radius: 8px; }
+header b { font-size: 17px; }
+header span { color: #C9D3DF; font-size: 13px; }
+main { max-width: 620px; margin: 0 auto; padding: 22px 16px 40px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; box-shadow: var(--sombra); }
+h1 { font-size: 22px; margin: 0 0 4px; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0 0 16px; }
+dl { display: grid; grid-template-columns: 130px 1fr; gap: 0; margin: 0 0 18px; }
+dt, dd { padding: 9px 0; border-bottom: 1px solid var(--line); margin: 0; }
+dt { color: var(--muted); font-size: 13px; font-weight: 600; }
+dd { font-weight: 600; overflow-wrap: anywhere; }
+@media (max-width: 480px) { dl { grid-template-columns: 1fr; } dt { border-bottom: 0; padding-bottom: 0; } }
+.estado { display: inline-flex; gap: 6px; align-items: center; border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+.estado.pendiente { background: var(--gold-suave); color: var(--gold); }
+.estado.aprobado { background: var(--ok-suave); color: var(--ok); }
+.estado.rechazado { background: var(--crit-suave); color: var(--crit); }
+.acciones { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--fg); border-radius: 9px; padding: 12px 20px; font-weight: 700; cursor: pointer; min-height: 44px; }
+.btn.primario { background: var(--teal); border-color: var(--teal); color: var(--sobre-teal); }
+.btn.peligro { background: #B3261E; border-color: #B3261E; color: #fff; }
+.btn:disabled { opacity: .55; cursor: wait; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+textarea { padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--fg); width: 100%; min-height: 70px; resize: vertical; }
+.msg { min-height: 1.4em; font-size: 14px; margin: 12px 0 0; }
+.msg.error { color: var(--crit); }
+.nota { color: var(--muted); font-size: 13px; margin: 16px 0 0; }
+</style>
+</head>
+<body>
+<header><img src="icono-192.png" alt=""><div><b>Stili Soft</b><br><span>Aprobación de usuarios</span></div></header>
+<main>
+  <div class="card" id="caja">
+    <h1>Revisando el enlace…</h1>
+    <p class="sub">Un momento.</p>
+  </div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const SERVICIO = (window.STILI && window.STILI.servicio) || '';
+// El enlace lleva la firma; se lee y se quita de la barra de direcciones para que no quede en el historial
+const T = new URLSearchParams(location.search).get('t') || '';
+if (T) history.replaceState(null, '', location.pathname);
+const ESTADOS = { pendiente: 'Pendiente de su aprobación', aprobado: 'Aprobado', rechazado: 'Sin acceso (rechazado)' };
+async function llamar(accion, datos) {
+  const j = await fetch(SERVICIO, { method: 'POST', body: JSON.stringify(Object.assign({ accion, t: T }, datos || {})) }).then(r => r.json());
+  if (!j.ok) throw new Error(j.error || 'Error del servicio');
+  return j;
+}
+function pintar(d, msg) {
+  const u = d.usuario, e = d.estado;
+  $('#caja').innerHTML =
+    '<h1>' + esc(u.nombre) + '</h1><p class="sub">' + (e === 'pendiente' ? 'Pide acceso a Stili Soft. No podrá entrar hasta que usted lo apruebe.' : 'Acceso a Stili Soft.') + '</p>' +
+    '<span class="estado ' + esc(e) + '">' + esc(ESTADOS[e] || e) + '</span>' +
+    '<dl><dt>Usuario</dt><dd>' + esc(u.correo) + '</dd><dt>Segmento</dt><dd>' + esc(u.segmento) + '</dd><dt>Torres</dt><dd>' + esc(u.torres) + '</dd>' +
+    '<dt>Permisos</dt><dd>' + esc(u.permisos) + '</dd>' + (d.motivo ? '<dt>Motivo</dt><dd>' + esc(d.motivo) + '</dd>' : '') +
+    (d.enviada ? '<dt>Solicitado</dt><dd>' + esc(d.enviada) + '</dd>' : '') +
+    (d.aprobado_en ? '<dt>' + (e === 'aprobado' ? 'Aprobado' : 'Decidido') + '</dt><dd>' + esc(d.aprobado_en) + ' · ' + esc(d.aprobado_por) + '</dd>' : '') + '</dl>' +
+    (u.activo ? '' : '<p class="sub">Este usuario está inactivo en Stili Soft: aunque lo apruebe, no entrará hasta que lo activen.</p>') +
+    '<div id="decidir">' +
+    (e !== 'aprobado' ? '' : '<p class="sub" style="margin-bottom:10px">Si esta persona ya no debe entrar, quítele el acceso. Se cierran sus sesiones en todos los equipos.</p>') +
+    '<label id="nota-c" hidden>Motivo (opcional)<textarea id="nota" maxlength="200" placeholder="Ej.: ya no trabaja con nosotros"></textarea></label>' +
+    '<div class="acciones">' +
+    (e !== 'aprobado' ? '<button class="btn primario" data-d="aprobar">Aprobar acceso</button>' : '') +
+    (e !== 'rechazado' ? '<button class="btn peligro" data-d="rechazar">' + (e === 'aprobado' ? 'Quitar acceso' : 'Rechazar') + '</button>' : '') +
+    '</div></div><p class="msg" id="msg" role="status">' + esc(msg || '') + '</p>' +
+    '<p class="nota">Este enlace es solo para usted. No lo reenvíe. Puede cambiar la decisión con este mismo enlace mientras no venza.</p>';
+}
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-d]'); if (!b) return;
+  if (b.dataset.d === 'rechazar' && !b.dataset.ok) {
+    b.dataset.ok = '1'; b.textContent = 'Confirmar: ' + b.textContent.toLowerCase(); $('#nota-c').hidden = false; $('#nota').focus(); return;
+  }
+  document.querySelectorAll('[data-d]').forEach(x => { x.disabled = true; });
+  $('#msg').className = 'msg'; $('#msg').textContent = 'Guardando…';
+  try {
+    const d = await llamar('aprobacion_decidir', { decision: b.dataset.d, nota: $('#nota') ? $('#nota').value : '' });
+    pintar(d, d.estado === 'aprobado' ? 'Listo: ya puede entrar con su clave y el código de verificación.' : 'Listo: esta persona no puede entrar.');
+  } catch (err) {
+    document.querySelectorAll('[data-d]').forEach(x => { x.disabled = false; });
+    $('#msg').className = 'msg error'; $('#msg').textContent = err.message;
+  }
+});
+(async () => {
+  if (!T) { $('#caja').innerHTML = '<h1>Falta el enlace</h1><p class="sub">Abra esta página desde el botón «Revisar y decidir» del correo.</p>'; return; }
+  try { pintar(await llamar('aprobacion_ver')); }
+  catch (err) { $('#caja').innerHTML = '<h1>No se pudo abrir</h1><p class="sub">' + esc(err.message) + '</p>'; }
+})();
+</script>
+</body>
+</html>
