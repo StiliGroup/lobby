@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Torres · Stili</title>
+<title>Torres · Stili Soft</title>
 <meta name="description" content="Módulo Torres de Stili Group: ficha de cada torre, finanzas, proveedores, contratos, reclamaciones y comunicados.">
 <meta name="theme-color" content="#003A75">
 <link rel="icon" href="portal/favicon.png">
@@ -598,10 +598,12 @@ function pintarFinanzas() {
         '</td><td>' + (a.url ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.nombre) + '</a>' : esc(a.nombre)) + '</td><td><small>' + esc(a.subido_por) + ' · ' + esc(a.subido_en) + '</small></td></tr>'), 'Todavía no hay estados subidos.') +
       (f.puede_editar && f.archivos.length ? '<form class="form" id="f-analizar" style="margin-top:12px"><label class="ancho">Pregunta o foco para la IA (opcional)<input name="pregunta" placeholder="Ej.: revise los depósitos sin identificar de septiembre"></label>' +
         '<div class="acciones-fila ancho"><button class="btn primario" id="b-analizar"' + (f.ia ? '' : ' disabled') + '>Analizar los marcados con IA</button>' + (f.ia ? '' : '<span class="nota">Falta la clave de la IA en el servicio (Gerencia).</span>') + '</div></form>' : '') + '</div>' +
-    (ult ? '<div class="card"><div class="cab"><h2>Último análisis · ' + esc(ult.fecha) + '</h2><small class="nota">' + esc(ult.por) + '</small></div>' + informe(ult.resumen) +
-      ((ult.discrepancias || []).length ? '<h2 style="margin-top:16px">Discrepancias</h2>' + tabla(['Fecha', 'Concepto', 'Banco', 'Habitanto', 'Diferencia', 'Gravedad', 'Qué revisar'],
+    (ult ? '<div class="card"><div class="cab"><h2>Último análisis · ' + esc(ult.fecha) + '</h2><span><small class="nota">' + esc(ult.por) + '</small> ' +
+      '<button type="button" class="btn" data-fin-imprimir="' + esc(ult.id) + '">Imprimir informe</button>' + ((ult.correcciones || []).length ? ' <button type="button" class="btn" data-fin-copiar="' + esc(ult.id) + '">Copiar correcciones</button>' : '') + '</span></div>' +
+      conciliacionHtml(ult) + correccionesHtml(ult, f) + informe(ult.resumen) +
+      ((ult.discrepancias || []).length ? '<details style="margin-top:12px"><summary><b>Todas las discrepancias (' + ult.discrepancias.length + ')</b></summary>' + tabla(['Fecha', 'Concepto', 'Banco', 'Habitanto', 'Diferencia', 'Gravedad', 'Qué revisar'],
         ult.discrepancias.map(x => '<tr><td>' + esc(x.fecha) + '</td><td>' + esc(x.concepto) + '</td><td class="num">' + dinero(x.monto_banco) + '</td><td class="num">' + dinero(x.monto_habitanto) + '</td><td class="num"><b>' + dinero(x.diferencia) +
-          '</b></td><td><span class="chip ' + ({ alta: 'rojo', media: 'ambar', baja: 'azul' }[x.gravedad] || '') + '">' + esc(x.gravedad || '') + '</span></td><td><small>' + esc(x.revisar) + '</small></td></tr>'), '') : '') + '</div>' : '') +
+          '</b></td><td><span class="chip ' + ({ alta: 'rojo', media: 'ambar', baja: 'azul' }[x.gravedad] || '') + '">' + esc(x.gravedad || '') + '</span></td><td><small>' + esc(x.revisar) + '</small></td></tr>'), '') + '</details>' : '') + '</div>' : '') +
     (f.meses.length ? '<div class="card"><h2>Resumen por mes</h2>' + tabla(['Mes', 'Ingresos', 'Gastos', 'Cobranza', 'Morosidad', 'Saldo banco', 'Fondo de reserva'],
       f.meses.slice().reverse().map(m => '<tr><td>' + esc(m.periodo) + '</td><td class="num">' + dinero(m.ingresos) + '</td><td class="num">' + dinero(m.gastos) + '</td><td class="num">' +
         (m.cuotas_esperadas ? pct(m.cuotas_cobradas / m.cuotas_esperadas) : '—') + '</td><td class="num">' + dinero(m.morosidad) + '</td><td class="num">' + dinero(m.saldo_banco) + '</td><td class="num">' + dinero(m.fondo_reserva) + '</td></tr>'), '') + '</div>' : '') +
@@ -609,8 +611,68 @@ function pintarFinanzas() {
       (f.puede_editar ? '<form class="form" id="f-memoria"><label class="ancho">Nueva nota<input name="nota" placeholder="Ej.: el banco cobra RD$ 350 de comisión mensual; no es discrepancia." maxlength="600"></label>' +
         '<label class="chk ancho" style="flex-direction:row"><input type="checkbox" name="general" style="width:auto"> General (para todas las torres)</label><div class="acciones-fila ancho"><button class="btn">Guardar nota</button></div></form>' : '') +
       (f.memoria.length ? '<ul style="padding-left:18px;margin:12px 0 0">' + f.memoria.map(m => '<li style="margin-bottom:6px">' + esc(m.nota) + ' <small class="nota">— ' + esc(m.torre === 'GENERAL' ? 'General · ' : '') + esc(m.autor) + ', ' + esc(m.fecha) + '</small></li>').join('') + '</ul>' : '<div class="vacio">Sin notas todavía.</div>') + '</div>' +
-    (f.analisis.length > 1 ? '<div class="card"><h2>Análisis anteriores</h2>' + f.analisis.slice(1).map(a => '<details style="margin-bottom:8px"><summary><b>' + esc(a.fecha) + '</b> · ' + esc(a.por) + ' · ' + (a.discrepancias || []).length + ' discrepancias</summary>' + informe(a.resumen) + '</details>').join('') + '</div>' : '');
+    (f.analisis.length > 1 ? '<div class="card"><h2>Análisis anteriores</h2>' + f.analisis.slice(1).map(a => '<details style="margin-bottom:8px"><summary><b>' + esc(a.fecha) + '</b> · ' + esc(a.por) + ' · ' +
+      ((a.correcciones || []).length ? (a.correcciones.filter(c => c.estado === 'pendiente').length + ' de ' + a.correcciones.length + ' correcciones pendientes') : (a.discrepancias || []).length + ' discrepancias') + '</summary>' +
+      '<p><button type="button" class="btn" data-fin-imprimir="' + esc(a.id) + '">Imprimir informe</button></p>' + conciliacionHtml(a) + correccionesHtml(a, f) + informe(a.resumen) + '</details>').join('') + '</div>' : '');
 }
+// v2.4.1 · conciliación y lista de lo que hay que corregir en Habitanto para que quede igual que el banco
+const dinero2 = v => v === null || v === undefined || v === '' || isNaN(v) ? '—' : 'RD$ ' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const ESTADO_CORR = { pendiente: ['Pendiente', 'ambar'], hecha: ['Hecha en Habitanto', 'verde'], no_aplica: ['No aplica', ''] };
+function conciliacionHtml(a) {
+  const c = a.conciliacion; if (!c) return '';
+  return '<h2 style="margin-top:6px">Conciliación' + (c.fecha_corte ? ' al ' + esc(c.fecha_corte) : '') + '</h2><div class="kpis">' +
+    [['Saldo según el banco', dinero2(c.saldo_banco)], ['Saldo según Habitanto', dinero2(c.saldo_habitanto)], ['Diferencia', dinero2(c.diferencia)], ['Explicada', dinero2(c.explicada)],
+      ['Sin explicar', dinero2(c.sin_explicar)]].map(([n, v], i) => '<div class="kpi' + (i === 4 && Number(c.sin_explicar) ? ' kpi-alerta' : '') + '"><span>' + n + '</span><b>' + v + '</b></div>').join('') + '</div>';
+}
+function correccionesHtml(a, f) {
+  const l = a.correcciones || []; if (!l.length) return '';
+  const pend = l.filter(c => c.estado === 'pendiente').length, acc = f.acciones || {};
+  return '<h2>Qué corregir en Habitanto <span class="chip ' + (pend ? 'ambar' : 'verde') + '">' + (pend ? pend + ' de ' + l.length + ' pendientes' : 'Todo corregido') + '</span></h2>' +
+    '<p class="nota" style="margin-top:0">El banco es la referencia: con estos cambios Habitanto queda igual que el estado bancario. Marque cada uno cuando lo haga.</p>' +
+    tabla(['#', 'Fecha', 'Movimiento', 'Qué hacer en Habitanto', 'Monto correcto', 'Prioridad', ''], l.map(c => '<tr' + (c.estado !== 'pendiente' ? ' class="cerrada"' : '') + '><td>' + esc(c.id.slice(1)) + '</td><td>' + esc(c.fecha) + '</td><td>' +
+      esc(c.concepto) + (c.referencia ? '<br><small>Ref. ' + esc(c.referencia) + '</small>' : '') + (c.apartamento ? '<br><small>Apto ' + esc(c.apartamento) + '</small>' : '') + '</td><td><b>' + esc(acc[c.accion] || c.accion) + '</b><br><small>' + esc(c.instruccion) + '</small>' +
+      (c.cuenta ? '<br><small>Cuenta: ' + esc(c.cuenta) + '</small>' : '') + '</td><td class="num"><b>' + dinero2(c.monto_correcto) + '</b><br><small>Banco ' + dinero2(c.monto_banco) + ' · Habitanto ' + dinero2(c.monto_habitanto) + '</small></td>' +
+      '<td><span class="chip ' + ({ alta: 'rojo', media: 'ambar', baja: 'azul' }[c.prioridad] || '') + '">' + esc(c.prioridad) + '</span></td><td><span class="chip ' + ESTADO_CORR[c.estado][1] + '">' + ESTADO_CORR[c.estado][0] + '</span>' +
+      (c.por ? '<br><small>' + esc(c.por) + ' · ' + esc(c.en) + '</small>' : '') + (c.nota ? '<br><small>' + esc(c.nota) + '</small>' : '') +
+      (f.puede_editar ? '<div class="acciones-fila" style="margin-top:6px">' + (c.estado === 'pendiente' ? '<button type="button" class="btn primario" data-corr="hecha" data-an="' + esc(a.id) + '" data-id="' + esc(c.id) + '">✓ Hecha</button>' +
+        '<button type="button" class="btn" data-corr="no_aplica" data-an="' + esc(a.id) + '" data-id="' + esc(c.id) + '">No aplica</button>' : '<button type="button" class="btn" data-corr="pendiente" data-an="' + esc(a.id) + '" data-id="' + esc(c.id) + '">Deshacer</button>') + '</div>' : '') +
+      '</td></tr>'), '');
+}
+function textoCorrecciones(a) {
+  const acc = (S.fin && S.fin.acciones) || {};
+  return 'Correcciones en Habitanto · ' + S.fin.torre + ' · análisis del ' + a.fecha + '\n\n' + a.correcciones.filter(c => c.estado === 'pendiente').map(c => c.id.slice(1) + '. ' + (c.fecha || '') + ' · ' + (acc[c.accion] || c.accion) +
+    ' · ' + c.concepto + (c.apartamento ? ' · Apto ' + c.apartamento : '') + (c.referencia ? ' · Ref. ' + c.referencia : '') + (c.monto_correcto != null ? ' · Monto correcto ' + dinero2(c.monto_correcto) : '') + '\n   ' + c.instruccion).join('\n');
+}
+function imprimirInforme(a) {
+  const f = S.fin, acc = f.acciones || {}, c = a.conciliacion;
+  let el = document.getElementById('impresion'); if (!el) { el = document.createElement('div'); el.id = 'impresion'; document.body.appendChild(el); }
+  el.innerHTML = '<header><img src="portal/logo.png" alt="Stili Group"><div><b>Informe de conciliación bancaria</b><br>' + esc(f.torre) + ' · análisis del ' + esc(a.fecha) + ' · preparado por ' + esc(a.por) + '</div></header>' +
+    ((a.archivos || []).length ? '<p><b>Documentos revisados:</b> ' + a.archivos.map(esc).join(' · ') + '</p>' : '') +
+    (c ? '<h2>Conciliación' + (c.fecha_corte ? ' al ' + esc(c.fecha_corte) : '') + '</h2><table><tr><th>Saldo según el banco</th><th>Saldo según Habitanto</th><th>Diferencia</th><th>Explicada</th><th>Sin explicar</th></tr><tr>' +
+      [c.saldo_banco, c.saldo_habitanto, c.diferencia, c.explicada, c.sin_explicar].map(v => '<td class="num">' + dinero2(v) + '</td>').join('') + '</tr></table>' : '') +
+    ((a.correcciones || []).length ? '<h2>Correcciones a realizar en Habitanto</h2><p>El banco es la referencia. Al completar estas correcciones, Habitanto queda igual que el estado bancario.</p><table><tr><th>#</th><th>Fecha</th><th>Movimiento</th><th>Qué hacer en Habitanto</th><th>Monto correcto</th><th>Prioridad</th><th>Hecho / por</th></tr>' +
+      a.correcciones.map(x => '<tr><td>' + esc(x.id.slice(1)) + '</td><td>' + esc(x.fecha) + '</td><td>' + esc(x.concepto) + (x.referencia ? '<br><small>Ref. ' + esc(x.referencia) + '</small>' : '') + (x.apartamento ? '<br><small>Apto ' + esc(x.apartamento) + '</small>' : '') +
+        '</td><td><b>' + esc(acc[x.accion] || x.accion) + '</b><br>' + esc(x.instruccion) + (x.cuenta ? '<br><small>Cuenta: ' + esc(x.cuenta) + '</small>' : '') + '</td><td class="num">' + dinero2(x.monto_correcto) + '<br><small>Banco ' + dinero2(x.monto_banco) + ' · Habitanto ' + dinero2(x.monto_habitanto) +
+        '</small></td><td>' + esc(x.prioridad) + '</td><td>' + (x.estado === 'hecha' ? '✓ ' + esc(x.por) + '<br><small>' + esc(x.en) + '</small>' : x.estado === 'no_aplica' ? 'No aplica: ' + esc(x.nota) : '☐') + '</td></tr>').join('') + '</table>' : '') +
+    '<h2>Informe de la revisión</h2>' + informe(a.resumen) +
+    '<div class="firmas"><div>Revisado por (Contabilidad)</div><div>Corregido en Habitanto por</div><div>Aprobado por</div></div>';
+  document.documentElement.setAttribute('data-imprimir', '');
+  document.body.classList.add('imprimiendo');
+  const fin = () => { document.body.classList.remove('imprimiendo'); document.documentElement.removeAttribute('data-imprimir'); removeEventListener('afterprint', fin); };
+  addEventListener('afterprint', fin);
+  setTimeout(() => window.print(), 50);
+}
+document.addEventListener('click', async e => {
+  const pr = e.target.closest('[data-fin-imprimir]'), cp = e.target.closest('[data-fin-copiar]'), co = e.target.closest('[data-corr]');
+  const buscar = id => S.fin && S.fin.analisis.find(a => a.id === id);
+  if (pr) return imprimirInforme(buscar(pr.dataset.finImprimir));
+  if (cp) { try { await navigator.clipboard.writeText(textoCorrecciones(buscar(cp.dataset.finCopiar))); toast('Lista de correcciones copiada.'); } catch (err) { toast('No se pudo copiar.', true); } return; }
+  if (co) {
+    let nota = '';
+    if (co.dataset.corr === 'no_aplica') { nota = prompt('¿Por qué no aplica esta corrección?', ''); if (!nota) return; }
+    try { S.fin = await api('fin_correccion', { analisis: co.dataset.an, id: co.dataset.id, estado: co.dataset.corr, nota }); pintarFinanzas(); } catch (err) { toast(err.message, true); }
+  }
+});
 document.addEventListener('submit', async e => {
   const id = e.target.id; if (!['f-subir', 'f-analizar', 'f-memoria', 'f-pres', 'f-pres-ia'].includes(id)) return;
   e.preventDefault(); const fd = new FormData(e.target), btn = e.target.querySelector('button.primario, button');
@@ -680,7 +742,7 @@ document.addEventListener('click', e => {
 
 async function iniciar() {
   if (!DEMO && !cfg().sesion) {
-    $('#contenido').innerHTML = '<div class="card entrar"><h2>Torres</h2><p>Entre con su usuario de Stili en el Portal y vuelva a esta página.</p><a class="btn primario" href="portal/">Entrar en el Portal Stili</a></div>';
+    $('#contenido').innerHTML = '<div class="card entrar"><h2>Torres</h2><p>Entre con su usuario de Stili en el Portal y vuelva a esta página.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>';
     StiliModulos.montar(document.body, 'torres'); return;
   }
   StiliModulos.montar(document.body, 'torres');
@@ -739,12 +801,22 @@ const Demo = {
     ordenes: [], estados_orden: { por_enviar: 'Por enviar', enviada: 'Enviada al suplidor' }, ve_suplidores: true }),
   tarea_actualizar: () => Demo.tareas_datos(), tarea_nueva: () => Object.assign(Demo.tareas_datos(), { id: 'T0' }),
   orden_crear: () => Object.assign(Demo.tareas_datos(), { orden: { id: 'OT-DEMO', telegram: true, suplidor: 'Pinturas del Caribe', tareas: 1 } }),
+  fin_correccion: () => Demo.fin_datos(),
   fin_datos: () => ({ torre: 'Torre Niza 7', puede_editar: true, ia: true, tipos: { banco: 'Estado bancario', habitanto: 'Estado de Habitanto', presupuesto: 'Presupuesto', morosidad: 'Cuotas y morosidad', otro: 'Otro' },
     archivos: [{ id: 'FA1', tipo: 'banco', periodo: '2026-09', nombre: 'BHD septiembre.pdf', url: '#', subido_por: 'Lissette López', subido_en: '05/10/2026' },
       { id: 'FA2', tipo: 'habitanto', periodo: '2026-09', nombre: 'Habitanto estado sept.xlsx', url: '#', subido_por: 'Lissette López', subido_en: '05/10/2026' }],
     analisis: [{ id: 'AN1', fecha: '05/10/2026', por: 'Lissette López', resumen: '## Resumen\nEl banco muestra **RD$ 5,000** en un depósito del 12/09 que Habitanto no tiene registrado. La cobranza de septiembre fue del 70 %.\n## Recomendaciones\n- Identificar el apartamento del depósito del 12/09.\n- Enviar recordatorio a los 4 apartamentos con más de 60 días de atraso.',
       discrepancias: [{ fecha: '2026-09-12', concepto: 'Depósito no registrado en Habitanto', monto_banco: 5000, monto_habitanto: null, diferencia: 5000, gravedad: 'media', revisar: 'Buscar la referencia de la transferencia' },
-        { fecha: '2026-09-28', concepto: 'Comisión bancaria no registrada', monto_banco: 350, monto_habitanto: 0, diferencia: 350, gravedad: 'baja', revisar: 'Registrar el cargo' }] }],
+        { fecha: '2026-09-28', concepto: 'Comisión bancaria no registrada', monto_banco: 350, monto_habitanto: 0, diferencia: 350, gravedad: 'baja', revisar: 'Registrar el cargo' }],
+      archivos: ['Estado bancario 2026-09 · BHD septiembre.pdf', 'Estado de Habitanto 2026-09 · Habitanto estado sept.xlsx'],
+      conciliacion: { fecha_corte: '2026-09-30', saldo_banco: 80350, saldo_habitanto: 75700, diferencia: 4650, explicada: 4650, sin_explicar: 0 },
+      correcciones: [{ id: 'C1', fecha: '2026-09-12', referencia: 'TRF 88123', apartamento: '5B', concepto: 'Depósito sin registrar', accion: 'registrar_cobro', monto_banco: 5000, monto_habitanto: null, monto_correcto: 5000, cuenta: 'Cuotas de mantenimiento',
+        instruccion: 'Registrar el cobro del apto 5B del 12/09 por RD$ 5,000 con la referencia TRF 88123.', prioridad: 'alta', estado: 'pendiente' },
+        { id: 'C2', fecha: '2026-09-28', referencia: 'COM. MANT. CTA', concepto: 'Comisión bancaria', accion: 'registrar_cargo_bancario', monto_banco: 350, monto_habitanto: 0, monto_correcto: 350, cuenta: 'Gastos bancarios',
+          instruccion: 'Registrar el cargo de RD$ 350 del 28/09 en gastos bancarios.', prioridad: 'baja', estado: 'hecha', por: 'Lissette López', en: '06/10/2026 09:12' },
+        { id: 'C3', fecha: '2026-09-15', referencia: 'Recibo 1042', apartamento: '3A', concepto: 'Cobro registrado dos veces', accion: 'eliminar_duplicado', monto_banco: 4200, monto_habitanto: 8400, monto_correcto: 4200, cuenta: 'Cuotas de mantenimiento',
+          instruccion: 'Anular el recibo duplicado 1042 del apto 3A; en el banco entró una sola vez.', prioridad: 'media', estado: 'pendiente' }] }],
+    acciones: { registrar_cobro: 'Registrar el cobro', registrar_cargo_bancario: 'Registrar el cargo o comisión del banco', eliminar_duplicado: 'Eliminar el duplicado' },
     memoria: [{ torre: 'Torre Niza 7', nota: 'El apto 5B paga por transferencia sin referencia.', autor: 'IA (AN1)', fecha: '05/10/2026' }, { torre: 'GENERAL', nota: 'El BHD cobra RD$ 350 de comisión mensual.', autor: 'Lissette López', fecha: '01/10/2026' }],
     meses: [{ periodo: '2026-08', ingresos: 98000, gastos: 101000, cuotas_esperadas: 100000, cuotas_cobradas: 95000, morosidad: 21000, saldo_banco: 95000, fondo_reserva: 52000 },
       { periodo: '2026-09', ingresos: 90000, gastos: 120000, cuotas_esperadas: 100000, cuotas_cobradas: 70000, morosidad: 30000, saldo_banco: 80000, fondo_reserva: 50000 }] }),

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Lobby · Stili</title>
+<title>Lobby · Stili Soft</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#003A75">
 <meta name="description" content="Panel de administración de Stili Group: ocupación por torre, apartamentos, documentos y normas, encuestas, conflictos y personal.">
@@ -463,6 +463,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
       <div class="card">
         <h2>Usuarios</h2>
         <p class="nota" style="margin-top:0">Un usuario sirve para todo el Portal: Torres, Lobby, Finanzas y Nómina, según sus permisos. Los porteros y supervisores no usan usuario: entran a la app del lobby con su cédula y PIN (Torres → Personal del lobby).</p>
+        <p class="nota" style="margin-top:0"><b>Aprobación:</b> cada usuario nuevo, reactivado o que sube de segmento necesita la aprobación del Gerente General por correo (<span id="u-aprobador">rlarrauri@stili.com.do</span>). Hasta entonces no entra. Al entrar, todos confirman con un código que llega a su Telegram o a su correo.</p>
         <div class="tabla"><table><thead><tr><th>Nombre</th><th>Segmento</th><th>Torres</th><th>Estado</th></tr></thead><tbody id="usuarios"></tbody></table></div>
       </div>
       <div class="grid">
@@ -527,7 +528,6 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
         <h2>Conexión</h2>
         <form class="form" id="f-ajustes">
           <label class="campo ancho">Dirección del servicio (Apps Script)<input type="url" id="c-url" placeholder="https://script.google.com/macros/s/…/exec"></label>
-          <label class="campo ancho">Código maestro (solo emergencias del Gerente)<input type="password" id="c-admin" placeholder="ADM-… · déjelo vacío y use su usuario" autocomplete="off"></label>
           <label class="campo ancho">Dirección de las páginas (GitHub Pages)<input type="url" id="c-paginas" placeholder="https://stiligroup.github.io/visitantes/"></label>
           <div class="acciones" style="grid-column:1/-1"><button class="btn primario" type="submit">Guardar y probar</button><button class="btn" type="button" id="c-demo">Usar demostración</button></div>
         </form>
@@ -543,13 +543,22 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
 </main>
 <div class="login" id="login" hidden>
   <form class="caja" id="f-login" autocomplete="on">
-    <div><small>Stili Group</small><h1>Panel Stili y Nómina</h1></div>
+    <div><small>Stili Group</small><h1>Stili Soft y Nómina</h1></div>
     <label class="campo">Usuario (su correo de Stili)<input type="email" id="l-correo" autocomplete="username" required></label>
     <label class="campo">Clave<input type="password" id="l-clave" autocomplete="current-password" required></label>
     <button class="btn primario" type="submit" id="l-entrar">Entrar</button>
     <div class="aviso-portero" id="l-portero" hidden></div>
     <p class="nota" style="margin:0" id="l-msg"></p>
     <p class="nota" style="margin:0">¿Olvidó su clave? Pídale al Gerente General que se la restablezca. ¿Es portero? Use la <a id="l-lobby" href="index.html">app del lobby</a> con su cédula y PIN.</p>
+  </form>
+  <form class="caja" id="f-codigo" hidden>
+    <div><small>Stili Soft · segundo paso</small><h1>Código de verificación</h1></div>
+    <p class="nota" style="margin:0" id="lc-sub">Le enviamos un código de 6 dígitos.</p>
+    <label class="campo">Código<input type="text" id="lc-codigo" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+    <label class="campo" style="flex-direction:row;align-items:flex-start;gap:8px;font-weight:400"><input type="checkbox" id="lc-recordar" style="width:auto;margin-top:3px"> Recordar este equipo 30 días. Solo si el equipo es suyo y no lo comparte.</label>
+    <button class="btn primario" type="submit" id="lc-entrar">Verificar y entrar</button>
+    <p class="nota" style="margin:0" id="lc-msg" role="status"></p>
+    <p class="nota" style="margin:0"><a href="#" id="lc-reenviar" style="color:var(--teal);font-weight:600">Enviar otro código</a> · <a href="#" id="lc-volver" style="color:var(--teal);font-weight:600">Volver</a></p>
   </form>
 </div>
 <dialog class="d" id="dlg-clave">
@@ -595,12 +604,12 @@ function toast(t, tipo) {
 }
 async function api(accion, datos) {
   if (DEMO()) return Demo.llamar(accion, datos || {});
-  const cred = CFG.sesion ? { sesion: CFG.sesion } : { admin: CFG.admin };
+  const cred = { sesion: CFG.sesion };
   const r = await fetch(CFG.url, { method: 'POST', body: JSON.stringify(Object.assign({ accion }, cred, datos || {})) });
   const j = await r.json();
   if (!j.ok) {
     const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo;
-    if (['SESION', 'SESION_VENCIDA'].includes(j.codigo) || (j.codigo === 'SIN_ADMIN' && !CFG.sesion)) { CFG.sesion = ''; guardarCfg(); mostrarLogin(j.error); }
+    if (['SESION', 'SESION_VENCIDA', 'SIN_ADMIN'].includes(j.codigo)) { CFG.sesion = ''; guardarCfg(); mostrarLogin(j.error); }
     throw e;
   }
   return j;
@@ -654,21 +663,51 @@ function aplicarPermisos() {
   const actual = $('.tab[aria-selected="true"]');
   if (actual && actual.hidden) { const primera = $$('.tab').find(t => !t.hidden); if (primera) vista(primera.dataset.v); }
 }
+// v2.5 · «Recordar este equipo» (aparte de la sesión: «Salir» no lo borra; vence a los 30 días o al cambiar la clave)
+function leerEquipo() { try { return localStorage.getItem('stili-equipo') || ''; } catch (e) { return ''; } }
+function guardarEquipo(t) { try { if (t) localStorage.setItem('stili-equipo', t); } catch (e) { /* sin almacenamiento */ } }
+let RETO = '';
+async function publico(datos) {
+  const j = await fetch(CFG.url, { method: 'POST', body: JSON.stringify(datos) }).then(x => x.json());
+  if (!j.ok) { const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo; throw e; }
+  return j;
+}
+async function entroLogin(r) {
+  guardarEquipo(r.equipo); CFG.sesion = r.sesion; CFG.admin = ''; guardarCfg(); $('#l-clave').value = ''; $('#l-msg').textContent = '';
+  $('#login').hidden = true; $('#f-codigo').hidden = true; $('#f-login').hidden = false;
+  if (r.usuario.debe_cambiar) await pedirClave(true);
+  iniciar();
+}
+function pedirCodigo(r) {
+  RETO = r.reto; $('#f-codigo').reset(); $('#lc-msg').textContent = '';
+  $('#lc-sub').textContent = 'Le enviamos un código de 6 dígitos a ' + r.destino + '. Vence en ' + r.minutos + ' minutos.';
+  $('#f-login').hidden = true; $('#f-codigo').hidden = false; setTimeout(() => $('#lc-codigo').focus(), 50);
+}
+function volverLogin(msg) { RETO = ''; $('#f-codigo').hidden = true; $('#f-login').hidden = false; $('#l-msg').textContent = msg || ''; setTimeout(() => $('#l-correo').focus(), 50); }
+$('#f-codigo').addEventListener('submit', async e => {
+  e.preventDefault(); $('#lc-entrar').disabled = true; $('#lc-msg').textContent = 'Verificando…';
+  try { await entroLogin(await publico({ accion: 'login_codigo', reto: RETO, codigo: $('#lc-codigo').value.trim(), recordar: $('#lc-recordar').checked })); }
+  catch (err) { if (err.codigo === 'CODIGO_VENCIDO') volverLogin(err.message); else { $('#lc-msg').textContent = err.message; $('#lc-codigo').select(); } }
+  finally { $('#lc-entrar').disabled = false; }
+});
+$('#lc-reenviar').addEventListener('click', async e => {
+  e.preventDefault(); $('#lc-msg').textContent = 'Enviando otro código…';
+  try { pedirCodigo(await publico({ accion: 'login_reenviar', reto: RETO })); $('#lc-msg').textContent = 'Le enviamos un código nuevo. El anterior ya no sirve.'; }
+  catch (err) { if (err.codigo === 'CODIGO_VENCIDO') volverLogin(err.message); else $('#lc-msg').textContent = err.message; }
+});
+$('#lc-volver').addEventListener('click', e => { e.preventDefault(); volverLogin(''); });
 function mostrarLogin(msg) {
-  $('#login').hidden = false; $('#l-msg').textContent = msg || ''; $('#l-portero').hidden = true;
+  $('#login').hidden = false; $('#f-codigo').hidden = true; $('#f-login').hidden = false; $('#l-msg').textContent = msg || ''; $('#l-portero').hidden = true;
   $('#l-lobby').href = BASE_PAGINAS() + 'index.html';
   setTimeout(() => $('#l-correo').focus(), 50);
 }
 $('#f-login').addEventListener('submit', async e => {
   e.preventDefault(); $('#l-entrar').disabled = true; $('#l-msg').textContent = 'Entrando…'; $('#l-portero').hidden = true;
   try {
-    const r = await fetch(CFG.url, { method: 'POST', body: JSON.stringify({ accion: 'login', correo: $('#l-correo').value.trim(), clave: $('#l-clave').value, origen: 'panel' }) }).then(x => x.json());
-    if (!r.ok) throw new Error(r.error);
+    const r = await publico({ accion: 'login', correo: $('#l-correo').value.trim(), clave: $('#l-clave').value, origen: 'panel', equipo: leerEquipo() });
     if (r.portero) { $('#l-portero').hidden = false; $('#l-portero').innerHTML = esc(r.mensaje) + ' <a href="' + esc(r.url_lobby || BASE_PAGINAS() + 'index.html') + '">Abrir la app del lobby</a>'; $('#l-msg').textContent = ''; return; }
-    CFG.sesion = r.sesion; CFG.admin = ''; guardarCfg(); $('#l-clave').value = ''; $('#l-msg').textContent = '';
-    $('#login').hidden = true;
-    if (r.usuario.debe_cambiar) await pedirClave(true);
-    iniciar();
+    if (r.segundo_paso) { $('#l-clave').value = ''; $('#l-msg').textContent = ''; return pedirCodigo(r); }
+    await entroLogin(r);
   } catch (err) { $('#l-msg').textContent = err.message; } finally { $('#l-entrar').disabled = false; }
 });
 function pedirClave(obligatoria) {
@@ -685,7 +724,7 @@ $('#f-clave').addEventListener('submit', async e => {
   if (e.submitter && e.submitter.value === 'cancelar') return;
   e.preventDefault();
   if ($('#k-nueva').value !== $('#k-repite').value) return toast('Las dos claves nuevas no coinciden.', 'error');
-  try { const r = await api('cambiar_clave', { actual: $('#k-actual').value, nueva: $('#k-nueva').value }); CFG.sesion = r.sesion; guardarCfg(); $('#dlg-clave').close(); toast('Clave guardada. Úsela la próxima vez que entre.'); }
+  try { const r = await api('cambiar_clave', { actual: $('#k-actual').value, nueva: $('#k-nueva').value, equipo: leerEquipo() }); CFG.sesion = r.sesion; guardarCfg(); guardarEquipo(r.equipo); $('#dlg-clave').close(); toast('Clave guardada. Úsela la próxima vez que entre.'); }
   catch (err) { toast(err.message, 'error'); }
 });
 $('#b-clave').addEventListener('click', () => pedirClave(false));
@@ -1175,12 +1214,16 @@ function pintarUsuarios() {
   $('#u-segmento').value = prevSeg; ajustarGestiona();
   const torres = S.tablero ? S.tablero.torres.map(t => t.torre) : [];
   $('#u-torres-lista').innerHTML = ['TODAS'].concat(torres).map(t => '<option value="' + esc(t) + '">').join('');
+  if (r.aprobador) $('#u-aprobador').textContent = r.aprobador;
   $('#usuarios').innerHTML = r.usuarios.map(u => '<tr><td><b>' + esc(u.nombre) + '</b><br><span class="nota">' + esc(u.correo) + '</span>' +
     '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">' + (u.gerente && !esGerente ? '' : '<button class="btn chico" data-u-editar="' + esc(u.id) + '">Editar</button>') +
     (u.gerente && (u.id === (S.sistema && S.sistema.id) || !esGerente) ? '' : '<button class="btn chico" data-u-clave="' + esc(u.id) + '">Nueva clave</button>') +
+    (u.aprobacion !== 'aprobado' ? '<button class="btn chico" data-u-aprobacion="' + esc(u.id) + '">Reenviar aprobación</button>' : '') +
     (u.id === (S.sistema && S.sistema.id) || u.gerente || !elimina() ? '' : '<button class="btn chico peligro" data-u-eliminar="' + esc(u.id) + '">Eliminar</button>') + '</div></td>' +
     '<td><span class="chip ' + (u.gerente ? 'oro' : 'teal') + '">' + esc(u.segmento_nombre) + '</span>' + (u.gestiona_usuarios && !u.gerente ? '<br><span class="chip oro" style="margin-top:4px">Gestiona usuarios</span>' : '') + '</td><td>' + esc(u.torres_texto) + '</td><td>' +
-    (!u.activo ? '<span class="chip">Inactivo</span>' : u.bloqueado ? '<span class="chip rojo">Bloqueado</span>' : u.debe_cambiar ? '<span class="chip ambar">Clave temporal</span>' : '<span class="chip verde">Activo</span>') +
+    (!u.activo ? '<span class="chip">Inactivo</span>' : u.aprobacion === 'pendiente' ? '<span class="chip ambar">Espera aprobación</span>' : u.aprobacion === 'rechazado' ? '<span class="chip rojo">Sin aprobar</span>' :
+      u.bloqueado ? '<span class="chip rojo">Bloqueado</span>' : u.debe_cambiar ? '<span class="chip ambar">Clave temporal</span>' : '<span class="chip verde">Activo</span>') +
+    (u.aprobacion === 'pendiente' && u.aprobacion_enviada ? '<br><span class="nota">Correo enviado ' + esc(u.aprobacion_enviada) + '</span>' : '') +
     (u.ultimo_acceso ? '<br><span class="nota">Entró ' + fmtFH(u.ultimo_acceso) + '</span>' : '<br><span class="nota">Nunca ha entrado</span>') + '</td></tr>').join('');
   const m = r.matriz, sel = (k, sg) => '<select data-m="' + k + '|' + sg + '" class="nv' + m[k][sg] + '">' + NOMBRES_NIVEL.map((n, i) => '<option value="' + i + '"' + (m[k][sg] === i ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>';
   let grupo = '';
@@ -1205,8 +1248,8 @@ function mostrarTemporal(r) {
   $('#u-temp').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 $('#u-temp-copiar').addEventListener('click', async () => {
-  const t = 'Hola ' + $('#u-temp-nombre').textContent.split(' ')[0] + ', este es tu acceso al Portal Stili (Torres, Lobby, Finanzas y Nómina, según tus permisos).\nEntrada: ' + $('#u-temp-url').textContent + '\nUsuario: ' + $('#u-temp-correo').textContent +
-    '\nClave temporal: ' + $('#u-temp-clave').textContent + '\nAl entrar, el sistema te pedirá crear tu clave personal. No la compartas.';
+  const t = 'Hola ' + $('#u-temp-nombre').textContent.split(' ')[0] + ', este es tu acceso a Stili Soft (Torres, Lobby, Finanzas y Nómina, según tus permisos).\nEntrada: ' + $('#u-temp-url').textContent + '\nUsuario: ' + $('#u-temp-correo').textContent +
+    '\nClave temporal: ' + $('#u-temp-clave').textContent + '\nPodrás entrar cuando el Gerente General apruebe tu acceso. Al entrar te llegará un código de verificación a tu correo (o a tu Telegram si lo vinculas con el Bot de Torres) y el sistema te pedirá crear tu clave personal. No la compartas.';
   try { await navigator.clipboard.writeText(t); toast('Instrucciones copiadas.'); } catch (e) { toast('No se pudo copiar; cópielas a mano.', 'error'); }
 });
 $('#u-cancelar').addEventListener('click', () => editarUsuario(null));
@@ -1214,12 +1257,15 @@ $('#f-usuario').addEventListener('submit', async e => {
   e.preventDefault();
   const usuario = { id: $('#u-id').value, nombre: $('#u-nombre').value.trim(), correo: $('#u-correo').value.trim(), segmento: $('#u-segmento').value, torres: $('#u-torres').value.trim(), activo: $('#u-activo').checked, gestiona_usuarios: $('#u-gestiona').checked };
   try { const r = await api('usuario_guardar', { usuario }); S.usuarios = r; pintarUsuarios(); editarUsuario(null);
-    toast(usuario.id ? 'Usuario actualizado.' : 'Usuario creado.'); mostrarTemporal(r); } catch (err) { toast(err.message, 'error'); }
+    if (r.aviso) toast(r.aviso, 'error');
+    else toast((usuario.id ? 'Usuario actualizado.' : 'Usuario creado.') + (r.aprobacion_enviada ? ' Se envió el correo de aprobación a ' + r.aprobacion_enviada + '; no podrá entrar hasta que se apruebe.' : ''));
+    mostrarTemporal(r); } catch (err) { toast(err.message, 'error'); }
 });
 $('#usuarios').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
-  const u = S.usuarios.usuarios.find(x => x.id === (b.dataset.uEditar || b.dataset.uClave || b.dataset.uEliminar));
+  const u = S.usuarios.usuarios.find(x => x.id === (b.dataset.uEditar || b.dataset.uClave || b.dataset.uEliminar || b.dataset.uAprobacion));
   if (b.dataset.uEditar) return editarUsuario(u);
+  if (b.dataset.uAprobacion) { try { const r = await api('usuario_aprobacion_reenviar', { id: u.id }); S.usuarios = r; pintarUsuarios(); toast('Correo de aprobación enviado a ' + r.aprobacion_enviada + '. El enlace anterior ya no sirve.'); } catch (err) { toast(err.message, 'error'); } return; }
   if (b.dataset.uClave) { try { const r = await api('usuario_clave_nueva', { id: u.id }); S.usuarios = r; pintarUsuarios(); toast('Clave restablecida y sesiones cerradas.'); mostrarTemporal(r); } catch (err) { toast(err.message, 'error'); } return; }
   if (b.dataset.uEliminar) {
     if (!b.dataset.ok) { b.dataset.ok = '1'; b.textContent = '¿Eliminar a ' + u.nombre.split(' ')[0] + '?'; setTimeout(() => { delete b.dataset.ok; b.textContent = 'Eliminar'; }, 4000); return; }
@@ -1260,13 +1306,13 @@ $('#f-emp').addEventListener('submit', async e => {
 
 // ------------------------------------------------------------------ Ajustes
 function pintarAjustes() {
-  $('#c-url').value = CFG.url; $('#c-admin').value = CFG.admin; $('#c-paginas').value = CFG.paginas;
+  $('#c-url').value = CFG.url; $('#c-paginas').value = CFG.paginas;
   $('#c-demo-rol').hidden = !DEMO();
   $$('#c-demo-rol [data-rol]').forEach(b => { b.className = 'btn' + (b.dataset.rol === CFG.demoRol ? ' primario' : ''); });
 }
 $('#f-ajustes').addEventListener('submit', async e => {
   e.preventDefault();
-  CFG.url = $('#c-url').value.trim(); CFG.admin = $('#c-admin').value.trim(); CFG.paginas = $('#c-paginas').value.trim(); if (CFG.admin) CFG.sesion = ''; guardarCfg();
+  CFG.url = $('#c-url').value.trim(); CFG.admin = ''; CFG.paginas = $('#c-paginas').value.trim(); guardarCfg();
   if (!DEMO() && !CFG.sesion && !CFG.admin) { mostrarLogin(); return; }
   await cargarSistema(); $('#c-estado').textContent = S.sistema ? 'Conectado como ' + (S.sistema.rol === 'gerente' ? 'Gerente' : 'equipo') + ' · servicio v' + S.sistema.version + (S.sistema.checkin ? ' · hoja del Check-in enlazada' : ' · falta CHECKIN_SHEET_ID') : ''; pintarAjustes();
 });
@@ -1382,7 +1428,8 @@ const Demo = (() => {
     { id: 'U004', nombre: 'Lissette López', correo: 'lissette@stili.do', segmento: 'contabilidad', torres_texto: 'TODAS', activo: true, debe_cambiar: false, ultimo_acceso: H(26) }];
   const vistaUsuariosD = () => ({ segmentos: SEGMENTOS_D, niveles: ['Oculto', 'Ver', 'Profundizar', 'Editar'], matriz: JSON.parse(JSON.stringify(matrizD)),
     secciones: SECCIONES_D.map(({ clave, sistema, nombre, detalle }) => ({ clave, sistema, nombre, detalle })),
-    usuarios: usuariosD.map(u => Object.assign({}, u, { gerente: u.segmento === 'gerente', segmento_nombre: SEGMENTOS_D[u.segmento], bloqueado: false })) });
+    aprobador: 'rlarrauri@stili.com.do',
+    usuarios: usuariosD.map(u => Object.assign({ aprobacion: 'aprobado' }, u, { gerente: u.segmento === 'gerente', segmento_nombre: SEGMENTOS_D[u.segmento], bloqueado: false })) });
   const hostsD = [
     { id_host: 'H004', nombre: 'Carlos Peña', tipo: 'host', telefono: '829-555-2020', correo: 'carlos@correo.do', documento: '402-1234567-8', notas: '', estatus: 'aprobado', vinculado: true,
       unidades: [{ codigo: 'ESP17-5D', torre: 'Torre Esperilla 17', apto: '5D' }, { codigo: 'NIZA7-8B', torre: 'Torre Niza 7', apto: '8B' }] },
@@ -1414,9 +1461,10 @@ const Demo = (() => {
       case 'usuario_guardar': { if (!g) throw err('Solo el Gerente General puede hacer esto.', 'SOLO_GERENTE'); const u = d.usuario;
         if (!u.nombre || u.nombre.length < 3) throw err('Escriba el nombre completo.'); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(u.correo)) throw err('Escriba un correo válido: será su usuario.');
         if (usuariosD.some(x => x.id !== u.id && x.correo.toLowerCase() === u.correo.toLowerCase())) throw err('Ya existe un usuario con ese correo.', 'CONFLICTO');
-        let x = usuariosD.find(y => y.id === u.id), temporal = ''; if (!x) { x = { id: 'U00' + (usuariosD.length + 1), debe_cambiar: true, ultimo_acceso: '' }; usuariosD.push(x); temporal = 'kzmhqa7395'; }
+        let x = usuariosD.find(y => y.id === u.id), temporal = ''; if (!x) { x = { id: 'U00' + (usuariosD.length + 1), debe_cambiar: true, ultimo_acceso: '', aprobacion: 'pendiente', aprobacion_enviada: 'ahora' }; usuariosD.push(x); temporal = 'kzmhqa7395'; }
         Object.assign(x, { nombre: u.nombre, correo: u.correo.toLowerCase(), segmento: u.segmento, torres_texto: u.segmento === 'gerente' ? 'TODAS' : (u.torres || 'TODAS'), activo: u.activo !== false });
-        return Object.assign(vistaUsuariosD(), { clave_temporal: temporal, id: x.id }); }
+        return Object.assign(vistaUsuariosD(), { clave_temporal: temporal, id: x.id, aprobacion_enviada: temporal ? 'rlarrauri@stili.com.do' : '' }); }
+      case 'usuario_aprobacion_reenviar': { const x = usuariosD.find(y => y.id === d.id); x.aprobacion = 'pendiente'; x.aprobacion_enviada = 'ahora'; return Object.assign(vistaUsuariosD(), { aprobacion_enviada: 'rlarrauri@stili.com.do' }); }
       case 'usuario_clave_nueva': { const x = usuariosD.find(y => y.id === d.id); x.debe_cambiar = true; return Object.assign(vistaUsuariosD(), { clave_temporal: 'pwtrnc4826', id: x.id }); }
       case 'usuario_eliminar': { const i = usuariosD.findIndex(y => y.id === d.id); if (usuariosD[i].gerente) throw err('No puede eliminar su propio usuario.'); usuariosD.splice(i, 1); return vistaUsuariosD(); }
       case 'accesos_guardar': { Object.entries(d.matriz).forEach(([k, v]) => Object.assign(matrizD[k], v)); return vistaUsuariosD(); }
@@ -1525,7 +1573,8 @@ function prepararTorre() {
     $$('#docs > details').forEach(dt => { const m = dt.querySelector('.meta'); const t = m ? m.children[1].textContent.trim() : ''; if (t && t !== 'Todas las torres' && t !== TORRE) dt.hidden = true; });
   });
 }
-if (!DEMO() && !CFG.sesion && !CFG.admin) mostrarLogin(); else iniciar();
+if (CFG.admin) { CFG.admin = ''; guardarCfg(); }   // v2.5 · se borra cualquier código ADM- viejo guardado en este equipo
+if (!DEMO() && !CFG.sesion) mostrarLogin(); else iniciar();
 </script>
 </body>
 </html>

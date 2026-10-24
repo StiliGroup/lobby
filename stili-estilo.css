@@ -169,3 +169,18 @@ tr.det-tarea > td { background: var(--panel-2); }
 .hist-tarea ul { margin: 6px 0 0; padding-left: 18px; } .hist-tarea li { margin-bottom: 8px; font-size: 13px; }
 .orden-t { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
 details.nueva-tarea { margin: 0 0 12px; } details.nueva-tarea summary { cursor: pointer; font-weight: 600; color: var(--titulo); margin-bottom: 10px; }
+/* v2.4.1 · informe de conciliación imprimible y alerta de saldo sin explicar */
+.kpi.kpi-alerta b { color: var(--crit); }
+#impresion { display: none; }
+@media print {
+  body.imprimiendo > *:not(#impresion) { display: none !important; }
+  body.imprimiendo #impresion { display: block; color: #000; background: #fff; font: 11pt Montserrat, Arial, sans-serif; }
+  #impresion header { display: flex; gap: 16px; align-items: center; border-bottom: 3px solid #DCB40C; padding-bottom: 8px; margin-bottom: 12px; }
+  #impresion header img { height: 42px; }
+  #impresion h2 { font-size: 13pt; color: #003A75; margin: 16px 0 6px; }
+  #impresion table { width: 100%; border-collapse: collapse; font-size: 9.5pt; page-break-inside: auto; }
+  #impresion th, #impresion td { border: 1px solid #999; padding: 4px 6px; vertical-align: top; text-align: left; }
+  #impresion th { background: #E3E8F4; } #impresion td.num { text-align: right; white-space: nowrap; }
+  #impresion tr { page-break-inside: avoid; }
+  #impresion .firmas { display: flex; gap: 24px; margin-top: 48px; } #impresion .firmas div { flex: 1; border-top: 1px solid #000; padding-top: 4px; font-size: 9pt; }
+}

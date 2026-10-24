@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tareas por gestor · Stili</title>
+<title>Tareas por gestor · Stili Soft</title>
 <meta name="description" content="Tareas que recibe y cierra cada gestor por mes, a partir de los levantamientos de las torres.">
 <meta name="theme-color" content="#003A75">
 <link rel="icon" href="portal/favicon.png">
@@ -305,7 +305,7 @@ function demo(n) {
   return { meses, categorias: { mantenimiento: 'Mantenimiento', limpieza: 'Limpieza', personal: 'Personal', compras: 'Compras y suministros', seguridad: 'Seguridad', administrativo: 'Administrativo', otro: 'Otro' },
     gestores: [g('Mildred Pérez', ['Gil Roma XXXII', 'Torre Arpel 07', 'Apex Arroyo Hondo'], [12, 3, 6.5, 3]), g('Reyna Martínez', ['Los Hernandez VII', 'Torre Niza 7'], [7, 0, 4.2, 9])] };
 }
-if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'torres'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Tareas por gestor</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en el Portal Stili</a></div>'; }
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'torres'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Tareas por gestor</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>'; }
 else { StiliModulos.montar(document.body, 'torres'); cambiarVista(); }
 </script>
 </body>
