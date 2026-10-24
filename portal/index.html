@@ -290,7 +290,7 @@ function pintarPortal(r) {
     if (a.torres) h += tile('🏢', 'Torres', 'Todo de cada torre: reclamaciones, finanzas y presupuesto, proveedores y contratos, apartamentos, personal, Junta y reglamentos.', 'href="../torres.html"');
     if (lobby) h += tile('🛎', 'Lobby', 'El día a día de portería: tablero, buscar apartamento, hosts y renta corta, solicitudes por revisar y lista negra.', 'href="../admin.html?m=lobby"');
     if (fin) h += tile('📊', 'Finanzas', 'Semáforo de todas las torres: presupuesto vs real, cobranza, liquidez y alerta temprana.', 'href="../presupuesto.html"');
-    if (a.nomina) h += tile('💼', 'Nómina y RRHH', 'Empleados, novedades, nóminas, licencias, vacaciones y reportes legales. Se abre en otra pestaña.', 'href="#" data-nomina="1"', 'oro');
+    if (a.nomina) h += tile('💼', 'Nómina y RRHH', 'Empleados, cubre turnos, novedades, nóminas, licencias, vacaciones y reportes legales.', 'href="#" data-nomina="1"', 'oro');
     else if (a.nomina_permiso && !a.nomina_configurada) h += tile('💼', 'Nómina y RRHH', 'Falta la dirección de la Nómina (URL_NOMINA en la pestaña Config).', 'href="#" data-sin="1"', 'oro');
     if (admin) h += tile('⚙️', 'Administración', 'Usuarios y permisos' + (a.papelera ? ', papelera' : '') + ' y ajustes del sistema.', 'href="../admin.html?m=admin"');
     h += tile('🙋', 'Mi espacio', 'Mis datos, mi firma de correo, foto de WhatsApp y tarjeta, y los descargables de la marca (logos, hoja timbrada, plantillas).', 'href="#mi" data-mi="1"');
@@ -308,7 +308,7 @@ function pintarMi(u, a) {
   const torres = (u.torres || []).join(', ');
   $('#mi-perfil').textContent = [...new Set([u.nombre, u.cargo, u.segmento_nombre, u.correo, torres && torres !== 'TODAS' ? 'Torres: ' + torres : 'Todas las torres'].filter(Boolean))].join(' · ');
   let h = '';
-  if (a.mi_imagen) h += tile('🪪', 'Mi firma, WhatsApp y tarjeta', 'Su firma de correo, su foto de perfil de WhatsApp y su tarjeta de presentación oficiales, listas para descargar. Se abre en la Nómina.', 'href="#" data-nomina="/mi-imagen"', 'oro');
+  if (a.mi_imagen) h += tile('🪪', 'Mi firma, WhatsApp y tarjeta', 'Su firma de correo, su foto de perfil de WhatsApp y su tarjeta de presentación oficiales, listas para descargar.', 'href="#" data-nomina="/mi-imagen"', 'oro');
   h += tile('🔑', 'Cambiar mi clave', 'La misma clave sirve para el Portal, la Nómina y el Panel.', 'href="#" data-clave="1"');
   $('#mi-tiles').innerHTML = h;
 }
@@ -324,13 +324,12 @@ document.addEventListener('click', async e => {
   if (t.dataset.sin) { e.preventDefault(); return toast('La dirección de la Nómina no está configurada todavía.', 'error'); }
   if (t.dataset.nomina) {
     e.preventDefault();
-    const ventana = window.open('', '_blank');   // se abre ya, para que el navegador no la bloquee
+    // v2.4 · una sola pantalla: la Nómina se abre aquí mismo (su menú tiene «← Inicio del Portal»)
     try {
       const r = await api('sso_ticket');
       if (!r.url_nomina) throw new Error('La dirección de la Nómina no está configurada (URL_NOMINA en la pestaña Config).');
-      const url = r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket) + (t.dataset.nomina.startsWith('/') ? '&ir=' + encodeURIComponent(t.dataset.nomina) : '');
-      if (ventana) ventana.location = url; else location.href = url;
-    } catch (err) { if (ventana) ventana.close(); toast(err.message, 'error'); }
+      location.href = r.url_nomina.replace(/\/$/, '') + '/sso?ticket=' + encodeURIComponent(r.ticket) + (t.dataset.nomina.startsWith('/') ? '&ir=' + encodeURIComponent(t.dataset.nomina) : '');
+    } catch (err) { toast(err.message, 'error'); }
   }
 });
 
