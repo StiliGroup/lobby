@@ -184,3 +184,47 @@ details.nueva-tarea { margin: 0 0 12px; } details.nueva-tarea summary { cursor: 
   #impresion tr { page-break-inside: avoid; }
   #impresion .firmas { display: flex; gap: 24px; margin-top: 48px; } #impresion .firmas div { flex: 1; border-top: 1px solid #000; padding-top: 4px; font-size: 9pt; }
 }
+
+/* v2.6 · Cuentas por Pagar */
+.subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.subtabs .btn[aria-selected="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+.subtabs .n { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--crit); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.alertas-cxp { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.alertas-cxp li { padding: 6px 10px; border-radius: 8px; border-left: 4px solid var(--line); background: var(--panel-2); font-size: 14px; }
+.alertas-cxp li.al-rojo { border-left-color: var(--crit); background: var(--crit-suave); }
+.alertas-cxp li.al-ambar { border-left-color: var(--warn); background: var(--warn-suave); }
+.alertas-cxp li.al-azul { border-left-color: var(--banda); background: var(--azul-suave); }
+.alertas-cxp.chicas li { font-size: 12px; padding: 3px 6px; }
+#cxp td select, #cxp td input { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); max-width: 170px; }
+#dlg-cxp { max-width: 640px; width: calc(100% - 32px); border: 0; border-radius: var(--r); padding: 18px; background: var(--panel); color: var(--fg); }
+#dlg-cxp::backdrop { background: rgba(0,0,0,.4); }
+@page horizontal { size: letter landscape; margin: 11mm 12mm; }
+@media print {
+  #impresion { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #impresion.horizontal { page: horizontal; }
+  /* Relación de pagos: minimalista, sin rellenos, solo líneas finas */
+  #impresion.relacion { font: 9.5pt/1.45 Montserrat, Arial, sans-serif; color: #1b2430; }
+  #impresion.relacion header { border-bottom: 1px solid #C9A227; padding-bottom: 10px; margin-bottom: 6px; align-items: flex-end; }
+  #impresion.relacion header img { height: 34px; }
+  #impresion.relacion header .tit { display: flex; flex-direction: column; } #impresion.relacion header .tit span { font-size: 8pt; letter-spacing: .14em; text-transform: uppercase; color: #6b7480; }
+  #impresion.relacion header .tit b { font-size: 15pt; font-weight: 600; color: #003A75; }
+  #impresion.relacion header .der { margin-left: auto; text-align: right; color: #4a5562; }
+  #impresion.relacion .meta { color: #6b7480; font-size: 8pt; margin: 0 0 14px; }
+  #impresion.relacion .cifras { display: flex; gap: 40px; margin: 0 0 16px; }
+  #impresion.relacion .cifras div { display: flex; flex-direction: column; } #impresion.relacion .cifras span { font-size: 7.5pt; letter-spacing: .1em; text-transform: uppercase; color: #6b7480; }
+  #impresion.relacion .cifras b { font-size: 13pt; font-weight: 600; color: #1b2430; } #impresion.relacion .cifras small { color: #6b7480; font-size: 7.5pt; }
+  #impresion.relacion table.det { width: 100%; border-collapse: collapse; font-size: 8.8pt; }
+  #impresion.relacion table.det th { background: none !important; border: 0; border-bottom: 1px solid #1b2430; font-size: 7.3pt; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #4a5562; padding: 6px 8px; text-align: left; }
+  #impresion.relacion table.det td { border: 0; border-bottom: 1px solid #E4E8EC; padding: 6px 8px; vertical-align: top; }
+  #impresion.relacion table.det .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #impresion.relacion table.det td.n, #impresion.relacion table.det th.n { color: #9aa3ad; width: 18px; }
+  #impresion.relacion table.det .t { color: #6b7480; font-size: 8pt; white-space: nowrap; }
+  #impresion.relacion tr.grupo td { border-bottom: 0; padding: 14px 8px 4px; font-size: 7.5pt; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #003A75; }
+  #impresion.relacion tr.subtotal td { border-bottom: 0; color: #4a5562; font-size: 8pt; padding-top: 4px; } #impresion.relacion tr.subtotal td.num { border-top: 1px solid #b8c0c8; font-weight: 600; color: #1b2430; }
+  #impresion.relacion tr.total td { border-top: 2px solid #1b2430; border-bottom: 0; padding-top: 8px; font-weight: 700; font-size: 10pt; background: none !important; color: #1b2430 !important; }
+  #impresion.relacion h2 { font-size: 7.5pt; letter-spacing: .12em; text-transform: uppercase; color: #003A75; font-weight: 600; margin: 18px 0 6px; }
+  #impresion.relacion ul.obs { margin: 0; padding-left: 16px; color: #4a5562; font-size: 8.5pt; }
+  #impresion.relacion ol.anexos { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 32px; font-size: 8.5pt; } #impresion.relacion ol.anexos li { break-inside: avoid; padding: 2px 0; }
+  #impresion.relacion ol.anexos span { display: inline-block; width: 38px; color: #9aa3ad; }
+  #impresion.relacion .firmas { margin-top: 56px; gap: 48px; } #impresion.relacion .firmas div { border-top: 1px solid #1b2430; font-size: 8pt; color: #4a5562; }
+}

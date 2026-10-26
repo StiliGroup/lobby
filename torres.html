@@ -114,11 +114,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') abrirLista(f
 // ------------------------------------------------------------------ Secciones de la torre
 // v2.1 · en el orden en que más se usan. Apartamentos, Personal y Reglamentos se trajeron del Lobby.
 const SECCIONES = [
-  ['reclamaciones', 'Reclamaciones y comunicados'], ['tareas', 'Tareas y levantamientos'], ['pedidos', 'Pedidos de limpieza'], ['finanzas', 'Finanzas y presupuesto'], ['proveedores', 'Proveedores y contratos'],
+  ['reclamaciones', 'Reclamaciones y comunicados'], ['tareas', 'Tareas y levantamientos'], ['pedidos', 'Pedidos de limpieza'], ['finanzas', 'Finanzas y presupuesto'], ['cxp', 'Cuentas por pagar'], ['proveedores', 'Proveedores y contratos'],
   ['apartamentos', 'Apartamentos'], ['personal', 'Personal del lobby'], ['junta', 'Junta Directiva'], ['accesos', 'Accesos y servicios'],
   ['documentos', 'Reglamentos y documentos'], ['general', 'Generales y legales'], ['historial', 'Notas e historial'],
 ];
-const CORTO = { reclamaciones: 'Reclamaciones', tareas: 'Tareas', pedidos: 'Pedidos', finanzas: 'Finanzas', proveedores: 'Proveedores', apartamentos: 'Apartamentos', personal: 'Personal', junta: 'Junta',
+const CORTO = { reclamaciones: 'Reclamaciones', tareas: 'Tareas', pedidos: 'Pedidos', finanzas: 'Finanzas', cxp: 'Por pagar', proveedores: 'Proveedores', apartamentos: 'Apartamentos', personal: 'Personal', junta: 'Junta',
   accesos: 'Accesos', documentos: 'Reglamentos', general: 'Generales', historial: 'Historial' };   // en el teléfono
 const SECCION_VIEJA = { presupuesto: 'finanzas', contratos: 'proveedores', comunicados: 'reclamaciones', empleados: 'personal', notas: 'historial' };
 const lobby = () => (S.lista && S.lista.lobby) || {};
@@ -128,6 +128,7 @@ function tieneSeccion(k, d) {
   if (k === 'tareas') return !!(S.lista && S.lista.tareas > 0);
   if (k === 'pedidos') return !!(S.lista && S.lista.pedidos > 0);
   if (k === 'finanzas') return ficha || !!(S.lista && (S.lista.finanzas || S.lista.presupuesto));
+  if (k === 'cxp') return !!(S.lista && S.lista.finanzas);
   if (k === 'apartamentos') return lobby().apartamentos > 0;
   if (k === 'personal') return lobby().personal > 0 || (ficha && d.empleados.length > 0);
   if (k === 'documentos') return true;
@@ -197,6 +198,7 @@ function pintarSeccion() {
     'Todavía no hay proveedores registrados para esta torre.') + '</div>';
   if (k === 'tareas') h = '<div id="tar"><p class="nota">Cargando tareas…</p></div>';
   if (k === 'pedidos') h = '<div id="ped"><p class="nota">Cargando pedidos…</p></div>';
+  if (k === 'cxp') h = '<div id="cxp"><p class="nota">Cargando cuentas por pagar…</p></div>';
   if (k === 'apartamentos') h = marco('torres', 'Apartamentos del lobby');
   if (k === 'personal') h = lobby().personal > 0 ? marco('personal', 'Personal del lobby') : '<div class="card"><h2>Personal del lobby · ' + d.empleados.length + '</h2>' + tabla(['Nombre', 'Puesto', 'Cédula'],
     d.empleados.map(e => '<tr><td><b>' + esc(e.nombre) + '</b></td><td>' + esc(e.puesto) + '</td><td>' + esc(e.documento) + '</td></tr>'), 'No hay empleados asignados a esta torre.') +
@@ -220,6 +222,7 @@ function pintarSeccion() {
   $('#seccion').innerHTML = h;
   if (k === 'tareas') cargarTareas();
   if (k === 'pedidos') cargarPedidos();
+  if (k === 'cxp') cargarCxp();
   if (k === 'finanzas' && S.lista.finanzas) cargarFinanzas();
   if (k === 'finanzas' && S.lista.presupuesto) cargarPresupuesto();
 }
@@ -358,6 +361,334 @@ async function leerArchivo(f) {
   }
   return out;
 }
+// ------------------------------------------------------------------ Cuentas por Pagar (v2.6): relaciones con soportes, recurrentes, banco del mes anterior, cheques y transferencias
+const CXP_TABS = [['relaciones', 'Relaciones'], ['pagos', 'Pagos del mes'], ['recurrentes', 'Recurrentes'], ['banco', 'Banco del mes anterior'], ['cheques', 'Cheques'], ['historial', 'Historial']];
+const CXP_COLOR = { pendiente: 'ambar', aprobada: 'azul', pagada: 'verde', anulada: '', borrador: 'ambar', propuesto: 'ambar', validado: 'verde', descartado: '', pausado: '' };
+const CXP_REL_EST = { borrador: 'Por aprobar', aprobada: 'Aprobada', pagada: 'Pagada' };
+const CXP_REC_EST = { propuesto: 'Por validar', validado: 'Validado', descartado: 'Descartado', pausado: 'Pausado' };
+const PDFLIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+const mesAnterior = p => { const [a, m] = p.split('-').map(Number); const d = new Date(a, m - 2, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+const nombreMes = p => { const M = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']; return /^\d{4}-\d{2}$/.test(p || '') ? M[Number(p.slice(5)) - 1] + ' ' + p.slice(0, 4) : (p || ''); };
+async function cargarCxp(periodo) {
+  S.cxpPer = periodo || S.cxpPer || new Date().toISOString().slice(0, 7);
+  try { S.cxp = await api('cxp_datos', { torre: S.torre, periodo: S.cxpPer }); pintarCxp(); }
+  catch (err) { const el = $('#cxp'); if (el) el.innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
+}
+function alertaCxp(a) { return '<li class="al-' + (a.nivel || 'azul') + '">' + esc(a.texto) + '</li>'; }
+function pintarCxp() {
+  const c = S.cxp, el = $('#cxp'); if (!el || !c) return;
+  const tab = S.cxpTab || 'relaciones';
+  const pend = c.partidas.filter(p => p.periodo === c.periodo && p.estado === 'pendiente').length;
+  const porVal = c.recurrentes.filter(r => r.estado === 'propuesto').length;
+  el.innerHTML = '<div class="card"><div class="cab"><h2>Cuentas por pagar · ' + esc(nombreMes(c.periodo)) + '</h2><label class="nota" style="display:flex;gap:8px;align-items:center">Mes de pago <input type="month" id="cxp-per" value="' + esc(c.periodo) + '"></label></div>' +
+    (c.alertas.length ? '<ul class="alertas-cxp">' + c.alertas.map(alertaCxp).join('') + '</ul>' : '<p class="nota" style="margin:0">Sin alertas este mes.</p>') +
+    '<div class="subtabs" role="tablist">' + CXP_TABS.map(([k, n]) => '<button type="button" class="btn" role="tab" data-cxp-tab="' + k + '" aria-selected="' + (tab === k) + '">' + esc(n) +
+      (k === 'pagos' && pend ? ' <span class="n">' + pend + '</span>' : '') + (k === 'recurrentes' && porVal ? ' <span class="n">' + porVal + '</span>' : '') + (k === 'cheques' && c.saltados.length ? ' <span class="n">!</span>' : '') + '</button>').join('') + '</div></div>' +
+    ({ relaciones: cxpRelaciones, pagos: cxpPagos, recurrentes: cxpRecurrentes, banco: cxpBanco, cheques: cxpCheques, historial: cxpHistorial }[tab] || cxpRelaciones)(c);
+}
+function cxpRelaciones(c) {
+  const mes = c.periodo;
+  return (c.puede_editar ? '<div class="card"><h2>Cargar una relación de pagos</h2><form class="form" id="f-cxp-rel">' +
+      '<label>Mes de pago<input type="month" name="periodo" value="' + esc(mes) + '" required></label><label>Nombre (opcional)<input name="titulo" placeholder="Ej.: Relación 2.ª quincena"></label>' +
+      '<label class="ancho subida">Relación (Excel, PDF o foto)<input type="file" name="relacion" accept=".pdf,.xlsx,.xls,.csv,image/*" required></label>' +
+      '<label class="ancho subida">Soportes: facturas, cotizaciones, órdenes (puede elegir varios)<input type="file" name="soportes" accept=".pdf,image/*,.xlsx,.xls" multiple></label>' +
+      '<div class="acciones-fila ancho"><button class="btn primario"' + (c.ia ? '' : ' disabled') + '>Subir y leer con IA</button>' + (c.ia ? '' : '<span class="nota">Falta la clave de la IA en el servicio (Gerencia).</span>') + '</div></form>' +
+      '<p class="nota">La IA lee cada pago, enlaza su soporte, revisa duplicados contra lo ya relacionado y contra el banco, y propone los pagos recurrentes. Usted revisa y aprueba.</p></div>' : '') +
+    '<div class="card"><h2>Relaciones · ' + c.relaciones.length + '</h2>' + tabla(['Relación', 'Mes', 'Pagos', 'Total', 'Estado', ''], c.relaciones.map(r => '<tr><td><b>' + esc(r.titulo) + '</b><br><small>' +
+      esc(r.creada_por) + ' · ' + esc(r.creada_en) + (r.archivos.length ? ' · ' + r.archivos.length + ' documento' + (r.archivos.length === 1 ? '' : 's') : '') + '</small>' +
+      (r.observaciones.length ? '<br><small class="nota">' + r.observaciones.map(esc).join(' · ') + '</small>' : '') + '</td><td>' + esc(nombreMes(r.periodo)) + '</td><td class="num">' + r.partidas +
+      '</td><td class="num"><b>' + dinero2(r.total) + '</b></td><td><span class="chip ' + (CXP_COLOR[r.estado] || '') + '">' + esc(CXP_REL_EST[r.estado] || r.estado) + '</span>' + (r.aprobada_por ? '<br><small>' + esc(r.aprobada_por) + '</small>' : '') +
+      '</td><td><div class="acciones-fila"><button type="button" class="btn" data-cxp-ver="' + esc(r.id) + '">Ver pagos</button><button type="button" class="btn" data-cxp-imprimir="' + esc(r.id) + '">Imprimir relación</button>' +
+      (r.archivos.length ? '<button type="button" class="btn" data-cxp-pdf="' + esc(r.id) + '">PDF de soportes</button>' : '') +
+      (c.puede_editar && r.estado === 'borrador' ? '<button type="button" class="btn primario" data-cxp-rel="aprobar" data-id="' + esc(r.id) + '">Aprobar</button>' : '') +
+      (c.puede_editar && r.estado === 'aprobada' ? '<button type="button" class="btn primario" data-cxp-rel="pagada" data-id="' + esc(r.id) + '">Marcar pagada</button>' : '') + '</div></td></tr>'),
+      'Todavía no hay relaciones. Cargue la primera arriba.') + '</div>';
+}
+function formaPago(p, c) {
+  if (!c.puede_editar || p.estado === 'pagada' || p.estado === 'anulada') return esc(p.forma_pago === 'cheque' ? 'Cheque n.º ' + (p.cheque || '—') : p.forma_pago === 'transferencia' ? 'Transferencia' + (p.cuenta_destino ? ' · ' + p.banco_destino + ' ' + p.cuenta_destino : '') : '—');
+  return '<select data-cxp-campo="forma_pago" data-id="' + esc(p.id) + '" aria-label="Forma de pago"><option value="">Elegir…</option><option value="cheque"' + (p.forma_pago === 'cheque' ? ' selected' : '') + '>Cheque</option>' +
+    '<option value="transferencia"' + (p.forma_pago === 'transferencia' ? ' selected' : '') + '>Transferencia</option></select>' +
+    (p.forma_pago === 'cheque' ? '<input data-cxp-campo="cheque" data-id="' + esc(p.id) + '" value="' + esc(p.cheque) + '" placeholder="N.º ' + esc(c.siguiente_cheque) + '" inputmode="numeric" aria-label="Número de cheque" style="width:90px;margin-top:4px">' : '') +
+    (p.forma_pago === 'transferencia' ? '<input data-cxp-campo="banco_destino" data-id="' + esc(p.id) + '" value="' + esc(p.banco_destino) + '" placeholder="Banco" aria-label="Banco de destino" style="margin-top:4px">' +
+      '<input data-cxp-campo="cuenta_destino" data-id="' + esc(p.id) + '" value="' + esc(p.cuenta_destino) + '" placeholder="Cuenta" inputmode="numeric" aria-label="Cuenta de destino" style="margin-top:4px">' : '');
+}
+function cxpPagos(c) {
+  const rel = S.cxpRel && c.relaciones.find(r => r.id === S.cxpRel);
+  const lista = c.partidas.filter(p => rel ? p.relacion_id === rel.id : p.periodo === c.periodo);
+  const sop = id => c.archivos.find(a => a.id === id) || (rel && rel.archivos.find(a => a.id === id));
+  const total = lista.filter(p => p.estado !== 'anulada').reduce((s, p) => s + (p.monto || 0), 0);
+  const tr = lista.filter(p => p.forma_pago === 'transferencia' && ['aprobada', 'pagada'].includes(p.estado));
+  return '<div class="card"><div class="cab"><h2>' + (rel ? esc(rel.titulo) : 'Pagos de ' + esc(nombreMes(c.periodo))) + ' · ' + dinero2(total) + '</h2><span class="acciones-fila">' +
+      (rel ? '<button type="button" class="btn" data-cxp-ver="">Ver todo el mes</button>' : '') + (c.puede_editar ? '<button type="button" class="btn" data-cxp-nueva>+ Agregar pago</button>' : '') + '</span></div>' +
+    tabla(['Beneficiario', 'Concepto', 'Monto', 'Forma de pago', 'Soporte', 'Estado y alertas', ''], lista.map(p => '<tr' + (p.estado === 'anulada' ? ' class="cerrada"' : '') + '><td><b>' + esc(p.suplidor || '(sin nombre)') + '</b>' +
+      (p.rnc ? '<br><small>RNC ' + esc(p.rnc) + '</small>' : '') + '<br><small class="nota">' + esc(p.categoria) + (p.origen === 'recurrente' ? ' · recurrente' : p.origen === 'nomina' ? ' · desde Nómina' : '') + '</small></td><td>' + esc(p.concepto) +
+      (p.ncf ? '<br><small>NCF ' + esc(p.ncf) + '</small>' : '') + (p.factura_fecha ? '<br><small>Factura ' + esc(p.factura_fecha) + '</small>' : '') + '</td><td class="num">' +
+      (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<input data-cxp-campo="monto" data-id="' + esc(p.id) + '" value="' + esc(p.monto) + '" inputmode="decimal" aria-label="Monto" style="width:110px;text-align:right">' : '<b>' + dinero2(p.monto) + '</b>') +
+      '</td><td>' + formaPago(p, c) + '</td><td>' + (p.soportes.length ? p.soportes.map(id => { const a = sop(id); return a ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" data-visor>' + esc(a.nombre) + '</a>' : ''; }).join('<br>') : '<span class="nota">—</span>') +
+      (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) && c.archivos.some(a => a.tipo === 'soporte') ? '<br><select data-cxp-soporte data-id="' + esc(p.id) + '" aria-label="Agregar soporte"><option value="">+ Soporte…</option>' +
+        c.archivos.filter(a => a.tipo === 'soporte' && !p.soportes.includes(a.id)).slice(0, 60).map(a => '<option value="' + esc(a.id) + '">' + esc(a.periodo + ' · ' + a.nombre) + '</option>').join('') + '</select>' : '') +
+      '</td><td><span class="chip ' + (CXP_COLOR[p.estado] || '') + '">' + esc(c.estados[p.estado] || p.estado) + '</span>' + (p.aprobado_por ? '<br><small>' + esc(p.aprobado_por) + '</small>' : '') +
+      (p.alertas.length ? '<ul class="alertas-cxp chicas">' + p.alertas.map(alertaCxp).join('') + '</ul>' : '') + '</td><td><div class="acciones-fila">' +
+      (c.puede_editar && p.estado === 'pendiente' ? '<button type="button" class="btn primario" data-cxp-op="aprobar" data-id="' + esc(p.id) + '">Aprobar</button>' : '') +
+      (c.puede_editar && p.estado === 'aprobada' ? '<button type="button" class="btn primario" data-cxp-op="pagada" data-id="' + esc(p.id) + '">Pagada</button>' : '') +
+      (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<button type="button" class="btn" data-cxp-editar="' + esc(p.id) + '">Editar</button><button type="button" class="btn" data-cxp-op="anular" data-id="' + esc(p.id) + '">Anular</button>' : '') +
+      (c.gerente && ['aprobada', 'pagada'].includes(p.estado) ? '<button type="button" class="btn" data-cxp-op="reabrir" data-id="' + esc(p.id) + '">Reabrir</button>' : '') + '</div></td></tr>'),
+      'No hay pagos en ' + esc(nombreMes(c.periodo)) + '.') + '</div>' +
+    '<div class="card"><div class="cab"><h2>Transferencias aprobadas · ' + tr.length + ' · ' + dinero2(tr.reduce((s, p) => s + (p.monto || 0), 0)) + '</h2>' +
+      (tr.length ? '<button type="button" class="btn" data-cxp-csv>Descargar listado (CSV)</button>' : '') + '</div>' +
+      tabla(['Beneficiario', 'RNC', 'Banco', 'Cuenta', 'Concepto', 'Monto'], tr.map(p => '<tr><td>' + esc(p.suplidor) + '</td><td>' + esc(p.rnc) + '</td><td>' + esc(p.banco_destino) + '</td><td>' + esc(p.cuenta_destino) +
+        '</td><td>' + esc(p.concepto) + '</td><td class="num">' + dinero2(p.monto) + '</td></tr>'), 'Las transferencias aparecen aquí al aprobarlas.') +
+      '<p class="nota">Cuenta de la torre: ' + (c.cuenta ? esc(c.cuenta.banco + ' · ' + c.cuenta.tipo + ' · ' + c.cuenta.cuenta) : 'sin registrar (pestaña «Banco del mes anterior»)') +
+      '. La planilla en el formato de cada banco (Popular, BHD, Banreservas, BDI) para subirla directo se agregará cuando tengamos el modelo de cada banco.</p></div>';
+}
+function cxpRecurrentes(c) {
+  const orden = { propuesto: 0, validado: 1, pausado: 2, descartado: 3 };
+  const l = c.recurrentes.slice().sort((a, b) => (orden[a.estado] - orden[b.estado]) || (a.suplidor > b.suplidor ? 1 : -1));
+  return '<div class="card"><div class="cab"><h2>Cotejo de pagos recurrentes · ' + l.length + '</h2><button type="button" class="btn" data-cxp-cotejo>Imprimir cotejo</button></div>' +
+    '<p class="nota" style="margin-top:0">El sistema los detecta en las relaciones. Valide cada uno: los validados y automáticos se generan solos cada mes en la relación abierta y quedan «por aprobar». ' +
+    'Si un recurrente no tiene su solicitud el día ' + 10 + ' del mes (o el día que usted fije), sale una alerta.</p>' +
+    tabla(['Suplidor', 'Servicio', 'Frecuencia', 'Monto', 'Visto en', 'Forma de pago', 'Estado', ''], l.map(r => '<tr' + (['descartado', 'pausado'].includes(r.estado) ? ' class="cerrada"' : '') + '><td><b>' + esc(r.suplidor) + '</b>' +
+      (r.rnc ? '<br><small>RNC ' + esc(r.rnc) + '</small>' : '') + '<br><small class="nota">' + esc(r.fuente) + '</small></td><td>' + esc(r.categoria) + '<br><small>' + esc(r.concepto) + '</small></td><td>' +
+      (c.puede_editar ? '<select data-cxp-rec-campo="frecuencia" data-id="' + esc(r.id) + '" aria-label="Frecuencia">' + c.frecuencias.map(f => '<option' + (f === r.frecuencia ? ' selected' : '') + '>' + f + '</option>').join('') + '</select>' +
+        '<br><small>Día <input data-cxp-rec-campo="dia" data-id="' + esc(r.id) + '" value="' + esc(r.dia) + '" placeholder="10" inputmode="numeric" style="width:48px" aria-label="Día del mes"></small>' : esc(r.frecuencia)) + '</td><td class="num">' +
+      (c.puede_editar ? '<input data-cxp-rec-campo="monto" data-id="' + esc(r.id) + '" value="' + esc(r.monto) + '" inputmode="decimal" style="width:110px;text-align:right" aria-label="Monto">' : dinero2(r.monto)) +
+      (r.variable ? '<br><small class="nota">varía cada mes</small>' : '') + '</td><td><small>' + (r.montos_vistos ? r.montos_vistos.split(';').map(x => { const [m, v] = x.split(':'); return esc(nombreMes(m)) + ': ' + dinero2(Number(v)); }).join('<br>') : esc(r.meses_vistos.join(', '))) +
+      '</small></td><td>' + (c.puede_editar ? '<select data-cxp-rec-campo="forma_pago" data-id="' + esc(r.id) + '" aria-label="Forma de pago"><option value="">—</option><option value="cheque"' + (r.forma_pago === 'cheque' ? ' selected' : '') + '>Cheque</option><option value="transferencia"' +
+        (r.forma_pago === 'transferencia' ? ' selected' : '') + '>Transferencia</option></select>' : esc(r.forma_pago)) + '</td><td><span class="chip ' + (CXP_COLOR[r.estado] || '') + '">' + esc(CXP_REC_EST[r.estado] || r.estado) + '</span>' +
+      (r.estado === 'validado' ? '<br><label class="chk" style="flex-direction:row;gap:6px;font-size:13px"><input type="checkbox" data-cxp-auto="' + esc(r.id) + '"' + (r.automatico ? ' checked' : '') + (c.puede_editar ? '' : ' disabled') + ' style="width:auto"> Automático</label>' : '') +
+      (r.validado_por ? '<br><small>' + esc(r.validado_por) + ' · ' + esc(r.validado_en) + '</small>' : '') + '</td><td><div class="acciones-fila">' + (c.puede_editar ? (r.estado === 'propuesto' || r.estado === 'descartado' ? '<button type="button" class="btn primario" data-cxp-rec="validar" data-id="' + esc(r.id) + '">Validar</button>' : '') +
+        (r.estado === 'propuesto' ? '<button type="button" class="btn" data-cxp-rec="descartar" data-id="' + esc(r.id) + '">No es recurrente</button>' : '') + (r.estado === 'validado' ? '<button type="button" class="btn" data-cxp-rec="pausar" data-id="' + esc(r.id) + '">Pausar</button>' : '') +
+        (r.estado === 'pausado' ? '<button type="button" class="btn" data-cxp-rec="reanudar" data-id="' + esc(r.id) + '">Reanudar</button>' : '') : '') + '</div></td></tr>'), 'Todavía no hay recurrentes: aparecen al cargar relaciones de dos meses o cuando la IA reconoce un servicio fijo.') + '</div>';
+}
+function cxpBanco(c) {
+  const ant = mesAnterior(c.periodo);
+  return '<div class="card"><h2>Banco del mes anterior (' + esc(nombreMes(ant)) + ')</h2><p class="nota" style="margin-top:0">Se leen los débitos del banco y se cotejan con los pagos por aprobar: si un pago ya salió del banco, sale una alerta roja y no se aprueba en lote. ' +
+      'Si el estado ya se subió en Finanzas, elíjalo de la lista: no hay que volver a subirlo.</p>' +
+    (c.puede_editar ? '<form class="form" id="f-cxp-banco"><label class="ancho">Estado bancario ya subido<select name="archivo"><option value="">— Subir uno nuevo —</option>' +
+      c.estados_banco.map(e => '<option value="' + esc(e.id) + '" data-per="' + esc(e.periodo) + '"' + (e.periodo === ant ? ' selected' : '') + '>' + esc(nombreMes(e.periodo) + ' · ' + e.nombre) + (e.cargado ? ' (ya leído)' : '') + '</option>').join('') + '</select></label>' +
+      '<label>Mes del estado<input type="month" name="periodo" value="' + esc(ant) + '"></label><label class="subida">O suba el estado (PDF, Excel o foto)<input type="file" name="nuevo" accept=".pdf,.xlsx,.xls,.csv,image/*"></label>' +
+      '<label class="chk ancho" style="flex-direction:row"><input type="checkbox" name="reemplazar" style="width:auto"> Volver a leerlo aunque ya esté cargado</label>' +
+      '<div class="acciones-fila ancho"><button class="btn primario"' + (c.ia ? '' : ' disabled') + '>Leer y cotejar</button></div></form>' : '') + '</div>' +
+    '<div class="card"><h2>Débitos del banco · ' + c.banco.movimientos.length + '</h2>' + tabla(['Mes', 'Fecha', 'Referencia', 'Descripción', 'Monto'], c.banco.movimientos.map(b => '<tr><td>' + esc(nombreMes(b.periodo)) + '</td><td>' + esc(b.fecha) +
+      '</td><td>' + esc(b.referencia) + '</td><td>' + esc(b.descripcion) + '</td><td class="num">' + dinero2(b.monto) + '</td></tr>'), 'Todavía no se ha cargado el banco del mes anterior.') + '</div>' +
+    (c.puede_editar ? '<div class="card"><h2>Cuenta bancaria de la torre</h2><form class="form" id="f-cxp-cuenta"><label>Banco<select name="banco">' + c.bancos.map(b => '<option' + (c.cuenta && c.cuenta.banco === b ? ' selected' : '') + '>' + esc(b) + '</option>').join('') +
+      '</select></label><label>Tipo<select name="tipo"><option value="corriente">Corriente</option><option value="ahorro"' + (c.cuenta && c.cuenta.tipo === 'ahorro' ? ' selected' : '') + '>Ahorro</option></select></label>' +
+      '<label>Número de cuenta<input name="cuenta" inputmode="numeric" value="' + esc(c.cuenta ? c.cuenta.cuenta : '') + '"></label><div class="acciones-fila ancho"><button class="btn">Guardar</button></div></form>' +
+      '<p class="nota">De aquí salen los cheques y las transferencias de la torre (y la planilla del banco, cuando se programe).</p></div>' : '');
+}
+function cxpCheques(c) {
+  const EST = { emitido: ['Emitido', 'azul'], nulo: ['Nulo', 'rojo'], corregido: ['Corregido', ''] };
+  return '<div class="card"><h2>Chequera de la torre</h2><div class="kpis"><div class="kpi"><span>Próximo cheque</span><b>' + esc(c.siguiente_cheque || '—') + '</b></div><div class="kpi"><span>Emitidos</span><b>' +
+      c.cheques.filter(x => x.estado === 'emitido').length + '</b></div><div class="kpi"><span>Nulos</span><b>' + c.cheques.filter(x => x.estado === 'nulo').length + '</b></div><div class="kpi' + (c.saltados.length ? ' kpi-alerta' : '') +
+      '"><span>Saltados</span><b>' + c.saltados.reduce((s, x) => s + x.hasta - x.desde + 1, 0) + '</b></div></div>' +
+    (c.saltados.length ? '<ul class="alertas-cxp">' + c.saltados.map(s => '<li class="al-rojo">Falta' + (s.desde === s.hasta ? ' el cheque n.º ' + s.desde : 'n los cheques n.º ' + s.desde + ' al ' + s.hasta) + ': úselo en un pago o regístrelo como nulo.</li>').join('') + '</ul>' : '') +
+    (c.puede_editar ? '<form class="form" id="f-cxp-nulo" style="margin-top:12px"><label>Cheque nulo n.º<input name="desde" inputmode="numeric" required value="' + esc(c.saltados[0] ? c.saltados[0].desde : '') + '"></label>' +
+      '<label>Hasta n.º (si son varios)<input name="hasta" inputmode="numeric" value="' + esc(c.saltados[0] && c.saltados[0].hasta !== c.saltados[0].desde ? c.saltados[0].hasta : '') + '"></label>' +
+      '<label class="ancho">Motivo<input name="motivo" required placeholder="Dañado, mal escrito, extraviado…"></label><div class="acciones-fila ancho"><button class="btn primario">Registrar nulo</button></div></form>' : '') + '</div>' +
+    '<div class="card"><h2>Cheques · ' + c.cheques.length + '</h2>' + tabla(['N.º', 'Estado', 'Beneficiario', 'Monto', 'Fecha', 'Nota'], c.cheques.map(x => '<tr' + (x.estado === 'corregido' ? ' class="cerrada"' : '') + '><td><b>' + x.numero + '</b></td><td><span class="chip ' +
+      (EST[x.estado] || ['', ''])[1] + '">' + esc((EST[x.estado] || [x.estado])[0]) + '</span></td><td>' + esc(x.beneficiario) + '</td><td class="num">' + (x.monto ? dinero2(x.monto) : '') + '</td><td>' + esc(x.fecha) + '</td><td><small>' + esc(x.motivo) +
+      (x.por ? ' · ' + esc(x.por) : '') + '</small></td></tr>'), 'Los cheques aparecen al escribir su número en un pago.') + '</div>';
+}
+function cxpHistorial(c) {
+  const h = c.historial, ms = h.meses.slice(-6);
+  return '<div class="card"><h2>Pagos por mes</h2>' + tabla(['Mes', 'Pagos', 'Relacionado', 'Pagado', 'De ello, nómina'], h.por_mes.slice().reverse().map(m => '<tr><td>' + esc(nombreMes(m.periodo)) + '</td><td class="num">' + m.pagos + '</td><td class="num">' +
+      dinero2(m.total) + '</td><td class="num">' + dinero2(m.pagado) + '</td><td class="num">' + dinero2(m.nomina) + '</td></tr>'), 'Sin pagos todavía.') + '</div>' +
+    '<div class="card"><h2>Historial por suplidor</h2>' + tabla(['Suplidor', 'Servicio'].concat(ms.map(nombreMes)).concat(['Total']), h.suplidores.map(s => '<tr><td><b>' + esc(s.suplidor) + '</b>' + (s.recurrente_id ? ' <span class="chip azul">recurrente</span>' : '') +
+      '</td><td><small>' + esc(s.categoria) + '</small></td>' + ms.map(m => '<td class="num">' + (s.meses[m] ? dinero2(s.meses[m]) : (s.recurrente_id ? '<span class="chip rojo">falta</span>' : '')) + '</td>').join('') + '<td class="num"><b>' + dinero2(s.total) + '</b></td></tr>'), 'Sin historial todavía.') + '</div>';
+}
+// Relación imprimible (v2.6): carta horizontal, minimalista, con anexos numerados y firmas
+function imprimirRelacion(id) {
+  const c = S.cxp, r = c.relaciones.find(x => x.id === id); if (!r) return;
+  const ps = c.partidas.filter(p => p.relacion_id === id && p.estado !== 'anulada');
+  const anexos = [];
+  const anexo = sid => { let i = anexos.indexOf(sid); if (i < 0) { anexos.push(sid); i = anexos.length - 1; } return i + 1; };
+  const arch = sid => c.archivos.find(a => a.id === sid) || r.archivos.find(a => a.id === sid) || { nombre: sid, url: '' };
+  const grupos = [['Nómina y obligaciones laborales', p => p.origen === 'nomina'], ['Servicios recurrentes', p => p.origen !== 'nomina' && !!p.recurrente_id], ['Otros pagos', p => p.origen !== 'nomina' && !p.recurrente_id]];
+  const m = v => (Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let n = 0;
+  const filas = grupos.map(([titulo, f]) => {
+    const g = ps.filter(f); if (!g.length) return '';
+    return '<tr class="grupo"><td colspan="9">' + titulo + '</td></tr>' + g.map(p => '<tr><td class="n">' + (++n) + '</td><td>' + esc(p.suplidor) + '</td><td class="t">' + esc(p.rnc || '') + '</td><td>' + esc(p.concepto) + '</td><td class="t">' + esc(p.ncf || '') +
+      '</td><td class="t">' + esc(p.factura_fecha || '') + '</td><td>' + (p.forma_pago === 'cheque' ? 'Cheque ' + esc(p.cheque || '______') : p.forma_pago === 'transferencia' ? 'Transferencia' + (p.cuenta_destino ? ' <span class="t">' + esc(p.banco_destino + ' ' + p.cuenta_destino) + '</span>' : '') : '—') +
+      '</td><td class="num">' + m(p.monto) + '</td><td class="t">' + (p.soportes.length ? p.soportes.map(s => 'A-' + anexo(s)).join(', ') : (p.origen === 'nomina' ? 'Nómina' : '<b>Falta</b>')) + '</td></tr>').join('') +
+      '<tr class="subtotal"><td colspan="7">Subtotal</td><td class="num">' + m(g.reduce((s, p) => s + (p.monto || 0), 0)) + '</td><td></td></tr>';
+  }).join('');
+  r.archivos.forEach(a => { if (a.tipo === 'soporte') anexo(a.id); });
+  const total = ps.reduce((s, p) => s + (p.monto || 0), 0), sum = f => ps.filter(f).reduce((s, p) => s + (p.monto || 0), 0);
+  const alertas = ps.flatMap(p => p.alertas.filter(a => a.nivel !== 'azul').map(a => esc(p.suplidor) + ': ' + esc(a.texto)));
+  const orig = r.archivos.find(a => a.tipo === 'relacion');
+  let el = document.getElementById('impresion'); if (!el) { el = document.createElement('div'); el.id = 'impresion'; document.body.appendChild(el); }
+  el.className = 'horizontal relacion';
+  el.innerHTML = '<header><img src="portal/logo.png" alt="Stili Group"><div class="tit"><span>Relación de pagos</span><b>' + esc(c.torre) + '</b></div><div class="der">' + esc(r.titulo) + '<br><small>Emitida el ' + new Date().toLocaleDateString('es-DO') + '</small></div></header>' +
+    '<p class="meta">Preparada por ' + esc(r.creada_por) + ' · ' + esc(r.creada_en) + ' &nbsp;·&nbsp; Estado: ' + esc(CXP_REL_EST[r.estado] || r.estado) + (r.aprobada_por ? ' (' + esc(r.aprobada_por) + ')' : '') +
+      ' &nbsp;·&nbsp; Cuenta pagadora: ' + (c.cuenta ? esc(c.cuenta.banco + ' ' + c.cuenta.cuenta) : '—') + (orig ? ' &nbsp;·&nbsp; Original: ' + esc(orig.nombre) : '') + '</p>' +
+    '<div class="cifras"><div><span>Total de la relación</span><b>RD$ ' + m(total) + '</b><small>' + n + ' pagos</small></div><div><span>En cheques</span><b>RD$ ' + m(sum(p => p.forma_pago === 'cheque')) + '</b></div>' +
+      '<div><span>En transferencias</span><b>RD$ ' + m(sum(p => p.forma_pago === 'transferencia')) + '</b></div>' + (sum(p => !p.forma_pago) ? '<div><span>Sin forma de pago</span><b>RD$ ' + m(sum(p => !p.forma_pago)) + '</b></div>' : '') + '</div>' +
+    '<table class="det"><thead><tr><th class="n">#</th><th>Beneficiario</th><th>RNC</th><th>Concepto</th><th>NCF</th><th>Fecha fact.</th><th>Forma de pago</th><th class="num">Monto RD$</th><th>Soporte</th></tr></thead><tbody>' + filas +
+    '<tr class="total"><td colspan="7">Total</td><td class="num">' + m(total) + '</td><td></td></tr></tbody></table>' +
+    (alertas.length || r.observaciones.length ? '<h2>Observaciones</h2><ul class="obs">' + r.observaciones.map(o => '<li>' + esc(o) + '</li>').join('') + alertas.map(a => '<li>' + a + '</li>').join('') + '</ul>' : '') +
+    (anexos.length ? '<h2>Anexos</h2><ol class="anexos">' + anexos.map((s, i) => '<li><span>A-' + (i + 1) + '</span>' + esc(arch(s).nombre) + '</li>').join('') + '</ol>' : '') +
+    '<div class="firmas"><div>Preparado por</div><div>Revisado por · Contabilidad</div><div>Aprobado por · Gerente General</div></div>';
+  S.cxpAnexos = { id: id, anexos: anexos };
+  document.documentElement.setAttribute('data-imprimir', ''); document.body.classList.add('imprimiendo');
+  const fin = () => { document.body.classList.remove('imprimiendo'); document.documentElement.removeAttribute('data-imprimir'); el.className = ''; removeEventListener('afterprint', fin); };
+  addEventListener('afterprint', fin); setTimeout(() => window.print(), 50);
+}
+function imprimirCotejo() {
+  const c = S.cxp;
+  let el = document.getElementById('impresion'); if (!el) { el = document.createElement('div'); el.id = 'impresion'; document.body.appendChild(el); }
+  el.className = 'horizontal';
+  el.innerHTML = '<header><img src="portal/logo.png" alt="Stili Group"><div><b>Cotejo de pagos recurrentes · ' + esc(c.torre) + '</b><br>Emitido el ' + new Date().toLocaleDateString('es-DO') + '</div></header>' +
+    '<p>Pagos que el sistema observó como recurrentes en las relaciones de la torre. Marque cada uno para validarlo; los validados se generarán solos cada mes y se aprueban antes de pagarse.</p>' +
+    '<table><tr><th>Suplidor</th><th>Servicio</th><th>Frecuencia</th><th>Monto</th><th>Observado</th><th>Forma</th><th>Validar</th></tr>' + c.recurrentes.filter(r => r.estado !== 'descartado').map(r => '<tr><td><b>' + esc(r.suplidor) + '</b>' +
+      (r.rnc ? '<br><small>RNC ' + esc(r.rnc) + '</small>' : '') + '</td><td>' + esc(r.categoria) + '<br><small>' + esc(r.concepto) + '</small></td><td>' + esc(r.frecuencia) + '</td><td class="num">' + dinero2(r.monto) + (r.variable ? '<br><small>variable</small>' : '') +
+      '</td><td><small>' + (r.montos_vistos || '').split(';').filter(Boolean).map(x => { const [m, v] = x.split(':'); return esc(nombreMes(m)) + ': ' + dinero2(Number(v)); }).join('<br>') + '</small></td><td>' + esc(r.forma_pago || '—') +
+      '</td><td>' + (r.estado === 'validado' ? '✓ ' + esc(r.validado_por) : '☐ Sí &nbsp; ☐ No') + '</td></tr>').join('') + '</table>' +
+    '<div class="firmas"><div>Revisado por (Contabilidad)</div><div>Validado por (Gerente General)</div></div>';
+  document.documentElement.setAttribute('data-imprimir', ''); document.body.classList.add('imprimiendo');
+  const fin = () => { document.body.classList.remove('imprimiendo'); document.documentElement.removeAttribute('data-imprimir'); removeEventListener('afterprint', fin); };
+  addEventListener('afterprint', fin); setTimeout(() => window.print(), 50);
+}
+// Todos los soportes de la relación en un solo PDF, cada página marcada con su anexo
+async function pdfSoportes(id) {
+  const c = S.cxp, r = c.relaciones.find(x => x.id === id); if (!r) return;
+  const ps = c.partidas.filter(p => p.relacion_id === id && p.estado !== 'anulada');
+  const orden = [];
+  ps.forEach(p => p.soportes.forEach(s => { if (!orden.includes(s)) orden.push(s); }));
+  r.archivos.forEach(a => { if (a.tipo === 'soporte' && !orden.includes(a.id)) orden.push(a.id); });
+  if (!orden.length) return toast('Esta relación no tiene soportes.', true);
+  toast('Preparando el PDF con ' + orden.length + ' soporte' + (orden.length === 1 ? '' : 's') + '…');
+  try {
+    if (!window.PDFLib) await new Promise((ok, mal) => { const s = document.createElement('script'); s.src = PDFLIB_URL; s.onload = ok; s.onerror = () => mal(new Error('No se pudo cargar el generador de PDF.')); document.head.appendChild(s); });
+    const { archivos } = await api('cxp_soportes', { torre: S.torre, ids: orden });
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const doc = await PDFDocument.create(), fuente = await doc.embedFont(StandardFonts.HelveticaBold);
+    const omitidos = [];
+    for (let i = 0; i < archivos.length; i++) {
+      const a = archivos[i], etiqueta = 'Anexo A-' + (orden.indexOf(a.id) + 1) + ' · ' + a.nombre.replace(/[^\x20-\x7EÀ-ÿ]/g, '');
+      const pagado = ps.find(p => p.soportes.includes(a.id));
+      const linea = etiqueta + (pagado ? ' · ' + pagado.suplidor.replace(/[^\x20-\x7EÀ-ÿ]/g, '') + ' · ' + dinero2(pagado.monto) : '');
+      if (!a.base64) { omitidos.push(a.nombre); continue; }
+      const bytes = Uint8Array.from(atob(a.base64), x => x.charCodeAt(0));
+      let paginas = [];
+      try {
+        if (/pdf/.test(a.mime)) { const src = await PDFDocument.load(bytes, { ignoreEncryption: true }); paginas = await doc.copyPages(src, src.getPageIndices()); paginas.forEach(pg => doc.addPage(pg)); }
+        else if (/image\/(png|jpe?g)/.test(a.mime)) {
+          const img = /png/.test(a.mime) ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+          const pg = doc.addPage([612, 792]), esc2 = Math.min(560 / img.width, 700 / img.height, 1);
+          pg.drawImage(img, { x: (612 - img.width * esc2) / 2, y: 40 + (700 - img.height * esc2) / 2, width: img.width * esc2, height: img.height * esc2 }); paginas = [pg];
+        } else { omitidos.push(a.nombre); continue; }
+      } catch (err) { omitidos.push(a.nombre); continue; }
+      paginas.forEach(pg => { const { width, height } = pg.getSize(); pg.drawRectangle({ x: 0, y: height - 22, width: width, height: 22, color: rgb(0, 0.227, 0.459) });
+        pg.drawText(linea.slice(0, 110), { x: 10, y: height - 15, size: 9, font: fuente, color: rgb(1, 1, 1) }); });
+    }
+    if (!doc.getPageCount()) throw new Error('Ningún soporte se pudo unir (deben ser PDF o fotos JPG/PNG).');
+    const blob = new Blob([await doc.save()], { type: 'application/pdf' }), url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'Soportes · ' + c.torre + ' · ' + r.titulo + '.pdf'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    toast('PDF listo.' + (omitidos.length ? ' No se unieron: ' + omitidos.join(', ') + ' (ábralos aparte).' : ''));
+  } catch (err) { toast(err.message, true); }
+}
+function csvTransferencias() {
+  const c = S.cxp, rel = S.cxpRel && c.relaciones.find(r => r.id === S.cxpRel);
+  const tr = c.partidas.filter(p => (rel ? p.relacion_id === rel.id : p.periodo === c.periodo) && p.forma_pago === 'transferencia' && ['aprobada', 'pagada'].includes(p.estado));
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const txt = '﻿' + [['Beneficiario', 'RNC', 'Banco', 'Cuenta', 'Concepto', 'Monto']].concat(tr.map(p => [p.suplidor, p.rnc, p.banco_destino, p.cuenta_destino, p.concepto, (p.monto || 0).toFixed(2)])).map(f => f.map(q).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([txt], { type: 'text/csv' })), a = document.createElement('a');
+  a.href = url; a.download = 'Transferencias · ' + c.torre + ' · ' + c.periodo + '.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function cxpLlamar(accion, datos, ok) {
+  try { const r = await api(accion, Object.assign({ periodo: S.cxpPer }, datos)); S.cxp = r; pintarCxp(); if (r.aviso) toast(r.aviso, /Atención|Posible/.test(r.aviso)); else if (ok) toast(ok); return r; }
+  catch (err) { toast(err.message, true); }
+}
+function editarPartida(p) {
+  const c = S.cxp;
+  let dlg = document.getElementById('dlg-cxp'); if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'dlg-cxp'; document.body.appendChild(dlg); }
+  dlg.innerHTML = '<form class="form" method="dialog" id="f-cxp-editar" data-id="' + esc(p ? p.id : '') + '"><h2 class="ancho" style="margin:0">' + (p ? 'Editar pago' : 'Nuevo pago') + '</h2>' +
+    [['suplidor', 'Beneficiario', 'text'], ['rnc', 'RNC o cédula', 'text'], ['concepto', 'Concepto', 'text'], ['ncf', 'NCF', 'text'], ['factura_fecha', 'Fecha de la factura', 'date'], ['monto', 'Monto (RD$)', 'text']]
+      .map(([k, n, t]) => '<label' + (k === 'concepto' ? ' class="ancho"' : '') + '>' + n + '<input name="' + k + '" type="' + t + '" value="' + esc(p ? (k === 'factura_fecha' ? (p[k] || '').split('/').reverse().join('-') : p[k] == null ? '' : p[k]) : '') + '"' + (k === 'monto' ? ' inputmode="decimal"' : '') + '></label>').join('') +
+    '<label>Categoría<select name="categoria">' + c.categorias.map(x => '<option' + (p && p.categoria === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label>' +
+    '<label>Forma de pago<select name="forma_pago"><option value="">—</option><option value="cheque"' + (p && p.forma_pago === 'cheque' ? ' selected' : '') + '>Cheque</option><option value="transferencia"' + (p && p.forma_pago === 'transferencia' ? ' selected' : '') + '>Transferencia</option></select></label>' +
+    '<label class="ancho">Notas<input name="notas" value="' + esc(p ? p.notas : '') + '"></label><div class="acciones-fila ancho"><button class="btn primario" value="ok">Guardar</button><button class="btn" value="cancelar" formnovalidate>Cancelar</button></div></form>';
+  dlg.showModal();
+  dlg.querySelector('form').addEventListener('submit', async e => {
+    if (e.submitter && e.submitter.value === 'cancelar') return;
+    const fd = new FormData(e.target), datos = {};
+    ['suplidor', 'rnc', 'concepto', 'ncf', 'factura_fecha', 'categoria', 'forma_pago', 'notas'].forEach(k => datos[k] = fd.get(k));
+    datos.monto = String(fd.get('monto')).replace(/[^\d.]/g, '');
+    await cxpLlamar('cxp_partida', p ? { id: p.id, operacion: 'editar', datos } : { operacion: 'nueva', torre: S.torre, relacion_id: S.cxpRel || '', datos }, 'Pago guardado.');
+  }, { once: true });
+}
+document.addEventListener('click', async e => {
+  if (!S.cxp || !e.target.closest('#cxp')) return;
+  const b = e.target.closest('button'); if (!b) return;
+  const d = b.dataset;
+  if (d.cxpTab) { S.cxpTab = d.cxpTab; return pintarCxp(); }
+  if (d.cxpVer !== undefined) { S.cxpRel = d.cxpVer || null; S.cxpTab = 'pagos'; const r = S.cxp.relaciones.find(x => x.id === d.cxpVer); if (r && r.periodo !== S.cxp.periodo) return cargarCxp(r.periodo); return pintarCxp(); }
+  if (d.cxpImprimir) return imprimirRelacion(d.cxpImprimir);
+  if (d.cxpPdf) return pdfSoportes(d.cxpPdf);
+  if (d.cxpCotejo !== undefined) return imprimirCotejo();
+  if (d.cxpCsv !== undefined) return csvTransferencias();
+  if (d.cxpNueva !== undefined) return editarPartida(null);
+  if (d.cxpEditar) return editarPartida(S.cxp.partidas.find(p => p.id === d.cxpEditar));
+  if (d.cxpRel) {
+    if (d.cxpRel === 'pagada' && !confirm('¿Marcar como pagados todos los pagos aprobados de esta relación?')) return;
+    b.disabled = true;
+    const r = await cxpLlamar('cxp_relacion', { id: d.id, operacion: d.cxpRel }, d.cxpRel === 'aprobar' ? 'Relación aprobada.' : 'Relación marcada como pagada.');
+    if (r && r.con_alerta) toast(r.con_alerta + ' pago' + (r.con_alerta === 1 ? '' : 's') + ' con alerta roja quedaron por aprobar: revíselos uno a uno.', true);
+    return;
+  }
+  if (d.cxpOp) {
+    let motivo = '';
+    if (d.cxpOp === 'anular') { motivo = prompt('¿Por qué se anula este pago?', ''); if (!motivo) return; }
+    if (d.cxpOp === 'aprobar') { const p = S.cxp.partidas.find(x => x.id === d.id); if (p && p.alertas.some(a => a.nivel === 'rojo') && !confirm('Este pago tiene una alerta roja:\n\n' + p.alertas.filter(a => a.nivel === 'rojo').map(a => a.texto).join('\n') + '\n\n¿Aprobarlo de todas formas?')) return; }
+    b.disabled = true;
+    return cxpLlamar('cxp_partida', { id: d.id, operacion: d.cxpOp, motivo }, { aprobar: 'Pago aprobado.', pagada: 'Pago marcado como pagado.', anular: 'Pago anulado.', reabrir: 'Pago reabierto.' }[d.cxpOp]);
+  }
+  if (d.cxpRec) { b.disabled = true; return cxpLlamar('cxp_recurrente', { id: d.id, operacion: d.cxpRec }, { validar: 'Recurrente validado: se generará cada mes.', descartar: 'Descartado.', pausar: 'Pausado.', reanudar: 'Reanudado.' }[d.cxpRec]); }
+});
+document.addEventListener('change', async e => {
+  const t = e.target; if (!S.cxp || !t.closest('#cxp')) return;
+  if (t.id === 'cxp-per') { S.cxpRel = null; return cargarCxp(t.value); }
+  if (t.dataset.cxpCampo) {
+    const k = t.dataset.cxpCampo; let v = t.value;
+    if (k === 'monto') v = v.replace(/[^\d.]/g, '');
+    return cxpLlamar('cxp_partida', { id: t.dataset.id, operacion: 'editar', datos: { [k]: v } }, k === 'cheque' ? 'Cheque n.º ' + v + ' asignado.' : 'Guardado.');
+  }
+  if (t.dataset.cxpSoporte !== undefined && t.value) {
+    const p = S.cxp.partidas.find(x => x.id === t.dataset.id);
+    return cxpLlamar('cxp_partida', { id: t.dataset.id, operacion: 'editar', datos: { soportes: p.soportes.concat([t.value]) } }, 'Soporte enlazado.');
+  }
+  if (t.dataset.cxpRecCampo) return cxpLlamar('cxp_recurrente', { id: t.dataset.id, operacion: 'editar', datos: { [t.dataset.cxpRecCampo]: t.value } }, 'Guardado.');
+  if (t.dataset.cxpAuto) return cxpLlamar('cxp_recurrente', { id: t.dataset.cxpAuto, operacion: 'automatico', valor: t.checked }, t.checked ? 'Se generará solo cada mes.' : 'Ya no se genera solo: saldrá una alerta si falta su solicitud.');
+});
+document.addEventListener('submit', async e => {
+  const id = e.target.id; if (!['f-cxp-rel', 'f-cxp-banco', 'f-cxp-nulo', 'f-cxp-cuenta'].includes(id)) return;
+  e.preventDefault(); const fd = new FormData(e.target), btn = e.target.querySelector('button.primario, button');
+  if (btn) btn.disabled = true;
+  try {
+    if (id === 'f-cxp-rel') {
+      const per = fd.get('periodo'), rel = fd.get('relacion'), sops = fd.getAll('soportes').filter(x => x && x.size);
+      toast('Subiendo la relación…');
+      const r = await api('fin_subir', { torre: S.torre, tipo: 'relacion', periodo: per, ligero: true, archivo: await leerArchivo(rel) });
+      const ids = [];
+      for (let i = 0; i < sops.length; i++) { toast('Subiendo soporte ' + (i + 1) + ' de ' + sops.length + '…'); ids.push((await api('fin_subir', { torre: S.torre, tipo: 'soporte', periodo: per, ligero: true, archivo: await leerArchivo(sops[i]) })).subido); }
+      toast('Leyendo la relación con IA… puede tardar hasta un minuto.');
+      S.cxp = await api('cxp_procesar', { torre: S.torre, relacion: r.subido, soportes: ids, periodo: per, titulo: fd.get('titulo') });
+      S.cxpPer = S.cxp.periodo; S.cxpRel = S.cxp.relacion_id; S.cxpTab = 'pagos'; pintarCxp();
+      const n = S.cxp.partidas.filter(p => p.relacion_id === S.cxpRel).length;
+      toast(n + ' pagos leídos. Revise las alertas y apruebe.' + (S.cxp.avisos && S.cxp.avisos.length ? ' ' + S.cxp.avisos.join(' ') : ''));
+    }
+    if (id === 'f-cxp-banco') {
+      let archivo = fd.get('archivo'); const nuevo = fd.get('nuevo'), per = fd.get('periodo');
+      if (nuevo && nuevo.size) { toast('Subiendo el estado del banco…'); archivo = (await api('fin_subir', { torre: S.torre, tipo: 'banco', periodo: per, ligero: true, archivo: await leerArchivo(nuevo) })).subido; }
+      if (!archivo) throw new Error('Elija un estado ya subido o suba uno.');
+      toast('Leyendo los débitos del banco y cotejando…');
+      await cxpLlamar('cxp_banco', { torre: S.torre, archivo, periodo: per, periodo_pago: S.cxpPer, reemplazar: fd.get('reemplazar') === 'on' });
+    }
+    if (id === 'f-cxp-nulo') await cxpLlamar('cxp_cheque_nulo', { torre: S.torre, desde: fd.get('desde'), hasta: fd.get('hasta'), motivo: fd.get('motivo') }, 'Cheque nulo registrado.');
+    if (id === 'f-cxp-cuenta') await cxpLlamar('cxp_cuenta', { torre: S.torre, banco: fd.get('banco'), tipo: fd.get('tipo'), cuenta: fd.get('cuenta') }, 'Cuenta guardada.');
+  } catch (err) { toast(err.message, true); } finally { if (btn) btn.disabled = false; }
+});
 // ------------------------------------------------------------------ Tareas y levantamientos (v2.2)
 const PRIORIDAD = { alta: 'rojo', media: 'ambar', baja: 'azul' };
 const FILTRO_T = { estado: 'abierta', categoria: '', oficio: '', estatus: '' };
@@ -646,6 +977,7 @@ function textoCorrecciones(a) {
 function imprimirInforme(a) {
   const f = S.fin, acc = f.acciones || {}, c = a.conciliacion;
   let el = document.getElementById('impresion'); if (!el) { el = document.createElement('div'); el.id = 'impresion'; document.body.appendChild(el); }
+  el.className = '';
   el.innerHTML = '<header><img src="portal/logo.png" alt="Stili Group"><div><b>Informe de conciliación bancaria</b><br>' + esc(f.torre) + ' · análisis del ' + esc(a.fecha) + ' · preparado por ' + esc(a.por) + '</div></header>' +
     ((a.archivos || []).length ? '<p><b>Documentos revisados:</b> ' + a.archivos.map(esc).join(' · ') + '</p>' : '') +
     (c ? '<h2>Conciliación' + (c.fecha_corte ? ' al ' + esc(c.fecha_corte) : '') + '</h2><table><tr><th>Saldo según el banco</th><th>Saldo según Habitanto</th><th>Diferencia</th><th>Explicada</th><th>Sin explicar</th></tr><tr>' +
@@ -764,7 +1096,8 @@ function mostrarLista(abrir) {
     if (!S.lista.torres.length) { $('#contenido').innerHTML = '<div class="vacio">' + (S.lista.puede_crear ? 'Todavía no hay torres. Use «+ Nueva torre».' : 'Su usuario no tiene torres asignadas. Pídalas al Gerente General.') + '</div>'; return; }
     $('#selector').hidden = false; $('#b-nueva').hidden = !S.lista.puede_crear;
     if (!abrir) return;                     // solo se refrescó la lista (permisos o torres nuevas)
-    const pedida = decodeURIComponent(location.hash.slice(1)) || cfg().torre_actual;
+    const [pedida, sec] = (decodeURIComponent(location.hash.slice(1)) || cfg().torre_actual || '').split('/');   // v2.6 · #TORRE/seccion (enlaces del Inicio)
+    if (sec && SECCIONES.some(([k]) => k === sec)) S.seccion = sec;
     const inicial = S.lista.torres.find(t => t.clave === pedida) || S.lista.torres[0];
     abrirTorre(inicial.clave);
   }
@@ -802,6 +1135,40 @@ const Demo = {
   tarea_actualizar: () => Demo.tareas_datos(), tarea_nueva: () => Object.assign(Demo.tareas_datos(), { id: 'T0' }),
   orden_crear: () => Object.assign(Demo.tareas_datos(), { orden: { id: 'OT-DEMO', telegram: true, suplidor: 'Pinturas del Caribe', tareas: 1 } }),
   fin_correccion: () => Demo.fin_datos(),
+  cxp_datos: () => {
+    const per = new Date().toISOString().slice(0, 7), ant = mesAnterior(per);
+    const al = (n, t) => ({ nivel: n, texto: t });
+    const P = (id, suplidor, rnc, concepto, categoria, ncf, monto, forma, cheque, estado, origen, soportes, alertas, rec) => ({ id, torre: 'Torre Niza 7', periodo: per, relacion_id: 'RL-1', suplidor, rnc, concepto, categoria, ncf,
+      factura_fecha: ncf ? '05/' + per.slice(5) + '/' + per.slice(0, 4) : '', monto, forma_pago: forma, cheque, banco_destino: forma === 'transferencia' ? 'Banco Popular' : '', cuenta_destino: forma === 'transferencia' ? '7854120036' : '',
+      estado, origen, soportes, alertas, recurrente_id: rec || '', aprobado_por: estado !== 'pendiente' ? 'Lissette López' : '', notas: '' });
+    return { torre: 'Torre Niza 7', periodo: per, puede_editar: true, gerente: true, ia: true, categorias: ['Energía eléctrica', 'Agua', 'Seguridad', 'Limpieza', 'Ascensores', 'Nómina', 'TSS e INFOTEP', 'Compras y materiales', 'Otros'],
+      frecuencias: ['mensual', 'quincenal', 'bimestral', 'trimestral', 'semestral', 'anual'], estados: { pendiente: 'Por aprobar', aprobada: 'Aprobada', pagada: 'Pagada', anulada: 'Anulada' }, bancos: ['Banco Popular', 'BHD', 'Banreservas', 'BDI', 'Otro'],
+      cuenta: { banco: 'Banco Popular', cuenta: '7120045588', tipo: 'corriente' },
+      partidas: [P('P1', 'EDESUR Dominicana', '101821248', 'Energía áreas comunes', 'Energía eléctrica', 'B0100001234', 18500.5, 'transferencia', '', 'aprobada', 'recurrente', ['S1'], [], 'R1'),
+        P('P2', 'Seguridad Total SRL', '130456789', 'Vigilancia 24 horas', 'Seguridad', 'B0100000777', 95000, 'cheque', '1001', 'aprobada', 'relacion', ['S2'], [], 'R2'),
+        P('P3', 'Elevadores del Caribe', '101998877', 'Mantenimiento de ascensores', 'Ascensores', 'B0100004411', 12000, 'transferencia', '', 'pendiente', 'relacion', [], [al('rojo', 'Posible pago repetido: el banco ya registra RD$ 12,000.00 el 30/' + ant.slice(5) + '/' + ant.slice(0, 4) + ' (ELEVADORES DEL CARIBE · ref. TRF 5599).'), al('ambar', 'Sin soporte adjunto.')]),
+        P('P4', 'Ferretería Ochoa', '', 'Bombillos LED y breakers', 'Compras y materiales', 'B0100055555', 4500, 'cheque', '1004', 'pendiente', 'relacion', ['S3'], []),
+        P('P5', 'Empleados de Torre Niza 7', '', 'Nómina 2.ª quincena · pago neto (6 empleados)', 'Nómina', '', 121000, 'transferencia', '', 'pendiente', 'nomina', [], []),
+        P('P6', 'Tesorería de la Seguridad Social', '', 'TSS (empleado + empleador) e INFOTEP', 'TSS e INFOTEP', '', 21500, 'transferencia', '', 'pendiente', 'nomina', [], [])],
+      relaciones: [{ id: 'RL-1', periodo: per, numero: 1, titulo: 'Relación 1 de ' + nombreMes(per), estado: 'borrador', creada_por: 'Lissette López', creada_en: '05/' + per.slice(5) + '/' + per.slice(0, 4), aprobada_por: '', aprobada_en: '',
+        observaciones: ['Falta la factura de Elevadores del Caribe'], archivos: [{ id: 'R0', nombre: 'Relación de pagos.xlsx', url: '#', tipo: 'relacion' }, { id: 'S1', nombre: 'EDESUR B0100001234.pdf', url: '#', tipo: 'soporte' },
+          { id: 'S2', nombre: 'Factura seguridad.pdf', url: '#', tipo: 'soporte' }, { id: 'S3', nombre: 'Ferretería Ochoa.jpg', url: '#', tipo: 'soporte' }], total: 272500.5, partidas: 6 }],
+      recurrentes: [{ id: 'R1', suplidor: 'EDESUR Dominicana', rnc: '101821248', concepto: 'Energía áreas comunes', categoria: 'Energía eléctrica', monto: 18500.5, variable: true, frecuencia: 'mensual', dia: '', forma_pago: 'transferencia', estado: 'validado', automatico: true,
+          meses_vistos: [ant, per], montos_vistos: ant + ':17980;' + per + ':18500.5', fuente: 'Visto en 2 meses', validado_por: 'Ronald Larrauri', validado_en: '02/' + per.slice(5) + '/' + per.slice(0, 4) },
+        { id: 'R2', suplidor: 'Seguridad Total SRL', rnc: '130456789', concepto: 'Vigilancia 24 horas', categoria: 'Seguridad', monto: 95000, variable: false, frecuencia: 'mensual', dia: '', forma_pago: 'cheque', estado: 'propuesto', automatico: true,
+          meses_vistos: [ant, per], montos_vistos: ant + ':95000;' + per + ':95000', fuente: 'Visto en 2 meses', validado_por: '', validado_en: '' },
+        { id: 'R3', suplidor: 'Limpiezas Brillo', rnc: '', concepto: 'Iguala de limpieza', categoria: 'Limpieza', monto: 38000, variable: false, frecuencia: 'mensual', dia: 5, forma_pago: 'transferencia', estado: 'validado', automatico: false,
+          meses_vistos: [ant], montos_vistos: ant + ':38000', fuente: 'La IA lo identificó como servicio recurrente', validado_por: 'Ronald Larrauri', validado_en: '02/' + per.slice(5) + '/' + per.slice(0, 4) }],
+      historial: { meses: [ant, per], por_mes: [{ periodo: ant, total: 263000, pagado: 263000, nomina: 140000, pagos: 7 }, { periodo: per, total: 272500.5, pagado: 0, nomina: 142500, pagos: 6 }],
+        suplidores: [{ suplidor: 'Empleados de Torre Niza 7', categoria: 'Nómina', meses: { [ant]: 120000, [per]: 121000 }, total: 241000, recurrente_id: '' }, { suplidor: 'Seguridad Total SRL', categoria: 'Seguridad', meses: { [ant]: 95000, [per]: 95000 }, total: 190000, recurrente_id: 'R2' },
+          { suplidor: 'Limpiezas Brillo', categoria: 'Limpieza', meses: { [ant]: 38000 }, total: 38000, recurrente_id: 'R3' }, { suplidor: 'EDESUR Dominicana', categoria: 'Energía eléctrica', meses: { [ant]: 17980, [per]: 18500.5 }, total: 36480.5, recurrente_id: 'R1' }] },
+      cheques: [{ numero: 1004, estado: 'emitido', beneficiario: 'Ferretería Ochoa', monto: 4500, fecha: '06/' + per.slice(5), motivo: '', por: 'Lissette López' }, { numero: 1001, estado: 'emitido', beneficiario: 'Seguridad Total SRL', monto: 95000, fecha: '05/' + per.slice(5), motivo: '', por: 'Lissette López' },
+        { numero: 1000, estado: 'nulo', beneficiario: '', monto: 0, fecha: '01/' + per.slice(5), motivo: 'Mal escrito', por: 'Lissette López' }],
+      siguiente_cheque: 1005, saltados: [{ desde: 1002, hasta: 1003 }],
+      banco: { periodos: [ant], movimientos: [{ periodo: ant, fecha: '15/' + ant.slice(5) + '/' + ant.slice(0, 4), referencia: 'TRF 5501', descripcion: 'PAGO EDESUR DOMINICANA', monto: 17980 }, { periodo: ant, fecha: '30/' + ant.slice(5) + '/' + ant.slice(0, 4), referencia: 'TRF 5599', descripcion: 'ELEVADORES DEL CARIBE', monto: 12000 }] },
+      estados_banco: [{ id: 'B1', periodo: ant, nombre: 'Popular ' + ant + '.pdf', cargado: true }], archivos: [{ id: 'S1', tipo: 'soporte', periodo: per, nombre: 'EDESUR B0100001234.pdf', url: '#' }, { id: 'S2', tipo: 'soporte', periodo: per, nombre: 'Factura seguridad.pdf', url: '#' }, { id: 'S3', tipo: 'soporte', periodo: per, nombre: 'Ferretería Ochoa.jpg', url: '#' }],
+      alertas: [al('rojo', 'Cheques n.º 1002 al 1003 saltados: regístrelos como nulos o úselos.'), al('rojo', 'Falta la solicitud de pago de Limpiezas Brillo (Limpieza) de ' + nombreMes(per) + '.'), al('rojo', '1 pago con posible duplicidad. Revíselo antes de aprobar.'), al('azul', '1 pago recurrente por validar en el cotejo.')] };
+  },
   fin_datos: () => ({ torre: 'Torre Niza 7', puede_editar: true, ia: true, tipos: { banco: 'Estado bancario', habitanto: 'Estado de Habitanto', presupuesto: 'Presupuesto', morosidad: 'Cuotas y morosidad', otro: 'Otro' },
     archivos: [{ id: 'FA1', tipo: 'banco', periodo: '2026-09', nombre: 'BHD septiembre.pdf', url: '#', subido_por: 'Lissette López', subido_en: '05/10/2026' },
       { id: 'FA2', tipo: 'habitanto', periodo: '2026-09', nombre: 'Habitanto estado sept.xlsx', url: '#', subido_por: 'Lissette López', subido_en: '05/10/2026' }],
