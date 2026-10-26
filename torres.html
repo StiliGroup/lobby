@@ -393,7 +393,12 @@ function cxpRelaciones(c) {
       '<label class="ancho subida">Relación (Excel, PDF o foto)<input type="file" name="relacion" accept=".pdf,.xlsx,.xls,.csv,image/*" required></label>' +
       '<label class="ancho subida">Soportes: facturas, cotizaciones, órdenes (puede elegir varios)<input type="file" name="soportes" accept=".pdf,image/*,.xlsx,.xls" multiple></label>' +
       '<div class="acciones-fila ancho"><button class="btn primario"' + (c.ia ? '' : ' disabled') + '>Subir y leer con IA</button>' + (c.ia ? '' : '<span class="nota">Falta la clave de la IA en el servicio (Gerencia).</span>') + '</div></form>' +
-      '<p class="nota">La IA lee cada pago, enlaza su soporte, revisa duplicados contra lo ya relacionado y contra el banco, y propone los pagos recurrentes. Usted revisa y aprueba.</p></div>' : '') +
+      '<p class="nota">La IA lee cada pago, enlaza su soporte, revisa duplicados contra lo ya relacionado y contra el banco, y propone los pagos recurrentes. Usted revisa y aprueba.</p></div>' +
+    '<div class="card"><h2>O cargar solo un lote de facturas</h2><form class="form" id="f-cxp-lote">' +
+      '<label>Mes de pago<input type="month" name="periodo" value="' + esc(mes) + '" required></label><label>Nombre (opcional)<input name="titulo" placeholder="Ej.: Facturas 1.ª quincena"></label>' +
+      '<label class="ancho subida">Facturas (PDF o fotos; una factura por archivo)<input type="file" name="facturas" accept=".pdf,image/*" multiple required></label>' +
+      '<div class="acciones-fila ancho"><button class="btn primario"' + (c.ia ? '' : ' disabled') + '>Subir y armar la relación</button></div></form>' +
+      '<p class="nota">Sin relación previa: la IA lee cada factura (suplidor, RNC, NCF, fecha y total a pagar), crea un pago por factura con su soporte y arma la relación. Mismos controles de duplicados, banco y recurrentes.</p></div>' : '') +
     '<div class="card"><h2>Relaciones · ' + c.relaciones.length + '</h2>' + tabla(['Relación', 'Mes', 'Pagos', 'Total', 'Estado', ''], c.relaciones.map(r => '<tr><td><b>' + esc(r.titulo) + '</b><br><small>' +
       esc(r.creada_por) + ' · ' + esc(r.creada_en) + (r.archivos.length ? ' · ' + r.archivos.length + ' documento' + (r.archivos.length === 1 ? '' : 's') : '') + '</small>' +
       (r.observaciones.length ? '<br><small class="nota">' + r.observaciones.map(esc).join(' · ') + '</small>' : '') + '</td><td>' + esc(nombreMes(r.periodo)) + '</td><td class="num">' + r.partidas +
@@ -421,7 +426,7 @@ function cxpPagos(c) {
   return '<div class="card"><div class="cab"><h2>' + (rel ? esc(rel.titulo) : 'Pagos de ' + esc(nombreMes(c.periodo))) + ' · ' + dinero2(total) + '</h2><span class="acciones-fila">' +
       (rel ? '<button type="button" class="btn" data-cxp-ver="">Ver todo el mes</button>' : '') + (c.puede_editar ? '<button type="button" class="btn" data-cxp-nueva>+ Agregar pago</button>' : '') + '</span></div>' +
     tabla(['Beneficiario', 'Concepto', 'Monto', 'Forma de pago', 'Soporte', 'Estado y alertas', ''], lista.map(p => '<tr' + (p.estado === 'anulada' ? ' class="cerrada"' : '') + '><td><b>' + esc(p.suplidor || '(sin nombre)') + '</b>' +
-      (p.rnc ? '<br><small>RNC ' + esc(p.rnc) + '</small>' : '') + '<br><small class="nota">' + esc(p.categoria) + (p.origen === 'recurrente' ? ' · recurrente' : p.origen === 'nomina' ? ' · desde Nómina' : '') + '</small></td><td>' + esc(p.concepto) +
+      (p.rnc ? '<br><small>RNC ' + esc(p.rnc) + '</small>' : '') + '<br><small class="nota">' + esc(p.categoria) + (p.origen === 'recurrente' ? ' · recurrente' : p.origen === 'nomina' ? ' · desde Nómina' : p.origen === 'factura' ? ' · leída de la factura' : '') + '</small></td><td>' + esc(p.concepto) +
       (p.ncf ? '<br><small>NCF ' + esc(p.ncf) + '</small>' : '') + (p.factura_fecha ? '<br><small>Factura ' + esc(p.factura_fecha) + '</small>' : '') + '</td><td class="num">' +
       (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<input data-cxp-campo="monto" data-id="' + esc(p.id) + '" value="' + esc(p.monto) + '" inputmode="decimal" aria-label="Monto" style="width:110px;text-align:right">' : '<b>' + dinero2(p.monto) + '</b>') +
       '</td><td>' + formaPago(p, c) + '</td><td>' + (p.soportes.length ? p.soportes.map(id => { const a = sop(id); return a ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" data-visor>' + esc(a.nombre) + '</a>' : ''; }).join('<br>') : '<span class="nota">—</span>') +
@@ -662,7 +667,7 @@ document.addEventListener('change', async e => {
   if (t.dataset.cxpAuto) return cxpLlamar('cxp_recurrente', { id: t.dataset.cxpAuto, operacion: 'automatico', valor: t.checked }, t.checked ? 'Se generará solo cada mes.' : 'Ya no se genera solo: saldrá una alerta si falta su solicitud.');
 });
 document.addEventListener('submit', async e => {
-  const id = e.target.id; if (!['f-cxp-rel', 'f-cxp-banco', 'f-cxp-nulo', 'f-cxp-cuenta'].includes(id)) return;
+  const id = e.target.id; if (!['f-cxp-rel', 'f-cxp-lote', 'f-cxp-banco', 'f-cxp-nulo', 'f-cxp-cuenta'].includes(id)) return;
   e.preventDefault(); const fd = new FormData(e.target), btn = e.target.querySelector('button.primario, button');
   if (btn) btn.disabled = true;
   try {
@@ -677,6 +682,25 @@ document.addEventListener('submit', async e => {
       S.cxpPer = S.cxp.periodo; S.cxpRel = S.cxp.relacion_id; S.cxpTab = 'pagos'; pintarCxp();
       const n = S.cxp.partidas.filter(p => p.relacion_id === S.cxpRel).length;
       toast(n + ' pagos leídos. Revise las alertas y apruebe.' + (S.cxp.avisos && S.cxp.avisos.length ? ' ' + S.cxp.avisos.join(' ') : ''));
+    }
+    if (id === 'f-cxp-lote') {   // v2.6.1 · una llamada por factura: cada una cabe en el límite de 60 s de Google
+      const per = fd.get('periodo'), fs = fd.getAll('facturas').filter(x => x && x.size);
+      if (!fs.length) throw new Error('Elija las facturas.');
+      let rel = '', pagos = 0; const fallas = [];
+      for (let i = 0; i < fs.length; i++) {
+        toast('Factura ' + (i + 1) + ' de ' + fs.length + ': ' + fs[i].name + '…');
+        try {
+          const sub = await api('fin_subir', { torre: S.torre, tipo: 'soporte', periodo: per, ligero: true, archivo: await leerArchivo(fs[i]) });
+          const r = await api('cxp_factura', { torre: S.torre, archivo: sub.subido, periodo: per, relacion_id: rel, titulo: fd.get('titulo') });
+          rel = r.relacion_id; pagos += r.facturas.length;
+          if (!r.facturas.length) fallas.push(fs[i].name);
+        } catch (err) { fallas.push(fs[i].name + ' (' + err.message + ')'); }
+      }
+      if (!rel) throw new Error('No se pudo leer ninguna factura. ' + fallas.join(' · '));
+      toast('Revisando duplicados, banco y recurrentes…');
+      S.cxp = await api('cxp_lote_fin', { relacion_id: rel });
+      S.cxpPer = S.cxp.periodo; S.cxpRel = rel; S.cxpTab = 'pagos'; pintarCxp();
+      toast(pagos + ' pago' + (pagos === 1 ? '' : 's') + ' en la relación.' + (fallas.length ? ' Sin leer: ' + fallas.join(' · ') : ' Revise las alertas y apruebe.'), !!fallas.length);
     }
     if (id === 'f-cxp-banco') {
       let archivo = fd.get('archivo'); const nuevo = fd.get('nuevo'), per = fd.get('periodo');
