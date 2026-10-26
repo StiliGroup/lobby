@@ -406,7 +406,8 @@ function cxpRelaciones(c) {
       '</td><td><div class="acciones-fila"><button type="button" class="btn" data-cxp-ver="' + esc(r.id) + '">Ver pagos</button><button type="button" class="btn" data-cxp-imprimir="' + esc(r.id) + '">Imprimir relación</button>' +
       (r.archivos.length ? '<button type="button" class="btn" data-cxp-pdf="' + esc(r.id) + '">PDF de soportes</button>' : '') +
       (c.puede_editar && r.estado === 'borrador' ? '<button type="button" class="btn primario" data-cxp-rel="aprobar" data-id="' + esc(r.id) + '">Aprobar</button>' : '') +
-      (c.puede_editar && r.estado === 'aprobada' ? '<button type="button" class="btn primario" data-cxp-rel="pagada" data-id="' + esc(r.id) + '">Marcar pagada</button>' : '') + '</div></td></tr>'),
+      (c.puede_editar && r.estado === 'aprobada' ? '<button type="button" class="btn primario" data-cxp-rel="pagada" data-id="' + esc(r.id) + '">Marcar pagada</button>' : '') +
+      (c.gerente && !r.partidas ? '<button type="button" class="btn" data-cxp-rel="eliminar" data-id="' + esc(r.id) + '">Eliminar</button>' : '') + '</div></td></tr>'),
       'Todavía no hay relaciones. Cargue la primera arriba.') + '</div>';
 }
 function formaPago(p, c) {
@@ -637,8 +638,9 @@ document.addEventListener('click', async e => {
   if (d.cxpEditar) return editarPartida(S.cxp.partidas.find(p => p.id === d.cxpEditar));
   if (d.cxpRel) {
     if (d.cxpRel === 'pagada' && !confirm('¿Marcar como pagados todos los pagos aprobados de esta relación?')) return;
+    if (d.cxpRel === 'eliminar' && !confirm('¿Eliminar esta relación vacía? Los archivos quedan guardados en Drive.')) return;
     b.disabled = true;
-    const r = await cxpLlamar('cxp_relacion', { id: d.id, operacion: d.cxpRel }, d.cxpRel === 'aprobar' ? 'Relación aprobada.' : 'Relación marcada como pagada.');
+    const r = await cxpLlamar('cxp_relacion', { id: d.id, operacion: d.cxpRel }, ({ aprobar: 'Relación aprobada.', pagada: 'Relación marcada como pagada.', eliminar: 'Relación eliminada.' })[d.cxpRel]);
     if (r && r.con_alerta) toast(r.con_alerta + ' pago' + (r.con_alerta === 1 ? '' : 's') + ' con alerta roja quedaron por aprobar: revíselos uno a uno.', true);
     return;
   }
@@ -684,23 +686,46 @@ document.addEventListener('submit', async e => {
       toast(n + ' pagos leídos. Revise las alertas y apruebe.' + (S.cxp.avisos && S.cxp.avisos.length ? ' ' + S.cxp.avisos.join(' ') : ''));
     }
     if (id === 'f-cxp-lote') {   // v2.6.1 · una llamada por factura: cada una cabe en el límite de 60 s de Google
-      const per = fd.get('periodo'), fs = fd.getAll('facturas').filter(x => x && x.size);
-      if (!fs.length) throw new Error('Elija las facturas.');
-      let rel = '', pagos = 0; const fallas = [];
-      for (let i = 0; i < fs.length; i++) {
-        toast('Factura ' + (i + 1) + ' de ' + fs.length + ': ' + fs[i].name + '…');
-        try {
-          const sub = await api('fin_subir', { torre: S.torre, tipo: 'soporte', periodo: per, ligero: true, archivo: await leerArchivo(fs[i]) });
-          const r = await api('cxp_factura', { torre: S.torre, archivo: sub.subido, periodo: per, relacion_id: rel, titulo: fd.get('titulo') });
-          rel = r.relacion_id; pagos += r.facturas.length;
-          if (!r.facturas.length) fallas.push(fs[i].name);
-        } catch (err) { fallas.push(fs[i].name + ' (' + err.message + ')'); }
+      const per = fd.get('periodo'), elegidas = fd.getAll('facturas').filter(x => x && x.size);
+      if (!elegidas.length) throw new Error('Elija las facturas.');
+      // v2.6.2 · un PDF con varias facturas se separa por página: cada página se lee sola (cabe en el límite de 60 s y no se corta)
+      const fs = [];
+      for (const f of elegidas) {
+        if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
+          try {
+            if (!window.PDFLib) await new Promise((ok, mal) => { const s = document.createElement('script'); s.src = PDFLIB_URL; s.onload = ok; s.onerror = () => mal(new Error('No se pudo cargar el lector de PDF.')); document.head.appendChild(s); });
+            const src = await PDFLib.PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true });
+            const n = src.getPageCount();
+            if (n > 1) {
+              const base = f.name.replace(/\.pdf$/i, '');
+              for (let i = 0; i < n; i++) {
+                const d = await PDFLib.PDFDocument.create(); const [pg] = await d.copyPages(src, [i]); d.addPage(pg);
+                fs.push({ file: new File([await d.save()], base + ' · pág ' + (i + 1) + '.pdf', { type: 'application/pdf' }), pagina: true });
+              }
+              continue;
+            }
+          } catch (err) { /* se sube entero */ }
+        }
+        fs.push({ file: f, pagina: false });
       }
+      let rel = '', pagos = 0, hechas = 0, vacias = 0; const fallas = [];
+      const leer = async it => {
+        try {
+          const sub = await api('fin_subir', { torre: S.torre, tipo: 'soporte', periodo: per, ligero: true, archivo: await leerArchivo(it.file) });
+          const r = await api('cxp_factura', { torre: S.torre, archivo: sub.subido, periodo: per, relacion_id: rel, titulo: fd.get('titulo'), pagina: it.pagina });
+          rel = r.relacion_id || rel; pagos += r.facturas.length;
+          if (r.vacia) vacias++; else if (!r.facturas.length) fallas.push(it.file.name);
+        } catch (err) { fallas.push(it.file.name + ' (' + err.message + ')'); }
+        hechas++; toast('Leídas ' + hechas + ' de ' + fs.length + (fs.length > elegidas.length ? ' páginas' : ' facturas') + ' · ' + pagos + ' pagos encontrados…');
+      };
+      toast('Leyendo ' + fs.length + (fs.length > elegidas.length ? ' páginas' : ' facturas') + '…');
+      await leer(fs[0]);   // la primera crea la relación
+      for (let i = 1; i < fs.length; i += 3) await Promise.all(fs.slice(i, i + 3).map(leer));   // de 3 en 3
       if (!rel) throw new Error('No se pudo leer ninguna factura. ' + fallas.join(' · '));
       toast('Revisando duplicados, banco y recurrentes…');
       S.cxp = await api('cxp_lote_fin', { relacion_id: rel });
       S.cxpPer = S.cxp.periodo; S.cxpRel = rel; S.cxpTab = 'pagos'; pintarCxp();
-      toast(pagos + ' pago' + (pagos === 1 ? '' : 's') + ' en la relación.' + (fallas.length ? ' Sin leer: ' + fallas.join(' · ') : ' Revise las alertas y apruebe.'), !!fallas.length);
+      toast(pagos + ' pago' + (pagos === 1 ? '' : 's') + ' en la relación.' + (vacias ? ' ' + vacias + ' página' + (vacias === 1 ? '' : 's') + ' sin factura (continuación o anexo).' : '') + (fallas.length ? ' Sin leer: ' + fallas.join(' · ') : ' Revise las alertas y apruebe.'), !!fallas.length);
     }
     if (id === 'f-cxp-banco') {
       let archivo = fd.get('archivo'); const nuevo = fd.get('nuevo'), per = fd.get('periodo');
