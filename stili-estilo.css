@@ -203,28 +203,48 @@ details.nueva-tarea { margin: 0 0 12px; } details.nueva-tarea summary { cursor: 
   #impresion { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   #impresion.horizontal { page: horizontal; }
   /* Relación de pagos: minimalista, sin rellenos, solo líneas finas */
-  #impresion.relacion { font: 9.5pt/1.45 Montserrat, Arial, sans-serif; color: #1b2430; }
+  #impresion.relacion { font: 8pt/1.3 Montserrat, Arial, sans-serif; color: #1b2430; }
   #impresion.relacion header { border-bottom: 1px solid #C9A227; padding-bottom: 10px; margin-bottom: 6px; align-items: flex-end; }
   #impresion.relacion header img { height: 34px; }
   #impresion.relacion header .tit { display: flex; flex-direction: column; } #impresion.relacion header .tit span { font-size: 8pt; letter-spacing: .14em; text-transform: uppercase; color: #6b7480; }
   #impresion.relacion header .tit b { font-size: 15pt; font-weight: 600; color: #003A75; }
   #impresion.relacion header .der { margin-left: auto; text-align: right; color: #4a5562; }
   #impresion.relacion .meta { color: #6b7480; font-size: 8pt; margin: 0 0 14px; }
-  #impresion.relacion .cifras { display: flex; gap: 40px; margin: 0 0 16px; }
+  #impresion.relacion .cifras { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 0 0 6px; }
   #impresion.relacion .cifras div { display: flex; flex-direction: column; } #impresion.relacion .cifras span { font-size: 7.5pt; letter-spacing: .1em; text-transform: uppercase; color: #6b7480; }
-  #impresion.relacion .cifras b { font-size: 13pt; font-weight: 600; color: #1b2430; } #impresion.relacion .cifras small { color: #6b7480; font-size: 7.5pt; }
-  #impresion.relacion table.det { width: 100%; border-collapse: collapse; font-size: 8.8pt; }
-  #impresion.relacion table.det th { background: none !important; border: 0; border-bottom: 1px solid #1b2430; font-size: 7.3pt; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #4a5562; padding: 6px 8px; text-align: left; }
-  #impresion.relacion table.det td { border: 0; border-bottom: 1px solid #E4E8EC; padding: 6px 8px; vertical-align: top; }
+  #impresion.relacion .cifras b { font-size: 11pt; font-weight: 600; color: #1b2430; } #impresion.relacion .cifras small { color: #6b7480; font-size: 7.5pt; }
+  #impresion.relacion table.det { width: 100%; border-collapse: collapse; font-size: 7.8pt; line-height: 1.25; }
+  #impresion.relacion table.det th { background: none !important; border: 0; border-bottom: 1px solid #1b2430; font-size: 6.6pt; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #4a5562; padding: 4px 6px; text-align: left; }
+  #impresion.relacion table.det td { border: 0; border-bottom: 1px solid #E4E8EC; padding: 2.5px 6px; vertical-align: top; }
+  #impresion.relacion .l2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; max-height: 2.5em; }
+  #impresion.relacion td.f1 { white-space: nowrap; max-width: 46mm; overflow: hidden; text-overflow: ellipsis; }
+  #impresion.relacion table.det tr { break-inside: avoid; }
   #impresion.relacion table.det .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   #impresion.relacion table.det td.n, #impresion.relacion table.det th.n { color: #9aa3ad; width: 18px; }
-  #impresion.relacion table.det .t { color: #6b7480; font-size: 8pt; white-space: nowrap; }
-  #impresion.relacion tr.grupo td { border-bottom: 0; padding: 14px 8px 4px; font-size: 7.5pt; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #003A75; }
-  #impresion.relacion tr.subtotal td { border-bottom: 0; color: #4a5562; font-size: 8pt; padding-top: 4px; } #impresion.relacion tr.subtotal td.num { border-top: 1px solid #b8c0c8; font-weight: 600; color: #1b2430; }
-  #impresion.relacion tr.total td { border-top: 2px solid #1b2430; border-bottom: 0; padding-top: 8px; font-weight: 700; font-size: 10pt; background: none !important; color: #1b2430 !important; }
+  #impresion.relacion table.det .t { color: #6b7480; font-size: 7.2pt; white-space: nowrap; }
+  #impresion.relacion tr.grupo td { border-bottom: 0; padding: 9px 6px 2px; font-size: 7pt; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #003A75; }
+  #impresion.relacion tr.subtotal td { border-bottom: 0; color: #4a5562; font-size: 7.4pt; padding-top: 2px; } #impresion.relacion tr.subtotal td.num { border-top: 1px solid #b8c0c8; font-weight: 600; color: #1b2430; }
+  #impresion.relacion tr.total td { border-top: 2px solid #1b2430; border-bottom: 0; padding-top: 6px; font-weight: 700; font-size: 9pt; background: none !important; color: #1b2430 !important; }
   #impresion.relacion h2 { font-size: 7.5pt; letter-spacing: .12em; text-transform: uppercase; color: #003A75; font-weight: 600; margin: 18px 0 6px; }
   #impresion.relacion ul.obs { margin: 0; padding-left: 16px; color: #4a5562; font-size: 8.5pt; }
   #impresion.relacion ol.anexos { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 32px; font-size: 8.5pt; } #impresion.relacion ol.anexos li { break-inside: avoid; padding: 2px 0; }
   #impresion.relacion ol.anexos span { display: inline-block; width: 38px; color: #9aa3ad; }
-  #impresion.relacion .firmas { margin-top: 56px; gap: 48px; } #impresion.relacion .firmas div { border-top: 1px solid #1b2430; font-size: 8pt; color: #4a5562; }
+  #impresion.relacion .anexo-hoja { break-before: page; page-break-before: always; text-align: center; }
+  #impresion.relacion .anexo-hoja p { text-align: left; font-size: 7.5pt; letter-spacing: .08em; text-transform: uppercase; color: #003A75; font-weight: 600; margin: 0 0 4mm; }
+  #impresion.relacion .anexo-hoja img { max-width: 100%; max-height: 172mm; object-fit: contain; }
+  #impresion.relacion .firmas { margin-top: 44px; gap: 48px; } #impresion.relacion .firmas div { border-top: 1px solid #1b2430; font-size: 8pt; color: #4a5562; }
 }
+
+/* v2.6.3 · barra de progreso global y mensaje interno */
+#progreso { position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 9999; pointer-events: none; opacity: 0; transition: opacity .2s; }
+#progreso.activo { opacity: 1; }
+#progreso i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #003A75, #C9A227); transition: width .3s; }
+#progreso.indet i { width: 35% !important; animation: progreso-ir 1.1s ease-in-out infinite; }
+#progreso span { position: fixed; top: 8px; right: 12px; background: #003A75; color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 12px; }
+#progreso span:empty { display: none; }
+@keyframes progreso-ir { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
+@media (prefers-reduced-motion: reduce) { #progreso.indet i { animation: none; width: 100% !important; opacity: .6; } }
+@media print { #progreso { display: none !important; } }
+.mensaje-interno { border-left: 3px solid #C9A227; }
+.mensaje-interno h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: #8a6d0f; margin: 0 0 6px; }
+.mensaje-interno ul { margin: 0; padding-left: 18px; }
