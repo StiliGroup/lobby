@@ -303,3 +303,17 @@ ul.docs-rel li a { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
   .pagos-cxp td:first-child, .pagos-cxp td:last-child { grid-column: 1 / -1; }
   .pagos-cxp .acciones-fila { flex-direction: row; flex-wrap: wrap; }
 }
+
+/* v2.7.5 · cobertura de los estados bancarios por cuenta */
+.cobs { display: grid; gap: 12px; margin-bottom: 10px; }
+.cob-cta { display: grid; gap: 4px; }
+.cob-mes { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 2px 10px; align-items: center; }
+.cob-mes small { grid-column: 2; }
+.cob-nom { font-size: 13px; color: var(--muted); text-transform: capitalize; }
+.cob { display: flex; gap: 2px; height: 14px; }
+.cob i { flex: 1; border-radius: 2px; background: var(--panel-2); }
+.cob i.si { background: var(--ok); }
+.cob i.no { background: var(--crit-suave); border: 1px solid var(--crit); }
+.cob i.pend { background: var(--panel-2); border: 1px solid var(--line); }
+.cob i.fut { background: transparent; border: 1px dashed var(--line); }
+.verde-t { color: var(--ok); }
