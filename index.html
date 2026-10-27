@@ -3116,9 +3116,11 @@ const TAMANOS = {
   '58': { w: '58mm', h: '40mm', nombre: '58 mm (impresora de tickets)' },
 };
 const guardado = (() => { try { return JSON.parse(localStorage.getItem('stili-lobby') || '{}'); } catch (e) { return {}; } })();
-const CFG = Object.assign({ url: '', token: '', portero: '', tamano: '4x2', autoImprimir: true, sonido: true }, guardado);
-function guardarCfg() { try { localStorage.setItem('stili-lobby', JSON.stringify(CFG)); } catch (e) { /* sin almacenamiento */ } }
-const DEMO = () => !CFG.url;
+// v2.7 · ?demo=1 (sala DEMO de Stili Soft): datos de ejemplo sin tocar la configuración real de esta tableta
+const MODO_DEMO = new URLSearchParams(location.search).has('demo');
+const CFG = Object.assign({ url: '', token: '', portero: '', tamano: '4x2', autoImprimir: true, sonido: true }, MODO_DEMO ? {} : guardado);
+function guardarCfg() { if (MODO_DEMO) return; try { localStorage.setItem('stili-lobby', JSON.stringify(CFG)); } catch (e) { /* sin almacenamiento */ } }
+const DEMO = () => MODO_DEMO || !CFG.url;
 
 const S = { lobby: null, categorias: [], apartamentos: [], dentro: [], hoy: {}, cierres: {}, tiposIncidencia: [], avisoMin: 15,
   categoria: '', autorizado: '', acomp: 0, foto: '', perfil: null, origen: '', venceSugerido: '', ultima: null,

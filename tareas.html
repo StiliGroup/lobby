@@ -154,7 +154,7 @@ function pintarOficios() {
     'El oficio lo pone la IA al leer el levantamiento; se corrige en Torres → Tareas.</p></div>' +
     (l.length ? '<div class="oficios">' + l.map((o, i) => '<section class="card of"><h2>' + esc(o.nombre) + '</h2><div class="chips"><span class="chip azul">' + o.abiertas + (o.abiertas === 1 ? ' abierta' : ' abiertas') + '</span>' +
       (o.alta ? '<span class="chip rojo">' + o.alta + (o.alta === 1 ? ' urgente' : ' urgentes') + '</span>' : '') + '<span class="chip">' + o.torres.length + (o.torres.length === 1 ? ' torre' : ' torres') + '</span></div>' +
-      o.torres.map(t => '<div class="t"><h3><a href="torres.html#' + esc(t.clave) + '">' + esc(t.torre) + '</a></h3><ul>' + t.tareas.map(x => '<li>' + esc(x.descripcion) +
+      o.torres.map(t => '<div class="t"><h3><a href="torres.html?m=operaciones#' + esc(t.clave) + '/tareas">' + esc(t.torre) + '</a></h3><ul>' + t.tareas.map(x => '<li>' + esc(x.descripcion) +
         ' <span class="chip ' + (PRIO[x.prioridad] || '') + '">' + esc(x.prioridad) + '</span>' + (x.fecha ? ' <small class="nota">' + esc(x.fecha) + '</small>' : '') + '</li>').join('') + '</ul>' +
         (t.proveedores.length ? '<div class="prov">Proveedor de la torre: ' + t.proveedores.map(p => esc(p.empresa || p.servicio) + (p.contacto ? ' (' + esc(p.contacto) + ')' : '') +
           (p.telefono ? ' · <a href="tel:' + esc(p.telefono) + '">' + esc(p.telefono) + '</a>' : '')).join(' · ') + '</div>' : '<div class="prov">Sin proveedor registrado para este oficio en la torre.</div>') + '</div>').join('') +
@@ -305,8 +305,8 @@ function demo(n) {
   return { meses, categorias: { mantenimiento: 'Mantenimiento', limpieza: 'Limpieza', personal: 'Personal', compras: 'Compras y suministros', seguridad: 'Seguridad', administrativo: 'Administrativo', otro: 'Otro' },
     gestores: [g('Mildred Pérez', ['Gil Roma XXXII', 'Torre Arpel 07', 'Apex Arroyo Hondo'], [12, 3, 6.5, 3]), g('Reyna Martínez', ['Los Hernandez VII', 'Torre Niza 7'], [7, 0, 4.2, 9])] };
 }
-if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'torres'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Tareas por gestor</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>'; }
-else { StiliModulos.montar(document.body, 'torres'); cambiarVista(); }
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'tareas'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Tareas por gestor</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>'; }
+else { StiliModulos.montar(document.body, 'tareas'); cambiarVista(); }
 </script>
 </body>
 </html>

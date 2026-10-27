@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DEMO · Stili Soft</title>
+<meta name="description" content="Sala de pruebas de Stili Soft: todos los módulos, nuevos y existentes, con datos de ejemplo.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css">
+<script src="config.js"></script>
+<script src="stili-modulos.js"></script>
+<style>
+.aviso-demo { display: flex; gap: 12px; align-items: flex-start; border-left: 4px solid #C9A227; }
+.aviso-demo b { color: var(--titulo); }
+.grupo { margin: 22px 0 8px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.demos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 12px; }
+.demo { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--fg); transition: transform .12s, box-shadow .12s; }
+.demo:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(19,41,61,.12); }
+.demo h3 { margin: 0; font-size: 16px; color: var(--titulo); display: flex; gap: 8px; align-items: center; }
+.demo p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.45; }
+.demo .para { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: auto; padding-top: 4px; }
+.chip.nuevo { background: #FFF4CC; color: #7A5B00; }
+@media (prefers-reduced-motion: reduce) { .demo { transition: none; } .demo:hover { transform: none; } }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Soft · sala de pruebas</small><b>DEMO</b></div></div></header>
+<main class="gutter" id="contenido"></main>
+<script>
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Cada prueba abre la página real con ?demo=1: datos de ejemplo, nada se guarda en el sistema ni en las hojas.
+const GRUPOS = [
+  ['Inicio', [
+    ['🏢', 'Condominios · tablero de cada torre', 'Semáforo, por cobrar, pagos del mes, reclamaciones, tareas, contratos y personal de turno; ficha, Junta y reglamentos.', 'torres.html?m=inicio&demo=1', 'Todo el equipo', true],
+    ['🎂', 'Cumpleaños', 'Junta Directiva, empleados de las torres y equipo Stili.', 'cumpleanos.html?demo=1', 'Todo el equipo'],
+  ]],
+  ['Personal', [
+    ['⏱', 'Ponchador y horas por quincena', 'Empleados del lobby con su PIN, asistencia y horas por quincena con CSV para la Nómina.', 'admin.html?m=personal&demo=1#quincena', 'RRHH y Operaciones', true],
+    ['👥', 'Personal por torre', 'Empleados y asistencia dentro de cada condominio.', 'torres.html?m=personal&demo=1', 'RRHH y gestores'],
+  ]],
+  ['Finanzas', [
+    ['🚦', 'Semáforo de las torres', 'Presupuesto vs real, cobranza, liquidez y saldo por cobrar de cada torre.', 'presupuesto.html?demo=1', 'Gerencia y Contabilidad'],
+    ['📥', 'Cuentas por cobrar', 'Carga semanal del listado: la IA reparte los saldos por torre y apartamento (en la demo la lectura es simulada).', 'cobros.html?demo=1', 'Equipo de cobros', true],
+    ['🧾', 'Cuentas por pagar', 'Relaciones, lote de facturas, tipos de pago, beneficiarios, cheques, banco y relación impresa.', 'torres.html?m=finanzas&demo=1#NIZA7/cxp', 'Cuentas por Pagar'],
+    ['📊', 'Estados y análisis con IA', 'Banco vs Habitanto, discrepancias y correcciones.', 'torres.html?m=finanzas&demo=1#NIZA7/finanzas', 'Contabilidad'],
+  ]],
+  ['Operaciones', [
+    ['🛠', 'Tareas, reclamaciones y suplidores', 'Reclamaciones y comunicados, tareas y levantamientos, pedidos de limpieza, proveedores y contratos.', 'torres.html?m=operaciones&demo=1', 'Gestores'],
+    ['📋', 'Tareas por gestor', 'Tareas abiertas de cada gestor y sus torres.', 'tareas.html?demo=1', 'Gestores y Gerencia'],
+  ]],
+  ['Lobby y portería', [
+    ['🛎', 'App de porteros', 'La pantalla de la tableta del lobby: registro de accesos, gafetes, ponches y relevo de turno.', 'index.html?demo=1', 'Porteros y supervisores'],
+    ['🗂', 'Portería · panel', 'Tablero de accesos, buscar apartamento, hosts y renta corta, por revisar y lista negra.', 'admin.html?m=lobby&demo=1', 'Gestores'],
+    ['⚙️', 'Parámetros del lobby', 'Reglas de portería, categorías, horarios de cierre y tabletas activas.', 'admin.html?m=lobby&demo=1#parametros', 'Gerencia', true],
+    ['🏠', 'Propietarios · encuesta', 'Lo que llena el propietario: ocupación, residentes y autorizaciones.', 'encuesta.html?demo=1', 'Propietarios'],
+    ['🔑', 'Hosts · panel de renta corta', 'El panel del host: sus unidades, huéspedes y check-in.', 'host.html?demo=1', 'Hosts'],
+    ['🧳', 'Huéspedes · su estadía', 'Lo que ve el huésped: check-in, normas y salida.', 'huesped.html?demo=1', 'Huéspedes'],
+  ]],
+  ['Ajustes', [
+    ['🔐', 'Usuarios, claves y permisos', 'Usuarios, matriz de permisos por segmento, papelera y políticas (en la demo puede cambiar de rol).', 'admin.html?m=admin&demo=1', 'Gerencia'],
+  ]],
+];
+document.getElementById('contenido').innerHTML =
+  '<div class="card aviso-demo"><span aria-hidden="true" style="font-size:26px">🧪</span><div><b>Sala de pruebas.</b> Cada módulo abre con datos de ejemplo: puede tocar todo sin miedo, nada se guarda en el sistema. ' +
+  'Los módulos nuevos se publican aquí primero para que el equipo los pruebe. Las pruebas que dicen <span class="chip nuevo">Nuevo</span> son de la versión 2.7.</div></div>' +
+  GRUPOS.map(([g, items]) => '<h2 class="grupo">' + esc(g) + '</h2><div class="demos">' + items.map(([ic, t, d, href, para, nuevo]) =>
+    '<a class="card demo" href="' + esc(href) + '"><h3><span aria-hidden="true">' + ic + '</span>' + esc(t) + (nuevo ? ' <span class="chip nuevo">Nuevo</span>' : '') + '</h3><p>' + esc(d) + '</p><span class="para">Para: ' + esc(para) + '</span></a>').join('') + '</div>').join('');
+StiliModulos.montar(document.body, 'demo');
+</script>
+</body>
+</html>

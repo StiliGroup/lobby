@@ -130,16 +130,39 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') abrirLista(f
 // ------------------------------------------------------------------ Secciones de la torre
 // v2.1 · en el orden en que más se usan. Apartamentos, Personal y Reglamentos se trajeron del Lobby.
 const SECCIONES = [
-  ['reclamaciones', 'Reclamaciones y comunicados'], ['tareas', 'Tareas y levantamientos'], ['pedidos', 'Pedidos de limpieza'], ['finanzas', 'Finanzas y presupuesto'], ['cxp', 'Cuentas por pagar'], ['proveedores', 'Proveedores y contratos'],
+  ['tablero', 'Tablero del condominio'],
+  ['reclamaciones', 'Reclamaciones y comunicados'], ['tareas', 'Tareas y levantamientos'], ['pedidos', 'Pedidos de limpieza'], ['finanzas', 'Finanzas y presupuesto'], ['cxp', 'Cuentas por pagar'], ['cxc', 'Cuentas por cobrar'], ['proveedores', 'Proveedores y contratos'],
   ['apartamentos', 'Apartamentos'], ['personal', 'Personal del lobby'], ['junta', 'Junta Directiva'], ['accesos', 'Accesos y servicios'],
   ['documentos', 'Reglamentos y documentos'], ['general', 'Generales y legales'], ['historial', 'Notas e historial'],
 ];
-const CORTO = { reclamaciones: 'Reclamaciones', tareas: 'Tareas', pedidos: 'Pedidos', finanzas: 'Finanzas', cxp: 'Por pagar', proveedores: 'Proveedores', apartamentos: 'Apartamentos', personal: 'Personal', junta: 'Junta',
+const CORTO = { tablero: 'Tablero', cxc: 'Por cobrar', reclamaciones: 'Reclamaciones', tareas: 'Tareas', pedidos: 'Pedidos', finanzas: 'Finanzas', cxp: 'Por pagar', proveedores: 'Proveedores', apartamentos: 'Apartamentos', personal: 'Personal', junta: 'Junta',
   accesos: 'Accesos', documentos: 'Reglamentos', general: 'Generales', historial: 'Historial' };   // en el teléfono
 const SECCION_VIEJA = { presupuesto: 'finanzas', contratos: 'proveedores', comunicados: 'reclamaciones', empleados: 'personal', notas: 'historial' };
 const lobby = () => (S.lista && S.lista.lobby) || {};
+// v2.7 · la misma pantalla de la torre sirve a cinco módulos; cada uno ve solo sus secciones
+const MODULO_SECCIONES = {
+  inicio: ['tablero', 'general', 'junta', 'documentos', 'historial'],
+  operaciones: ['reclamaciones', 'tareas', 'pedidos', 'proveedores'],
+  finanzas: ['finanzas', 'cxp', 'cxc'],
+  personal: ['personal'],
+  lobby: ['apartamentos', 'accesos', 'documentos'],
+};
+const NOMBRE_MODULO = { inicio: 'Condominios', operaciones: 'Operaciones', finanzas: 'Finanzas', personal: 'Personal', lobby: 'Lobby' };
+const MODULO = (() => {
+  const m = new URLSearchParams(location.search).get('m');
+  if (MODULO_SECCIONES[m]) return m;
+  // enlaces viejos (#TORRE/seccion): el módulo es el de la sección
+  const sec = SECCION_VIEJA[(decodeURIComponent(location.hash.slice(1)).split('/')[1] || '')] || decodeURIComponent(location.hash.slice(1)).split('/')[1];
+  const k = Object.keys(MODULO_SECCIONES).find(x => MODULO_SECCIONES[x].includes(sec)) || 'inicio';
+  try { const u = new URL(location.href); u.searchParams.set('m', k); history.replaceState(null, '', u); } catch (e) { /* nada */ }
+  return k;
+})();
+document.title = NOMBRE_MODULO[MODULO] + ' · Stili Soft';
 function tieneSeccion(k, d) {
+  if (!MODULO_SECCIONES[MODULO].includes(k)) return false;
   const ficha = d.ver_ficha !== false;
+  if (k === 'tablero') return true;
+  if (k === 'cxc') return !!(S.lista && S.lista.cobros);
   if (k === 'reclamaciones') return !!d.reclamaciones;
   if (k === 'tareas') return !!(S.lista && S.lista.tareas > 0);
   if (k === 'pedidos') return !!(S.lista && S.lista.pedidos > 0);
@@ -150,7 +173,7 @@ function tieneSeccion(k, d) {
   if (k === 'documentos') return true;
   return ficha;
 }
-const primeraSeccion = d => (SECCIONES.find(([k]) => tieneSeccion(k, d)) || ['documentos'])[0];
+const primeraSeccion = d => (SECCIONES.find(([k]) => tieneSeccion(k, d)) || [MODULO_SECCIONES[MODULO][0]])[0];
 // Secciones del lobby: la misma pantalla del Lobby, dentro de la torre y con la torre ya elegida
 const marco = (v, titulo) => '<iframe class="marco-lobby" title="' + esc(titulo) + '" src="admin.html?m=torre&embed=1&torre=' + encodeURIComponent(S.detalle.torre) + (DEMO ? '&demo=1' : '') + '#' + v + '"></iframe>';
 window.addEventListener('message', e => {
@@ -177,7 +200,7 @@ document.addEventListener('click', e => {
   verSeccion(k); $('#seccion').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 function verSeccion(k) {
-  S.seccion = k; guardar({ torre_seccion: k });
+  S.seccion = k; guardar({ torre_seccion: k, ['seccion_' + MODULO]: k });
   $$('#tabs > button[data-s]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.s === k)));
   StiliModulos.mas($('#tabs'), { items: ':scope > button' });
   pintarSeccion();
@@ -215,6 +238,9 @@ function pintarSeccion() {
   if (k === 'tareas') h = '<div id="tar"><p class="nota">Cargando tareas…</p></div>';
   if (k === 'pedidos') h = '<div id="ped"><p class="nota">Cargando pedidos…</p></div>';
   if (k === 'cxp') h = '<div id="cxp"><p class="nota">Cargando cuentas por pagar…</p></div>';
+  if (k === 'cxc') h = '<div id="cxc"><p class="nota">Cargando cuentas por cobrar…</p></div>';
+  if (k === 'tablero') h = tableroHtml(d);
+  if (!tieneSeccion(k, d)) h = '<div class="vacio">Esta torre no tiene datos de ' + esc(NOMBRE_MODULO[MODULO].toLowerCase()) + ' que usted pueda ver.</div>';
   if (k === 'apartamentos') h = marco('torres', 'Apartamentos del lobby');
   if (k === 'personal') h = lobby().personal > 0 ? marco('personal', 'Personal del lobby') : '<div class="card"><h2>Personal del lobby · ' + d.empleados.length + '</h2>' + tabla(['Nombre', 'Puesto', 'Cédula'],
     d.empleados.map(e => '<tr><td><b>' + esc(e.nombre) + '</b></td><td>' + esc(e.puesto) + '</td><td>' + esc(e.documento) + '</td></tr>'), 'No hay empleados asignados a esta torre.') +
@@ -239,8 +265,50 @@ function pintarSeccion() {
   if (k === 'tareas') cargarTareas();
   if (k === 'pedidos') cargarPedidos();
   if (k === 'cxp') cargarCxp();
+  if (k === 'cxc' && tieneSeccion(k, d)) cargarCxc();
   if (k === 'finanzas' && S.lista.finanzas) cargarFinanzas();
   if (k === 'finanzas' && S.lista.presupuesto) cargarPresupuesto();
+}
+
+// ------------------------------------------------------------------ v2.7 · Tablero del condominio (Inicio)
+const SEMAFORO = { rojo: ['rojo', 'Riesgo alto'], ambar: ['ambar', 'En atención'], verde: ['verde', 'Sana'], incompleto: ['azul', 'Datos incompletos'], sin_datos: ['azul', 'Sin presupuesto'] };
+function tableroHtml(d) {
+  const tb = d.tablero || {}, porVencer = d.contratos.filter(c => c.dias !== null && c.dias <= 30).length;
+  const tarjeta = (titulo, valor, detalle, color, ir) => '<div class="kpi' + (color ? ' ' + color : '') + '"><span>' + esc(titulo) + '</span><b>' + valor + '</b>' + (detalle ? '<small>' + detalle + '</small>' : '') +
+    (ir ? '<a href="' + ir + '">Ver →</a>' : '') + '</div>';
+  const enMod = (m, sec) => 'torres.html?m=' + m + (DEMO ? '&demo=1' : '') + '#' + encodeURIComponent(d.clave || S.torre) + '/' + sec;
+  const k = [];
+  if (tb.semaforo) { const s = SEMAFORO[tb.semaforo.estado] || ['azul', tb.semaforo.estado]; k.push(tarjeta('Semáforo financiero', '<span class="chip ' + s[0] + '">' + esc(s[1]) + '</span>', esc(tb.semaforo.señal || ''), '', enMod('finanzas', 'finanzas'))); }
+  if (tb.cxc) {
+    const dif = tb.cxc.anterior === null || tb.cxc.anterior === undefined ? '' : tb.cxc.total - tb.cxc.anterior;
+    k.push(tarjeta('Por cobrar · corte ' + tb.cxc.fecha_corte, dinero(tb.cxc.total), plural(tb.cxc.con_saldo, 'apartamento con saldo', 'apartamentos con saldo') +
+      (tb.cxc.mas60 ? ' · ' + dinero(tb.cxc.mas60) + ' con más de 60 días' : '') + (dif !== '' ? ' · ' + (dif > 0 ? '▲ ' : dif < 0 ? '▼ ' : '') + dinero(Math.abs(dif)) + ' vs. semana anterior' : ''),
+      tb.cxc.mas60 > 0 ? 'ambar' : '', enMod('finanzas', 'cxc')));
+  }
+  if (tb.cxp) k.push(tarjeta('Pagos de ' + nombreMes(tb.cxp.periodo), dinero(tb.cxp.total), plural(tb.cxp.por_aprobar, 'pago por aprobar', 'pagos por aprobar') + ' · pagado ' + dinero(tb.cxp.pagado), tb.cxp.por_aprobar ? 'ambar' : '', enMod('finanzas', 'cxp')));
+  if (d.reclamaciones) k.push(tarjeta('Reclamaciones abiertas', String(d.reclamaciones.resumen.abiertas || 0), '', d.reclamaciones.resumen.abiertas ? 'rojo' : '', enMod('operaciones', 'reclamaciones')));
+  if (d.tareas_abiertas !== undefined) k.push(tarjeta('Tareas abiertas', String(d.tareas_abiertas || 0), '', '', enMod('operaciones', 'tareas')));
+  k.push(tarjeta('Contratos por vencer', String(porVencer), 'en los próximos 30 días', porVencer ? 'ambar' : '', enMod('operaciones', 'proveedores')));
+  if (tb.de_turno) k.push(tarjeta('Personal de turno', String(tb.de_turno.length), tb.de_turno.map(p => esc(p.nombre)).join(', ') || 'Nadie ha marcado entrada', '', enMod('personal', 'personal')));
+  return '<div class="card"><div class="cab"><h2>Tablero de ' + esc(d.torre) + '</h2></div><div class="kpis anchos">' + k.join('') + '</div></div>';
+}
+
+// ------------------------------------------------------------------ v2.7 · Cuentas por cobrar de la torre (lo carga el equipo de cobros en «Cuentas por cobrar»)
+async function cargarCxc() {
+  const el = $('#cxc'); if (!el) return;
+  try {
+    const c = await api('cxc_datos', { torre: S.torre });
+    if (!$('#cxc')) return;
+    if (!c.fecha_corte) { el.innerHTML = '<div class="vacio">Todavía no hay un listado de cuentas por cobrar cargado.' + (c.puede_editar ? ' <a href="cobros.html' + (DEMO ? '?demo=1' : '') + '">Cargar el de esta semana →</a>' : '') + '</div>'; return; }
+    const t = c.apartamentos.reduce((s, a) => s + a.saldo, 0), m60 = c.apartamentos.reduce((s, a) => s + a.d90 + a.mas90, 0);
+    const max = Math.max(1, ...c.historial.map(h => h.total));
+    el.innerHTML = '<div class="card"><div class="cab"><h2>Cuentas por cobrar · corte ' + esc(c.fecha_corte) + '</h2>' + (c.puede_editar ? '<a class="btn" href="cobros.html' + (DEMO ? '?demo=1' : '') + '">Cargar listado</a>' : '') + '</div>' +
+      '<div class="kpis"><div class="kpi"><span>Total por cobrar</span><b>' + dinero(t) + '</b><small>' + plural(c.apartamentos.filter(a => a.saldo > 0.5).length, 'apartamento con saldo', 'apartamentos con saldo') + '</small></div>' +
+      '<div class="kpi' + (m60 ? ' ambar' : '') + '"><span>Más de 60 días</span><b>' + dinero(m60) + '</b></div></div>' +
+      (c.historial.length > 1 ? '<h3 class="sub">Últimas semanas</h3><div class="barras" role="img" aria-label="Total por cobrar por semana">' + c.historial.map(h => '<div title="' + esc(h.fecha_corte) + ': ' + dinero(h.total) + '"><i style="height:' + Math.round(100 * h.total / max) + '%"></i><small>' + esc(h.fecha_corte.slice(5)) + '</small></div>').join('') + '</div>' : '') +
+      tabla(['Apto', 'Propietario', 'Saldo', 'Corriente', '1–30', '31–60', '61–90', '+90'], c.apartamentos.filter(a => a.saldo > 0.5).map(a => '<tr><td><b>' + esc(a.apartamento) + '</b></td><td>' + esc(a.propietario) + '</td><td class="num"><b>' + dinero(a.saldo) + '</b></td>' +
+        ['corriente', 'd30', 'd60', 'd90', 'mas90'].map(x => '<td class="num' + ((x === 'd90' || x === 'mas90') && a[x] ? ' rojo-t' : '') + '">' + (a[x] ? dinero(a[x]) : '') + '</td>').join('') + '</tr>'), 'Ningún apartamento con saldo.') + '</div>';
+  } catch (err) { el.innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
 }
 
 async function abrirTorre(clave) {
@@ -1188,9 +1256,10 @@ document.addEventListener('click', e => {
 async function iniciar() {
   if (!DEMO && !cfg().sesion) {
     $('#contenido').innerHTML = '<div class="card entrar"><h2>Torres</h2><p>Entre con su usuario de Stili en el Portal y vuelva a esta página.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>';
-    StiliModulos.montar(document.body, 'torres'); return;
+    StiliModulos.montar(document.body, MODULO); return;
   }
-  StiliModulos.montar(document.body, 'torres');
+  StiliModulos.montar(document.body, MODULO);
+  $('.cabecera .titulo b').textContent = NOMBRE_MODULO[MODULO];
   const previa = DEMO ? null : memoria('lista');
   if (previa) { S.lista = previa; mostrarLista(true); }
   try {
@@ -1204,10 +1273,10 @@ async function iniciar() {
 }
 function mostrarLista(abrir) {
   {
-    S.seccion = S.torre ? S.seccion : (SECCION_VIEJA[cfg().torre_seccion] || cfg().torre_seccion || 'reclamaciones');
-    $('#b-nueva').hidden = !S.lista.puede_crear; $('#b-tareas').hidden = !(S.lista.tareas > 0);
+    S.seccion = S.torre ? S.seccion : (cfg()['seccion_' + MODULO] || MODULO_SECCIONES[MODULO][0]);
+    $('#b-nueva').hidden = !S.lista.puede_crear || MODULO !== 'inicio'; $('#b-tareas').hidden = !(S.lista.tareas > 0) || MODULO !== 'operaciones';
     if (!S.lista.torres.length) { $('#contenido').innerHTML = '<div class="vacio">' + (S.lista.puede_crear ? 'Todavía no hay torres. Use «+ Nueva torre».' : 'Su usuario no tiene torres asignadas. Pídalas al Gerente General.') + '</div>'; return; }
-    $('#selector').hidden = false; $('#b-nueva').hidden = !S.lista.puede_crear;
+    $('#selector').hidden = false; $('#b-nueva').hidden = !S.lista.puede_crear || MODULO !== 'inicio';
     if (!abrir) return;                     // solo se refrescó la lista (permisos o torres nuevas)
     const [pedida, sec] = (decodeURIComponent(location.hash.slice(1)) || cfg().torre_actual || '').split('/');   // v2.6 · #TORRE/seccion (enlaces del Inicio)
     if (sec && SECCIONES.some(([k]) => k === sec)) S.seccion = sec;
@@ -1218,7 +1287,7 @@ function mostrarLista(abrir) {
 
 // ------------------------------------------------------------------ Datos de ejemplo (?demo) para revisar el diseño sin conexión
 const Demo = {
-  torres_lista: () => ({ bot: 'https://t.me/StiliTorresBot', nivel: 3, reclamaciones: true, puede_crear: true, finanzas: true, presupuesto: true, ficha: true, tareas: 3, pedidos: 3, elimina: true, lobby: { apartamentos: 3, personal: 3, documentos: 3 },
+  torres_lista: () => ({ bot: 'https://t.me/StiliTorresBot', nivel: 3, reclamaciones: true, puede_crear: true, finanzas: true, presupuesto: true, cobros: true, ficha: true, tareas: 3, pedidos: 3, elimina: true, lobby: { apartamentos: 3, personal: 3, documentos: 3 },
     equipo: [['NOM-1', 'Mildred Pérez', 'Gestora de Cuentas', 'Gestión de Cuentas'], ['NOM-2', 'Reyna Martínez', 'Gestora de Cuentas', 'Gestión de Cuentas'], ['NOM-3', 'Danna Carolina Ramírez', 'Gestora de Cuentas', 'Gestión de Cuentas'],
       ['NOM-4', 'Lissette López', 'Encargada de Contabilidad', 'Contabilidad'], ['NOM-5', 'Ronald Larrauri', 'Gerente General', 'Gerencia General']].map(([id, nombre, cargo, departamento]) => ({ id, nombre, cargo, departamento })),
     torres: [
@@ -1311,8 +1380,14 @@ const Demo = {
     lineas: [{ rubro: 'Cuotas de mantenimiento', tipo: 'ingreso', mensual: 100000, real_promedio: null, ejecucion: null }, { rubro: 'Seguridad', tipo: 'gasto', mensual: 50000, real_promedio: 60000, ejecucion: 1.2 },
       { rubro: 'Limpieza', tipo: 'gasto', mensual: 20000, real_promedio: 19000, ejecucion: 0.95 }, { rubro: 'Energía eléctrica', tipo: 'gasto', mensual: 25000, real_promedio: 31000, ejecucion: 1.24 }],
     archivos: [{ id: 'FA3', nombre: 'Presupuesto 2026 aprobado.pdf', periodo: '2026-01' }] }),
+  cxc_datos: () => ({ puede_editar: true, torre: 'Torre Niza 7', fecha_corte: '2026-10-23',
+    apartamentos: [['3C', 'Luis Rosario', 25500, 0, 0, 0, 0, 25500], ['7A', 'Inversiones Caribe SRL', 18900, 6300, 6300, 6300, 0, 0], ['1A', 'Ana Peña', 12000, 4000, 4000, 4000, 0, 0], ['5B', 'José Díaz', 6300, 6300, 0, 0, 0, 0], ['2B', 'María Gómez', 0, 0, 0, 0, 0, 0]]
+      .map(([apartamento, propietario, saldo, corriente, d30, d60, d90, mas90]) => ({ apartamento, propietario, saldo, corriente, d30, d60, d90, mas90, meses: 0 })),
+    historial: [['2026-10-02', 318400], ['2026-10-09', 309750], ['2026-10-16', 301900], ['2026-10-23', 286450]].map(([fecha_corte, total]) => ({ fecha_corte, total })) }),
   torre_detalle: ({ torre }) => ({ torre: (Demo.torres_lista().torres.find(t => t.clave === torre) || {}).torre || torre, clave: torre, nivel: 3, gestor: 'Reyna Martínez',
     gestor_id: 'NOM-2', puede_editar: true, puede_asignar: true, equipo: Demo.torres_lista().equipo,
+    tablero: { semaforo: { estado: 'ambar', señal: 'La cobranza bajó al 78 % en septiembre.' }, cxc: { fecha_corte: '2026-10-23', total: 286450, con_saldo: 14, aptos: 48, mas60: 96200, anterior: 301900 },
+      cxp: { periodo: new Date().toISOString().slice(0, 7), total: 274850.5, por_aprobar: 9, pagado: 0 }, de_turno: [{ nombre: 'CIRILO DE LEON', desde: new Date().toISOString() }] },
     junta: [{ id: 'JD1', nombre: 'Emily McDougal', cargo: 'Presidenta', nacimiento: '1975-10-26', telefono: '809-555-0101', correo: 'emily@ejemplo.do', cedula: '•••4521' }],
     servicios: [{ servicio: 'EDESUR', codigo: '6812676', notas: '' }, { servicio: 'CAASD acometida', codigo: '43797', notas: '' }],
     accesos: [{ entidad: 'DGII', usuario: '430313343', nombre_usuario: '', token: '', ultima_actualizacion: '', notas: '' }], bancos: [{ banco: 'BHD', titular: 'Condominio Torre Niza 7', usuario: '••••', notas: '' }],

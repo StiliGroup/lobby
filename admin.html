@@ -229,7 +229,9 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
     <button class="tab" role="tab" data-v="negra" aria-selected="false">Lista negra <span class="n" id="n-sol" hidden>0</span></button>
     <button class="tab" role="tab" data-v="torres" aria-selected="false">Apartamentos</button>
     <button class="tab" role="tab" data-v="personal" aria-selected="false">Personal del lobby</button>
+    <button class="tab" role="tab" data-v="quincena" aria-selected="false">Horas por quincena</button>
     <button class="tab" role="tab" data-v="documentos" aria-selected="false">Reglamentos y documentos</button>
+    <button class="tab" role="tab" data-v="parametros" aria-selected="false">Parámetros</button>
     <button class="tab" role="tab" data-v="usuarios" aria-selected="false" hidden>Usuarios y permisos</button>
     <button class="tab" role="tab" data-v="papelera" aria-selected="false" hidden>Papelera</button>
     <button class="tab" role="tab" data-v="ajustes" aria-selected="false">Ajustes</button>
@@ -238,7 +240,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
 </header>
 
 <main class="gutter">
-  <div class="demo-aviso" id="demo-aviso" hidden>Modo demostración: datos de ejemplo. Para usar los datos reales, entre en Administración → «Ajustes», escriba la dirección del servicio y entre con su usuario.</div>
+  <div class="demo-aviso" id="demo-aviso" hidden>Modo demostración: datos de ejemplo. Para usar los datos reales, entre en el módulo Ajustes, escriba la dirección del servicio y entre con su usuario.</div>
 
   <!-- TABLERO -->
   <section id="v-tablero">
@@ -457,6 +459,34 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
     </div>
   </section>
 
+  <!-- v2.7 · HORAS POR QUINCENA (Personal) -->
+  <section id="v-quincena" hidden>
+    <div class="card">
+      <header style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:10px">
+        <h2 style="margin:0 auto 0 0">Horas por quincena</h2>
+        <label class="campo" style="width:160px">Mes<input type="month" id="q-mes"></label>
+        <label class="campo" style="width:150px">Quincena<select id="q-q"><option value="1">1 al 15</option><option value="2">16 al fin de mes</option></select></label>
+        <button class="btn" id="q-ver" type="button">Ver</button><button class="btn" id="q-csv" type="button">Descargar CSV para Nómina</button>
+      </header>
+      <p class="nota" style="margin-top:0">Sale del ponchador del lobby (cédula + PIN en la tableta de cada torre). Horas extra = lo que pasa de la jornada de <span id="q-jornada">8</span> horas en cada turno. Revise los turnos sin salida antes de pasar las horas a la Nómina.</p>
+      <div class="tabla"><table><thead><tr><th>Empleado</th><th>Cédula</th><th>Torre</th><th style="text-align:right">Días</th><th style="text-align:right">Turnos</th><th style="text-align:right">Horas</th><th style="text-align:right">Extra</th><th>Sin salida</th></tr></thead><tbody id="quincena"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- v2.7 · PARÁMETROS DEL LOBBY -->
+  <section id="v-parametros" hidden>
+    <div class="grid g2">
+      <div class="card"><h2>Reglas de portería</h2><form class="form" id="f-param"></form><p class="nota" id="par-nota"></p></div>
+      <div class="card"><h2>Lobbies (tabletas)</h2><div class="tabla"><table><thead><tr><th>Torre</th><th>Lobby</th><th>Código</th><th>Activo</th></tr></thead><tbody id="par-lobbies"></tbody></table></div></div>
+    </div>
+    <div class="card"><h2>Categorías de acceso</h2><div class="tabla"><table><thead><tr><th>Categoría</th><th>Horas máximas adentro</th><th>Activa</th></tr></thead><tbody id="par-cats"></tbody></table></div></div>
+    <div class="card"><h2>Horarios de cierre por torre y categoría</h2>
+      <p class="nota" style="margin-top:0">Hora límite para estar adentro (ej. 6:00 p.m.) o «cerrado». «TODAS» aplica a todas las torres o categorías; la regla más específica gana.</p>
+      <div class="tabla"><table><thead><tr><th>Torre</th><th>Categoría</th><th>Lun–vie</th><th>Sábado</th><th>Domingo</th><th></th></tr></thead><tbody id="par-hor"></tbody></table></div>
+      <div class="acciones" id="par-acc"><button class="btn" type="button" id="par-mas">+ Agregar horario</button><button class="btn primario" type="button" id="par-guardar">Guardar parámetros</button></div>
+    </div>
+  </section>
+
   <!-- USUARIOS Y ACCESOS (solo Gerente General) -->
   <section id="v-usuarios" hidden>
     <div class="grid g2">
@@ -587,11 +617,12 @@ function leerCfg() { try { return JSON.parse(localStorage.getItem('stili-admin')
 function guardarCfg() { try { localStorage.setItem('stili-admin', JSON.stringify(CFG)); } catch (e) { /* sin almacenamiento */ } }
 // v2.1 · tres usos de esta página: el módulo Lobby, el módulo Administración y las secciones del lobby dentro de cada torre
 const PARAM = new URLSearchParams(location.search);
-const MODULO = ({ lobby: 'lobby', invitados: 'lobby', admin: 'admin', usuarios: 'admin', torre: 'torre' })[PARAM.get('m')] || 'lobby';
+const MODULO = ({ lobby: 'lobby', invitados: 'lobby', admin: 'admin', usuarios: 'admin', ajustes: 'admin', torre: 'torre', personal: 'personal' })[PARAM.get('m')] || 'lobby';
 const INCRUSTADO = MODULO === 'torre' && PARAM.get('embed') === '1', TORRE = PARAM.get('torre') || '';
-const TABS_MODULO = { lobby: ['tablero', 'apto', 'hosts', 'revisar', 'negra'], admin: ['usuarios', 'papelera', 'ajustes'], torre: ['torres', 'personal', 'documentos'] };
+// v2.7 · Lobby = portería (accesos y parámetros) · Personal = ponchador y horas · Ajustes = usuarios, claves y políticas
+const TABS_MODULO = { lobby: ['tablero', 'apto', 'hosts', 'revisar', 'negra', 'torres', 'documentos', 'parametros'], admin: ['usuarios', 'papelera', 'ajustes'], torre: ['torres', 'personal', 'documentos'], personal: ['personal', 'quincena'] };
 const VIEJAS = { encuestas: 'revisar', conflictos: 'revisar' };   // enlaces guardados de la v2.0
-const NOMBRE_MODULO = { lobby: 'Lobby', admin: 'Administración', torre: 'Torre' };
+const NOMBRE_MODULO = { lobby: 'Lobby', admin: 'Ajustes', torre: 'Torre', personal: 'Personal' };
 document.title = NOMBRE_MODULO[MODULO] + ' · Stili';
 if (INCRUSTADO) document.documentElement.classList.add('incrustado');
 const CFG = Object.assign({ url: (window.STILI && window.STILI.servicio) || '', admin: '', sesion: '', paginas: '', demoRol: 'gerente', vista: 'tablero' }, leerCfg());
@@ -625,7 +656,7 @@ function vista(v) {
   if (MODULO === 'lobby') { CFG.vista = v; guardarCfg(); }
   if (v === 'revisar') { partes.forEach(p => ({ encuestas: cargarEncuestas, conflictos: cargarConflictos })[p]()); avisarAltura(); return; }
   if (window.StiliModulos) StiliModulos.mas($('.tabs'), { items: ':scope > .tab' });
-  ({ torres: () => { const l = (S.tablero ? S.tablero.torres.map(x => x.torre) : []); $('#t-nombre-lista').innerHTML = l.map(x => '<option value="' + esc(x) + '">').join(''); }, tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, usuarios: cargarUsuarios, papelera: cargarPapelera, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
+  ({ torres: () => { const l = (S.tablero ? S.tablero.torres.map(x => x.torre) : []); $('#t-nombre-lista').innerHTML = l.map(x => '<option value="' + esc(x) + '">').join(''); }, tablero: cargarTablero, documentos: cargarDocs, encuestas: cargarEncuestas, conflictos: cargarConflictos, negra: cargarNegra, hosts: cargarHosts, personal: cargarPersonal, quincena: cargarQuincena, parametros: cargarParametros, usuarios: cargarUsuarios, papelera: cargarPapelera, ajustes: pintarAjustes, apto: llenarTorres })[v]?.();
   avisarAltura();
 }
 // Dentro de Torres: esta página va en un marco y le avisa su altura para que no haya doble barra de desplazamiento
@@ -643,7 +674,7 @@ function actualizarRevisar() {
 $$('.tab').forEach(t => t.addEventListener('click', () => vista(t.dataset.v)));
 
 // ------------------------------------------------------------------ Permisos (v1.7)
-const TAB_SECCION = { tablero: 'tablero', apto: 'apartamento', documentos: 'documentos', encuestas: 'encuestas', hosts: 'hosts', torres: 'torres', conflictos: 'conflictos', negra: 'lista_negra', personal: 'personal' };
+const TAB_SECCION = { tablero: 'tablero', apto: 'apartamento', documentos: 'documentos', encuestas: 'encuestas', hosts: 'hosts', torres: 'torres', conflictos: 'conflictos', negra: 'lista_negra', personal: 'personal', quincena: 'personal', parametros: 'tablero' };
 const nivel = sec => S.sistema ? (S.sistema.gerente ? 3 : ((S.sistema.permisos || {})[sec] || 0)) : 0;
 // v2.3 · eliminar es solo del Gerente General (el Asistente Administrativo tiene todo lo demás)
 const elimina = () => !!(S.sistema && (S.sistema.elimina !== undefined ? S.sistema.elimina : S.sistema.gerente));
@@ -749,7 +780,7 @@ async function cargarSistema() {
     aplicarPermisos();
   } catch (e) {
     $('#pill-con').innerHTML = '<span class="p demo"></span><span>Sin acceso</span>'; $('#pill-rol').textContent = '—';
-    toast(e.message + ' Revise Administración → «Ajustes».', 'error');
+    toast(e.message + ' Revise el módulo Ajustes → «Ajustes».', 'error');
   }
   $('#demo-aviso').hidden = !DEMO();
 }
@@ -1279,6 +1310,68 @@ $('#m-guardar').addEventListener('click', async () => {
 });
 
 // ------------------------------------------------------------------ Personal
+// ------------------------------------------------------------------ v2.7 · Horas por quincena (Personal)
+function quincenaPorDefecto() {
+  const d = new Date(); let y = d.getFullYear(), m = d.getMonth() + 1, q = d.getDate() <= 15 ? 1 : 2;
+  // la quincena que se está pagando es la que acaba de cerrar
+  if (q === 1) { q = 2; m -= 1; if (!m) { m = 12; y -= 1; } } else q = 1;
+  return [y + '-' + ('0' + m).slice(-2), String(q)];
+}
+async function cargarQuincena() {
+  if (!$('#q-mes').value) { const [m, q] = quincenaPorDefecto(); $('#q-mes').value = m; $('#q-q').value = q; }
+  $('#quincena').innerHTML = '<tr><td colspan="8">Cargando…</td></tr>';
+  try {
+    const r = S.quincena = await api('personal_quincena', { periodo: $('#q-mes').value, quincena: $('#q-q').value });
+    $('#q-jornada').textContent = r.jornada;
+    $('#quincena').innerHTML = r.empleados.length ? r.empleados.map(e => '<tr><td>' + esc(e.nombre) + '</td><td class="mono">' + esc(e.documento) + '</td><td>' + esc(e.torres) + '</td><td style="text-align:right">' + e.dias +
+      '</td><td style="text-align:right">' + e.turnos + '</td><td style="text-align:right"><b>' + e.horas.toFixed(2) + '</b></td><td style="text-align:right">' + (e.extra ? e.extra.toFixed(2) : '') + '</td><td>' +
+      (e.sin_salida ? '<span class="chip ambar">' + e.sin_salida + ' sin salida</span>' : '') + '</td></tr>').join('') : '<tr><td colspan="8">Nadie ponchó en esta quincena.</td></tr>';
+  } catch (e) { $('#quincena').innerHTML = '<tr><td colspan="8">' + esc(e.message) + '</td></tr>'; }
+}
+$('#q-ver').addEventListener('click', cargarQuincena);
+$('#q-csv').addEventListener('click', () => {
+  const r = S.quincena; if (!r || !r.empleados.length) return toast('No hay horas para descargar.', 'error');
+  const c = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const csv = [['Empleado', 'Cedula', 'Torre', 'Dias', 'Turnos', 'Horas', 'Horas extra', 'Turnos sin salida', 'Desde', 'Hasta'].map(c).join(',')]
+    .concat(r.empleados.map(e => [e.nombre, e.documento, e.torres, e.dias, e.turnos, e.horas, e.extra, e.sin_salida, r.desde, r.hasta].map(c).join(','))).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = 'Horas ' + r.desde + ' a ' + r.hasta + '.csv'; a.click();
+});
+
+// ------------------------------------------------------------------ v2.7 · Parámetros del lobby
+async function cargarParametros() {
+  try { S.param = await api('lobby_parametros'); pintarParametros(); }
+  catch (e) { $('#f-param').innerHTML = '<p>' + esc(e.message) + '</p>'; }
+}
+function pintarParametros() {
+  const r = S.param, ed = r.puede_editar, dis = ed ? '' : ' disabled';
+  $('#f-param').innerHTML = r.parametros.map(p => '<label class="campo ancho">' + esc(p.nombre) + (p.tipo === 'si_no'
+    ? '<select data-par="' + p.clave + '"' + dis + '><option value="SI"' + (p.valor !== 'NO' ? ' selected' : '') + '>Sí</option><option value="NO"' + (p.valor === 'NO' ? ' selected' : '') + '>No</option></select>'
+    : '<input data-par="' + p.clave + '" value="' + esc(p.valor) + '"' + (p.tipo === 'numero' ? ' inputmode="numeric"' : '') + dis + '>') + '</label>').join('');
+  $('#par-nota').textContent = ed ? '' : 'Solo el Gerente General cambia los parámetros.';
+  $('#par-lobbies').innerHTML = r.lobbies.map(l => '<tr><td>' + esc(l.torre) + '</td><td>' + esc(l.nombre) + '</td><td class="mono">' + esc(l.codigo) + '</td><td><input type="checkbox" data-lobby="' + esc(l.torre) + '|' + esc(l.nombre) + '"' + (l.activo ? ' checked' : '') + dis + ' aria-label="Activo"></td></tr>').join('') || '<tr><td colspan="4">Sin lobbies.</td></tr>';
+  $('#par-cats').innerHTML = r.categorias.map(c => '<tr><td>' + esc(c.nombre) + (c.trabajo ? ' <span class="chip">personal de trabajo</span>' : '') + '</td><td><input data-cat-h="' + esc(c.codigo) + '" value="' + esc(c.horas_max) + '" inputmode="decimal" style="width:90px"' + dis + '></td><td><input type="checkbox" data-cat-a="' + esc(c.codigo) + '"' + (c.activo ? ' checked' : '') + dis + ' aria-label="Activa"></td></tr>').join('');
+  const torres = ['TODAS'].concat(r.torres), cats = ['TODAS'].concat(r.categorias.map(c => c.codigo));
+  const sel = (lista, v, k, nombres) => '<select data-h="' + k + '"' + dis + '>' + lista.map(x => '<option value="' + esc(x) + '"' + (x === v ? ' selected' : '') + '>' + esc((nombres || {})[x] || x) + '</option>').join('') + '</select>';
+  const nomCat = r.categorias.reduce((o, c) => (o[c.codigo] = c.nombre, o), {});
+  $('#par-hor').innerHTML = r.horarios.map(h => '<tr data-fila="' + h.fila + '"><td>' + sel(torres, h.torre, 'torre') + '</td><td>' + sel(cats, h.categoria, 'categoria', nomCat) + '</td>' +
+    ['lun_vie', 'sabado', 'domingo'].map(k => '<td><input data-h="' + k + '" value="' + esc(h[k]) + '" placeholder="6:00 p.m." style="width:110px"' + dis + '></td>').join('') + '<td>' + (ed ? '<button class="btn" type="button" data-quitar-h>Quitar</button>' : '') + '</td></tr>').join('');
+  $('#par-acc').hidden = !ed;
+  S.paramPlantilla = '<tr data-fila=""><td>' + sel(torres, 'TODAS', 'torre') + '</td><td>' + sel(cats, 'TODAS', 'categoria', nomCat) + '</td>' + ['lun_vie', 'sabado', 'domingo'].map(k => '<td><input data-h="' + k + '" placeholder="6:00 p.m." style="width:110px"></td>').join('') + '<td><button class="btn" type="button" data-quitar-h>Quitar</button></td></tr>';
+}
+document.addEventListener('click', async e => {
+  if (e.target.id === 'par-mas') $('#par-hor').insertAdjacentHTML('beforeend', S.paramPlantilla);
+  const q = e.target.closest('[data-quitar-h]'); if (q) { const tr = q.closest('tr'); if (tr.dataset.fila) { tr.hidden = true; tr.dataset.quitar = '1'; } else tr.remove(); }
+  if (e.target.id !== 'par-guardar') return;
+  const parametros = {}; $$('[data-par]').forEach(x => { parametros[x.dataset.par] = x.value; });
+  const categorias = S.param.categorias.map(c => ({ codigo: c.codigo, horas_max: $('[data-cat-h="' + c.codigo + '"]').value, activo: $('[data-cat-a="' + c.codigo + '"]').checked }));
+  const horarios = $$('#par-hor tr').map(tr => { const v = k => tr.querySelector('[data-h="' + k + '"]').value; return { fila: tr.dataset.fila ? Number(tr.dataset.fila) : null, quitar: tr.dataset.quitar === '1', torre: v('torre'), categoria: v('categoria'), lun_vie: v('lun_vie'), sabado: v('sabado'), domingo: v('domingo') }; })
+    .filter(h => h.fila || h.lun_vie || h.sabado || h.domingo);
+  const lobbies = $$('[data-lobby]').map(x => { const [torre, nombre] = x.dataset.lobby.split('|'); return { torre, nombre, activo: x.checked }; });
+  e.target.disabled = true;
+  try { S.param = await api('lobby_parametros_guardar', { parametros, categorias, horarios, lobbies }); pintarParametros(); toast('Parámetros guardados. Las tabletas los toman en su próxima actualización.'); }
+  catch (err) { toast(err.message, 'error'); } finally { e.target.disabled = false; }
+});
+
 async function cargarPersonal() {
   try {
     const r = await api('empleados');
@@ -1439,6 +1532,7 @@ const Demo = (() => {
   const vistaHosts = g => ({ gerente: g, bot: 'CustomerServiceStili_bot', empresa: 'Stili Group', hosts: hostsD.map(h => Object.assign({}, h, { unidades: h.unidades.slice(),
     telefono: g ? h.telefono : '•••' + h.telefono.slice(-4), documento: g ? h.documento : (h.documento ? '•••' + h.documento.slice(-4) : ''), correo: g ? h.correo : '', notas: g ? h.notas : '' })) });
   const papD = { papelera: [], datos: [{ clave: 'VST-1', valores: ['JUAN PÉREZ', 'Torre Niza 7', '20/10/2026'] }, { clave: 'VST-2', valores: ['MARÍA GÓMEZ', 'Torre Esperilla 17', '19/10/2026'] }] };
+  const parD = { valores: { REGISTRO_INDIVIDUAL: 'SI', AVISO_MINUTOS_CIERRE: '15', OCUPACION_MAXIMA_DEFECTO: '6', HORA_SALIDA_HUESPED: '11:00 a.m.' } };
   async function llamar(accion, d) {
     await new Promise(r => setTimeout(r, 120));
     const g = CFG.demoRol === 'gerente' || !CFG.demoRol;
@@ -1447,6 +1541,18 @@ const Demo = (() => {
       case 'sistema': { const seg = SEGMENTOS_D[CFG.demoRol] ? CFG.demoRol : 'gerente'; const p = {}; SECCIONES_D.forEach(x => { p[x.clave] = seg === 'gerente' ? 3 : matrizD[x.clave][seg]; });
         return { version: '1.7.0', checkin: true, rol: g ? 'gerente' : 'equipo', nombre: { gerente: 'Ronald Larrauri', gestores: 'Danna Ramírez', rrhh: 'Anny Tejada', contabilidad: 'Lissette López' }[seg],
           gerente: seg === 'gerente', segmento: seg, permisos: p, torres: seg === 'gestores' ? ['Torre Niza 7', 'Torre Esperilla 17'] : null, id: seg === 'gerente' ? 'U001' : 'U00X', url_nomina: '' }; }
+      case 'personal_quincena': return { periodo: d.periodo, quincena: Number(d.quincena), desde: d.periodo + (d.quincena === '2' ? '-16' : '-01'), hasta: d.periodo + (d.quincena === '2' ? '-31' : '-15'), jornada: 8,
+        empleados: [['CIRILO DE LEON', '001•••5678', 'Torre Niza 7', 12, 12, 101.5, 5.5, 0], ['MARIA PEÑA', '402•••4451', 'Torre Niza 7', 11, 11, 88, 0, 1], ['JOSE R. PEREZ', '001•••7765', 'Torre Arpel 07', 13, 13, 112.25, 8.25, 0]]
+          .map(([nombre, documento, torres, dias, turnos, horas, extra, sin_salida]) => ({ nombre, documento, torres, dias, turnos, horas, extra, sin_salida })) };
+      case 'lobby_parametros': case 'lobby_parametros_guardar': {
+        if (accion === 'lobby_parametros_guardar') { if (!g) throw err('Solo el Gerente General puede hacer esto.', 'SOLO_GERENTE'); Object.assign(parD.valores, d.parametros || {}); }
+        return { puede_editar: g, torres: ['Torre Niza 7', 'Torre Arpel 07', 'Torre Esperilla 17'],
+          parametros: [['REGISTRO_INDIVIDUAL', 'Todo el que entra se registra uno por uno', 'si_no'], ['AVISO_MINUTOS_CIERRE', 'Minutos de aviso antes del cierre de una categoría', 'numero'],
+            ['OCUPACION_MAXIMA_DEFECTO', 'Ocupación máxima por apartamento (si el apartamento no tiene una propia)', 'numero'], ['HORA_SALIDA_HUESPED', 'Hora de salida de huéspedes de renta corta', 'texto']]
+            .map(([clave, nombre, tipo]) => ({ clave, nombre, tipo, valor: parD.valores[clave] })),
+          categorias: [['VIS', 'Visita', '6'], ['TRA', 'Personal de trabajo', '10', true], ['DEL', 'Delivery', '1'], ['HUE', 'Huésped renta corta', '']].map(([codigo, nombre, horas_max, trabajo]) => ({ codigo, nombre, horas_max, activo: true, trabajo: !!trabajo })),
+          horarios: [{ fila: 2, torre: 'TODAS', categoria: 'TRA', lun_vie: '6:00 p.m.', sabado: '1:00 p.m.', domingo: 'cerrado' }, { fila: 3, torre: 'Torre Niza 7', categoria: 'TRA', lun_vie: '5:00 p.m.', sabado: '12:00 p.m.', domingo: 'cerrado' }],
+          lobbies: [{ torre: 'Torre Niza 7', nombre: 'Lobby Niza 7', activo: true, codigo: '••••8F2A' }, { torre: 'Torre Arpel 07', nombre: 'Lobby Arpel', activo: true, codigo: '••••19C0' }] }; }
       case 'sso_ticket': throw err('En la demostración la Nómina no está conectada. Con el sistema real, este botón la abre sin pedir clave.');
       case 'datos_tablas': if (!g) throw err('Solo el Gerente General puede hacer esto.', 'SOLO_GERENTE');
         return { dias: 30, tablas: [{ tabla: 'Visitas', nombre: 'Visitas del lobby' }, { tabla: 'Incidencias', nombre: 'Incidencias del lobby' }, { tabla: 'Hosts', nombre: 'Check-in · Hosts' }] };
@@ -1542,10 +1648,10 @@ async function iniciar() {
   if (INCRUSTADO) prepararTorre();
   if (MODULO === 'admin') {
     if (!(S.sistema.gerente || S.sistema.usuarios)) { $$('main > section').forEach(s => { s.hidden = true; });
-      $('main').insertAdjacentHTML('beforeend', '<div class="card"><h2>Administración</h2><p class="nota">Este módulo es del Gerente General. Si lo necesita, pídale que se lo asigne.</p></div>'); return; }
+      $('main').insertAdjacentHTML('beforeend', '<div class="card"><h2>Ajustes</h2><p class="nota">Este módulo es del Gerente General. Si lo necesita, pídale que se lo asigne.</p></div>'); return; }
   }
   if (nivel('documentos') > 0) { try { S.docs = await api('documentos'); } catch (e) { /* sin documentos */ } }
-  if (MODULO === 'lobby' && nivel('tablero') > 0) await cargarTablero();
+  if ((MODULO === 'lobby' || MODULO === 'personal') && nivel('tablero') > 0) await cargarTablero();
   const inicial = VIEJAS[(location.hash || '').slice(1)] || (location.hash || '').slice(1), propias = TABS_MODULO[MODULO];
   const pedida = propias.includes(inicial) ? inicial : MODULO === 'lobby' ? (propias.includes(CFG.vista) ? CFG.vista : 'tablero') : propias[0];
   const tab = $('.tab[data-v="' + pedida + '"]');

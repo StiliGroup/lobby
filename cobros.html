@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuentas por cobrar · Stili Soft</title>
+<meta name="description" content="Cuentas por cobrar de todas las torres: el equipo de cobros carga el listado semanal y la IA reparte los saldos por torre y apartamento.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css">
+<script src="config.js"></script>
+<script src="stili-modulos.js"></script>
+<style>
+.carga { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+.carga .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; }
+.carga label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.carga input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); }
+.var-sube { color: var(--crit); font-weight: 600; } .var-baja { color: var(--ok); font-weight: 600; }
+.sin-torre select { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); max-width: 220px; }
+@media (max-width: 640px) { .carga { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Finanzas</small><b>Cuentas por cobrar</b></div></div></header>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<script>
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const dinero = v => v === null || v === undefined || isNaN(v) ? '—' : 'RD$ ' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
+const plural = (n, uno, varios) => n + ' ' + (n === 1 ? uno : varios);
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const PDFLIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+const libreria = (url, global) => window[global] ? Promise.resolve() : new Promise((ok, mal) => { const s = document.createElement('script'); s.src = url; s.onload = ok; s.onerror = () => mal(new Error('No se pudo cargar el lector de archivos. Revise la conexión.')); document.head.appendChild(s); });
+const toast = (msg, error) => { let el = $('#aviso'); if (!el) { el = document.createElement('div'); el.id = 'aviso'; el.setAttribute('role', 'status');
+  el.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);color:#fff;padding:10px 16px;border-radius:10px;z-index:90;max-width:calc(100% - 32px);font-weight:600'; document.body.appendChild(el); }
+  el.style.background = error ? '#B3261E' : '#13293D'; el.textContent = msg; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, error ? 7000 : 3500); };
+// Barra de progreso (la misma idea de Cuentas por Pagar)
+const Progreso = (() => {
+  let el = null;
+  const barra = () => el || (el = Object.assign(document.body.appendChild(document.createElement('div')), { id: 'progreso', innerHTML: '<i></i><span></span>' }));
+  return {
+    indet(si) { const b = barra(); if (b.dataset.fijo) return; b.className = si ? 'activo indet' : ''; },
+    avance(h, t, texto) { const b = barra(); b.dataset.fijo = '1'; b.className = 'activo'; b.querySelector('i').style.width = Math.round(100 * h / Math.max(1, t)) + '%'; b.querySelector('span').textContent = texto || ''; },
+    listo() { if (el) { delete el.dataset.fijo; el.className = ''; el.querySelector('i').style.width = '0'; el.querySelector('span').textContent = ''; } },
+  };
+})();
+async function api(accion, datos) {
+  if (DEMO) return Demo[accion](datos || {});
+  Progreso.indet(true);
+  try { return await StiliModulos.api(accion, datos); } finally { Progreso.indet(false); }
+}
+let D = null;
+
+// El viernes más reciente (los cortes son semanales)
+function corteSugerido() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 2) % 7)); return d.toLocaleDateString('en-CA'); }
+
+async function cargar() {
+  try { D = await api('cxc_datos'); pintar(); }
+  catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
+}
+function pintar() {
+  const conDatos = D.torres.filter(t => t.total !== null);
+  const total = conDatos.reduce((s, t) => s + t.total, 0), ant = conDatos.reduce((s, t) => s + (t.anterior || 0), 0), hayAnt = conDatos.some(t => t.anterior !== null && t.anterior !== undefined);
+  const m60 = conDatos.reduce((s, t) => s + (t.mas60 || 0), 0), aptos = conDatos.reduce((s, t) => s + (t.con_saldo || 0), 0);
+  const variacion = (v, a) => a === null || a === undefined ? '' : v - a > 0.5 ? '<span class="var-sube">▲ ' + dinero(v - a) + '</span>' : v - a < -0.5 ? '<span class="var-baja">▼ ' + dinero(a - v) + '</span>' : '<span class="nota">igual</span>';
+  const opciones = '<option value="">Elegir torre…</option>' + D.torres.map(t => '<option value="' + esc(t.clave) + '">' + esc(t.torre) + '</option>').join('');
+  const grupos = {}; (D.sin_torre || []).forEach(f => { (grupos[f.torre_listado] = grupos[f.torre_listado] || []).push(f); });
+  $('#contenido').innerHTML =
+    (D.puede_editar ? '<form class="card carga" id="f-carga"><div><h2 style="margin-top:0">Cargar el listado de la semana</h2><div class="form">' +
+      '<label>Fecha de corte<input type="date" name="corte" required value="' + corteSugerido() + '"></label>' +
+      '<label>Listado (Excel, CSV, PDF o foto)<input type="file" name="archivo" required accept=".xlsx,.xls,.csv,.pdf,image/*"></label></div>' +
+      '<p class="nota" style="margin:8px 0 0">La IA lee el listado por partes, reparte cada saldo a su torre y apartamento y guarda el original en Drive. ' +
+      (D.ia === false ? '<b>Falta la clave de la IA en el servicio.</b>' : '') + '</p></div><button class="btn primario" type="submit">Leer y repartir</button></form>' : '') +
+    (D.carga ? '<div class="card"><div class="cab"><h2>Corte del ' + esc(D.carga.fecha_corte) + '</h2><span class="nota">' + esc(D.carga.nombre) + ' · ' + esc(D.carga.subido_por) + '</span></div>' +
+      '<div class="kpis anchos" style="margin:0"><div class="kpi"><span>Total por cobrar</span><b>' + dinero(total) + '</b>' + (hayAnt ? '<small>' + variacion(total, ant) + ' vs. corte del ' + esc(D.carga.anterior) + '</small>' : '') + '</div>' +
+      '<div class="kpi"><span>Apartamentos con saldo</span><b>' + aptos + '</b></div><div class="kpi' + (m60 ? ' ambar' : '') + '"><span>Más de 60 días</span><b>' + dinero(m60) + '</b><small>' + (total ? Math.round(100 * m60 / total) + ' % del total' : '') + '</small></div></div>' +
+      ((D.notas || []).length ? '<details style="margin-top:10px"><summary class="nota">Notas de la lectura (' + D.notas.length + ')</summary><ul>' + D.notas.map(n => '<li>' + esc(n) + '</li>').join('') + '</ul></details>' : '') + '</div>' : '<div class="vacio">Todavía no se ha cargado ningún listado de cuentas por cobrar.</div>') +
+    (Object.keys(grupos).length ? '<div class="card sin-torre"><h2>Saldos sin torre reconocida</h2><p class="nota">Elija la torre una vez y el sistema la recordará en los próximos listados.</p>' +
+      '<div class="tabla"><table><thead><tr><th>Como aparece en el listado</th><th>Apartamentos</th><th>Saldo</th><th>Torre</th></tr></thead><tbody>' + Object.keys(grupos).map(n => '<tr><td><b>' + esc(n || '(sin nombre)') + '</b></td><td>' + grupos[n].length + '</td><td class="num">' +
+        dinero(grupos[n].reduce((s, f) => s + f.saldo, 0)) + '</td><td>' + (n ? '<select data-asignar="' + esc(n) + '" aria-label="Torre para ' + esc(n) + '">' + opciones + '</select>' : '') + '</td></tr>').join('') + '</tbody></table></div></div>' : '') +
+    (D.carga ? '<div class="card"><h2>Por torre</h2><div class="tabla"><table><thead><tr><th>Torre</th><th class="num">Por cobrar</th><th class="num">Aptos con saldo</th><th class="num">Más de 60 días</th><th>Vs. semana anterior</th></tr></thead><tbody>' +
+      D.torres.map(t => '<tr><td><a href="torres.html?m=finanzas' + (DEMO ? '&demo=1' : '') + '#' + encodeURIComponent(t.clave) + '/cxc">' + esc(t.torre) + '</a></td>' + (t.total === null ? '<td colspan="4" class="nota">No aparece en este listado</td>' :
+        '<td class="num"><b>' + dinero(t.total) + '</b></td><td class="num">' + t.con_saldo + '</td><td class="num' + (t.mas60 ? ' rojo-t' : '') + '">' + (t.mas60 ? dinero(t.mas60) : '') + '</td><td>' + variacion(t.total, t.anterior) + '</td>') + '</tr>').join('') +
+      '</tbody></table></div></div>' : '') +
+    ((D.cargas || []).length ? '<div class="card"><h2>Listados cargados</h2><div class="tabla"><table><thead><tr><th>Corte</th><th>Archivo</th><th class="num">Total</th><th class="num">Aptos</th><th>Cargado por</th></tr></thead><tbody>' +
+      D.cargas.map(c => '<tr><td>' + esc(c.fecha_corte) + (c.estado === 'reemplazada' ? ' <span class="chip">reemplazado</span>' : '') + '</td><td>' + (c.url ? '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.nombre) + '</a>' : esc(c.nombre)) +
+        '</td><td class="num">' + dinero(c.total) + '</td><td class="num">' + c.apartamentos + '</td><td>' + esc(c.subido_por) + ' · ' + esc(c.subido_en) + '</td></tr>').join('') + '</tbody></table></div></div>' : '');
+}
+
+// Un archivo → partes que la IA puede leer cada una en menos de un minuto
+async function partes(f) {
+  if (/\.(xlsx|xls|csv)$/i.test(f.name)) {
+    let hojas;
+    if (/\.csv$/i.test(f.name)) hojas = [['', await f.text()]];
+    else { await libreria(XLSX_URL, 'XLSX'); const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true });
+      hojas = wb.SheetNames.map(n => [n, XLSX.utils.sheet_to_csv(wb.Sheets[n], { dateNF: 'yyyy-mm-dd', blankrows: false })]); }
+    const out = [];
+    hojas.forEach(([n, csv]) => {
+      const lineas = csv.split(/\r?\n/).filter(l => l.replace(/[,;\s]/g, ''));
+      if (!lineas.length) return;
+      const cab = lineas.slice(0, 3).join('\n');   // los títulos se repiten en cada parte
+      for (let i = 3; i < Math.max(lineas.length, 4); i += 120) out.push({ texto: (n ? '### Hoja: ' + n + '\n' : '') + cab + '\n' + lineas.slice(i, i + 120).join('\n'), etiqueta: (n ? n + ' · ' : '') + 'filas ' + (i + 1) + '–' + Math.min(lineas.length, i + 120) });
+    });
+    return { original: { nombre: f.name, texto: hojas.map(([n, csv]) => (n ? '### Hoja: ' + n + '\n' : '') + csv).join('\n\n') }, lista: out };
+  }
+  const b64 = buf => { let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768)); return btoa(s); };
+  const original = { nombre: f.name, mime: f.type || 'application/octet-stream', base64: b64(await f.arrayBuffer()) };
+  if (/pdf/.test(f.type) || /\.pdf$/i.test(f.name)) {
+    await libreria(PDFLIB_URL, 'PDFLib');
+    const src = await PDFLib.PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true }), n = src.getPageCount(), lista = [];
+    for (let i = 0; i < n; i++) { const d = await PDFLib.PDFDocument.create(); const [pg] = await d.copyPages(src, [i]); d.addPage(pg); lista.push({ base64: b64(await d.save()), mime: 'application/pdf', etiqueta: 'página ' + (i + 1) }); }
+    return { original, lista };
+  }
+  if (/^image\//.test(f.type)) return { original, lista: [{ base64: original.base64, mime: f.type, etiqueta: f.name }] };
+  throw new Error('Use un listado en Excel, CSV, PDF o foto.');
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-carga') return;
+  e.preventDefault();
+  const fd = new FormData(e.target), f = fd.get('archivo'), boton = e.target.querySelector('button');
+  if (!f || !f.size) return toast('Elija el listado.', true);
+  boton.disabled = true;
+  try {
+    Progreso.avance(0, 1, 'Preparando el listado…');
+    const p = await partes(f);
+    if (!p.lista.length) throw new Error('El archivo no tiene filas.');
+    const { carga_id } = await api('cxc_inicio', { fecha_corte: fd.get('corte'), archivo: p.original });
+    let anterior = '', filas = 0, sin = 0;
+    for (let i = 0; i < p.lista.length; i++) {
+      Progreso.avance(i, p.lista.length, 'Leyendo ' + (i + 1) + ' de ' + p.lista.length + ' · ' + filas + ' saldos');
+      try { const r = await api('cxc_leer', Object.assign({ carga_id, torre_anterior: anterior }, p.lista[i])); filas += r.filas; sin += r.sin_torre; anterior = r.torre_ultima || anterior; }
+      catch (err) { toast('No se pudo leer ' + p.lista[i].etiqueta + ': ' + err.message, true); }
+    }
+    Progreso.avance(p.lista.length, p.lista.length, 'Repartiendo por torre…');
+    D = await api('cxc_fin', { carga_id });
+    pintar(); toast('Listo: ' + filas + ' saldos repartidos' + (sin ? ' · ' + sin + ' sin torre reconocida (elíjala abajo)' : '') + '.');
+  } catch (err) { toast(err.message, true); boton.disabled = false; }
+  finally { Progreso.listo(); }
+});
+document.addEventListener('change', async e => {
+  const s = e.target.closest('[data-asignar]'); if (!s || !s.value) return;
+  s.disabled = true;
+  try { D = await api('cxc_asignar', { torre: s.value, torre_listado: s.dataset.asignar }); pintar(); toast('Asignado. Se recordará en los próximos listados.'); }
+  catch (err) { s.disabled = false; toast(err.message, true); }
+});
+
+const Demo = {
+  cxc_datos: () => ({ puede_editar: true, ia: true, carga: { id: 'CC-1', fecha_corte: '2026-10-23', nombre: 'Cuentas por cobrar semana 43.xlsx', subido_por: 'Yudelkis Bonilla', anterior: '2026-10-16' },
+    notas: ['Hoja «Resumen» omitida: solo trae totales.'],
+    torres: [['Torre Niza 7', 'NIZA7', 286450, 14, 96200, 301900], ['Torre Arpel 07', 'ARPEL', 198300, 11, 41800, 187650], ['Apex Arroyo Hondo', 'APEX', 92400, 6, 0, 99800],
+      ['Torre Esperilla 17', 'ESP17', 61250, 4, 18900, 61250], ['Coral Park', 'CORAP', null]].map(([torre, clave, total, con_saldo, mas60, anterior]) => ({ torre, clave, total, con_saldo, mas60, anterior })),
+    sin_torre: [{ torre_listado: 'RES. BELLA VISTA II', apartamento: '4B', saldo: 12800 }, { torre_listado: 'RES. BELLA VISTA II', apartamento: '6A', saldo: 9100 }],
+    cargas: [{ fecha_corte: '2026-10-23', nombre: 'Cuentas por cobrar semana 43.xlsx', url: '#', total: 660200, apartamentos: 212, estado: 'lista', subido_por: 'Yudelkis Bonilla', subido_en: '23/10/2026' },
+      { fecha_corte: '2026-10-16', nombre: 'Cuentas por cobrar semana 42.pdf', url: '#', total: 672400, apartamentos: 209, estado: 'lista', subido_por: 'Yudelkis Bonilla', subido_en: '16/10/2026' }] }),
+  cxc_asignar: () => { const d = Demo.cxc_datos(); d.sin_torre = []; return d; },
+  cxc_inicio: () => ({ carga_id: 'CC-2' }), cxc_leer: () => new Promise(ok => setTimeout(() => ok({ filas: 40, sin_torre: 0, torre_ultima: '' }), 300)), cxc_fin: () => Demo.cxc_datos(),
+};
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'cobros'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Cuentas por cobrar</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>'; }
+else { StiliModulos.montar(document.body, 'cobros'); cargar(); }
+</script>
+</body>
+</html>

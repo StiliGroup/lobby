@@ -1,5 +1,6 @@
-/* Stili Group · barra común de módulos (v2.1)
- * Seis puertas, por tarea: Inicio · Torres · Lobby · Finanzas · Nómina · Administración.
+/* Stili Group · barra común de módulos (v2.7)
+ * Siete módulos: Inicio · Personal · Finanzas · Operaciones · Lobby · Ajustes · DEMO.
+ * Cada módulo tiene su segunda fila de páginas (la de la página abierta queda marcada).
  * Cada página la monta con:  StiliModulos.montar(elemento, 'torres')
  * Los botones que no caben en la pantalla pasan al desplegable «Más ▾» (StiliModulos.mas(nav)).
  * Usa la misma sesión del Portal y del Panel (localStorage 'stili-admin').
@@ -13,16 +14,33 @@
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  // v2.7 · cada módulo con sus páginas. `ve` = clave de acceso que da el servicio (accionPortal_); `viejo` = la clave de antes de la v2.7
   const MODULOS = [
-    { k: 'inicio', t: 'Inicio', href: 'portal/', siempre: true },
-    { k: 'torres', t: 'Torres', href: 'torres.html' },
-    { k: 'lobby', t: 'Lobby', href: 'admin.html?m=lobby', antes: 'invitados' },
-    { k: 'finanzas', t: 'Finanzas', href: 'presupuesto.html', antes: 'presupuesto' },
-    { k: 'nomina', t: 'Nómina', externo: true },
-    { k: 'admin', t: 'Administración', href: 'admin.html?m=admin', antes: 'usuarios' },
+    { k: 'inicio', t: 'Inicio', siempre: true, sub: [
+      { t: 'Mi inicio', href: 'portal/', siempre: true },
+      { t: 'Condominios', href: 'torres.html?m=inicio', ve: 'torres' },
+      { t: 'Mi tarjeta, display y firma', href: 'portal/#mi', siempre: true },
+      { t: 'Cumpleaños', href: 'cumpleanos.html', ve: 'cumpleanos' }] },
+    { k: 'personal', t: 'Personal', ve: 'personal', viejo: 'nomina_permiso', sub: [
+      { t: 'Ponchador y horas', href: 'admin.html?m=personal', ve: 'personal', viejo: 'panel' },
+      { t: 'Personal por torre', href: 'torres.html?m=personal', ve: 'torres' },
+      { t: 'Nómina', externo: true, ve: 'nomina' }] },
+    { k: 'finanzas', t: 'Finanzas', ve: 'finanzas', sub: [
+      { t: 'Semáforo', href: 'presupuesto.html', ve: 'presupuesto' },
+      { t: 'Cuentas por cobrar', href: 'cobros.html', ve: 'cobros' },
+      { t: 'Por torre · estados y por pagar', href: 'torres.html?m=finanzas', ve: 'cuentas', viejo: 'torres' }] },
+    { k: 'operaciones', t: 'Operaciones', ve: 'operaciones', viejo: 'torres', sub: [
+      { t: 'Por torre · tareas y suplidores', href: 'torres.html?m=operaciones', ve: 'operaciones', viejo: 'torres' },
+      { t: 'Tareas por gestor', href: 'tareas.html', ve: 'operaciones', viejo: 'torres' }] },
+    { k: 'lobby', t: 'Lobby', ve: 'lobby', sub: [
+      { t: 'Portería', href: 'admin.html?m=lobby', ve: 'lobby' },
+      { t: 'Apartamentos y accesos por torre', href: 'torres.html?m=lobby', ve: 'torres' }] },
+    { k: 'ajustes', t: 'Ajustes', ve: 'ajustes', viejo: 'admin', sub: [
+      { t: 'Usuarios, claves y políticas', href: 'admin.html?m=admin', ve: 'ajustes', viejo: 'admin' }] },
+    { k: 'demo', t: 'DEMO', ve: 'demo', href: 'demo.html', sub: [] },
   ];
-  // Páginas que viven dentro de otra puerta (marcan esa puerta como activa)
-  const DENTRO_DE = { invitados: 'lobby', presupuesto: 'finanzas', usuarios: 'admin', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'torres' };
+  // Páginas viejas o internas y su módulo
+  const DENTRO_DE = { invitados: 'lobby', presupuesto: 'finanzas', usuarios: 'ajustes', admin: 'ajustes', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'operaciones', torres: 'inicio', nomina: 'personal', cobros: 'finanzas' };
 
   const CSS = `
 .sm-barra { background: #003A75; color: #fff; border-bottom: 3px solid #DCB40C; font-family: Montserrat, "Segoe UI", system-ui, sans-serif; }
@@ -45,6 +63,18 @@
 .sm-salir { flex: 0 0 auto; background: transparent; border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 999px; padding: 5px 12px; font: 600 13px Montserrat, system-ui, sans-serif; cursor: pointer; margin-left: 8px; }
 @media (max-width: 640px) { .sm-logo b, .sm-usuario { display: none; } }
 .sm-oculto { display: none !important; }
+.sm-sub { background: #F1F4F9; border-bottom: 1px solid #DCE3EC; font-family: Montserrat, "Segoe UI", system-ui, sans-serif; }
+.sm-sub .sm-nav { max-width: 1360px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left, 0px)); min-height: 38px; }
+.sm-sub .sm-nav > a { color: #3D5168; font-size: 13px; font-weight: 600; padding: 10px 10px 8px; border-bottom: 2px solid transparent; text-decoration: none; white-space: nowrap; }
+.sm-sub .sm-nav > a:hover { color: #003A75; }
+.sm-sub .sm-nav > a[aria-current="page"] { color: #003A75; border-bottom-color: #DCB40C; }
+.sm-sub .sm-mas > button { color: #3D5168; font-size: 13px; padding: 10px 10px 8px; }
+.sm-nav > a[data-mod="demo"] { color: #FFE48A; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sm-sub { background: #16212E; border-bottom-color: #26364A; }
+  :root:not([data-theme="light"]) .sm-sub .sm-nav > a, :root:not([data-theme="light"]) .sm-sub .sm-mas > button { color: #B9C6D6; }
+  :root:not([data-theme="light"]) .sm-sub .sm-nav > a[aria-current="page"] { color: #fff; } }
+:root[data-theme="dark"] .sm-sub { background: #16212E; border-bottom-color: #26364A; }
+:root[data-theme="dark"] .sm-sub .sm-nav > a { color: #B9C6D6; }
 `;
   function estilo() {
     if (document.getElementById('sm-css')) return;
@@ -109,17 +139,38 @@
     } catch (err) { alert(err.message); }
   }
 
+  // ¿Esta página es la de este enlace? Mismo archivo y mismo ?m= (y el #mi del Portal)
+  function esActual(href) {
+    let u; try { u = new URL(BASE + href, location.href); } catch (e) { return false; }
+    const archivo = p => (p.replace(/\/index\.html$/, '/').split('/').pop() || 'portal/');
+    const aquí = new URL(location.href);
+    if (archivo(u.pathname) !== archivo(aquí.pathname)) return false;
+    if ((u.searchParams.get('m') || '') !== (aquí.searchParams.get('m') || '')) return false;
+    return (u.hash === '#mi') === (aquí.hash === '#mi');
+  }
   function pintar(cont, actual) {
     const c = leer(), a = c.modulos || {}, u = c.usuario || {};
-    const ve = m => m.siempre || (a[m.k] !== undefined ? a[m.k] : a[m.antes]);
+    // Con el servicio de antes de la v2.7 (sin las claves nuevas) se usa la clave vieja
+    const ve = m => m.siempre || (a[m.ve] !== undefined ? !!a[m.ve] : m.viejo ? !!a[m.viejo] : m.k === 'demo' ? !!c.sesion : false);
     actual = DENTRO_DE[actual] || actual;
     const nav = cont.querySelector('.sm-nav');
+    const enlace = m => m.href || ((m.sub || []).find(s => !s.externo && ve(s)) || {}).href || '';
     nav.innerHTML = MODULOS.filter(m => c.sesion && ve(m) || m.k === 'inicio').map(m =>
-      '<a href="' + (m.externo ? '#' : BASE + m.href) + '" data-mod="' + m.k + '"' + (m.k === actual ? ' aria-current="page"' : '') + '>' + esc(m.t) + '</a>').join('');
-    nav.querySelectorAll('[data-mod="nomina"]').forEach(x => x.addEventListener('click', e => { e.preventDefault(); abrirNomina(); }));
+      '<a href="' + (enlace(m) ? BASE + enlace(m) : '#') + '" data-mod="' + m.k + '"' + (enlace(m) ? '' : ' data-nomina="1"') + (m.k === actual ? ' aria-current="page"' : '') + '>' + esc(m.t) + '</a>').join('');
+    nav.querySelectorAll('[data-nomina]').forEach(x => x.addEventListener('click', e => { e.preventDefault(); abrirNomina(); }));
     cont.querySelector('.sm-usuario').textContent = c.sesion && u.nombre ? u.nombre + ' · ' + (u.segmento_nombre || '') : '';
     cont.querySelector('.sm-salir').hidden = !c.sesion;
     mas(nav, { items: ':scope > a' });
+    // Segunda fila: las páginas del módulo abierto
+    const sub = cont.nextElementSibling && cont.nextElementSibling.classList.contains('sm-sub') ? cont.nextElementSibling : null;
+    const mod = MODULOS.find(m => m.k === actual), paginas = mod && c.sesion ? (mod.sub || []).filter(ve) : [];
+    if (sub) {
+      sub.hidden = paginas.length < 2;
+      const sn = sub.querySelector('.sm-nav');
+      sn.innerHTML = paginas.map(s => '<a href="' + (s.externo ? '#' : BASE + s.href) + '"' + (s.externo ? ' data-nomina="1"' : '') + (!s.externo && esActual(s.href) ? ' aria-current="page"' : '') + '>' + esc(s.t) + '</a>').join('');
+      sn.querySelectorAll('[data-nomina]').forEach(x => x.addEventListener('click', e => { e.preventDefault(); abrirNomina(); }));
+      if (!sub.hidden) mas(sn, { items: ':scope > a' });
+    }
   }
 
   /** Monta la barra en `donde` (al inicio) y la mantiene al día con la sesión. */
@@ -129,10 +180,13 @@
     cont.innerHTML = '<div class="sm-fila"><a class="sm-logo" href="' + BASE + 'portal/"><img src="' + BASE + 'portal/icono-192.png" alt=""><b>STILI SOFT</b></a>' +
       '<nav class="sm-nav"></nav><span class="sm-usuario"></span><button type="button" class="sm-salir" hidden>Salir</button></div>';
     donde.insertBefore(cont, donde.firstChild);
+    const sub = document.createElement('div'); sub.className = 'sm-sub'; sub.hidden = true; sub.setAttribute('role', 'navigation'); sub.setAttribute('aria-label', 'Páginas del módulo');
+    sub.innerHTML = '<nav class="sm-nav"></nav>'; cont.after(sub);
     cont.querySelector('.sm-salir').addEventListener('click', () => { guardar({ sesion: '', modulos: {}, usuario: {} }); location.href = BASE + 'portal/'; });
     pintar(cont, actual);
     StiliModulos.refrescar().then(() => pintar(cont, actual)).catch(() => {});
     window.addEventListener('storage', e => { if (e.key === LS) pintar(cont, actual); });
+    window.addEventListener('hashchange', () => pintar(cont, actual));
     return cont;
   }
 
