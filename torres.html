@@ -596,8 +596,8 @@ function cxpRelaciones(c) {
       (r.observaciones.length ? '<br><small class="nota">✉ ' + r.observaciones.length + ' nota' + (r.observaciones.length === 1 ? '' : 's') + ' interna' + (r.observaciones.length === 1 ? '' : 's') + ' (en «Ver pagos»)</small>' : '') + '</td><td>' + esc(nombreMes(r.periodo)) + '</td><td class="num">' + r.partidas +
       '</td><td class="num"><b>' + dinero2(r.total) + '</b></td><td class="num">' + (r.saldo_banco === null || r.saldo_banco === undefined ? '<span class="nota">—</span>' : dinero2(r.saldo_banco) + '<br><small class="' + (r.saldo_banco - r.total < 0 ? 'rojo-t' : 'nota') + '">' +
         (r.saldo_banco - r.total < 0 ? 'Falta ' : 'Queda ') + dinero2(Math.abs(r.saldo_banco - r.total)) + '</small>') + '</td><td><span class="chip ' + (CXP_COLOR[r.estado] || '') + '">' + esc(CXP_REL_EST[r.estado] || r.estado) + '</span>' + (r.aprobada_por ? '<br><small>' + esc(r.aprobada_por) + '</small>' : '') +
-      '</td><td><div class="acciones-fila"><button type="button" class="btn" data-cxp-ver="' + esc(r.id) + '">Ver pagos</button><button type="button" class="btn" data-cxp-imprimir="' + esc(r.id) + '">Imprimir relación</button>' +
-      (r.archivos.length ? '<button type="button" class="btn" data-cxp-pdf="' + esc(r.id) + '">PDF de soportes</button>' : '') +
+      '</td><td><div class="acciones-fila"><button type="button" class="btn" data-cxp-ver="' + esc(r.id) + '">Ver pagos</button><button type="button" class="btn" data-cxp-imprimir="' + esc(r.id) + '" title="Abre el PDF de la relación (horizontal) con sus soportes (vertical) para imprimirlo">Imprimir relación</button>' +
+      '<button type="button" class="btn" data-cxp-pdf="' + esc(r.id) + '" title="Descarga la relación y sus soportes en un solo PDF">Descargar PDF</button>' +
       (c.puede_editar && r.estado === 'borrador' ? '<button type="button" class="btn primario" data-cxp-rel="aprobar" data-id="' + esc(r.id) + '">Aprobar</button>' : '') +
       (c.puede_editar && r.estado === 'aprobada' ? '<button type="button" class="btn primario" data-cxp-rel="pagada" data-id="' + esc(r.id) + '">Marcar pagada</button>' : '') +
       ((r.estado === 'aprobada' && c.puede_editar) || (r.estado === 'pagada' && c.gerente) ? '<button type="button" class="btn" data-cxp-rel="reabrir" data-id="' + esc(r.id) + '" title="Vuelve a borrador para corregirla">Reabrir y modificar</button>' : '') +
@@ -623,7 +623,7 @@ function cxpPagos(c) {
     (nAl ? '<li>' + nAl + ' pago' + (nAl === 1 ? '' : 's') + ' con alertas: revíselos en la tabla de abajo.</li>' : '') + '</ul></div>' : '';
   const balance = rel && rel.saldo_banco !== null && rel.saldo_banco !== undefined ? '<p class="nota" style="margin-top:0">Balance en banco ' + dinero2(rel.saldo_banco) + ' al ' + esc(rel.saldo_fecha) + ' · esta relación ' + dinero2(total) + ' · ' +
     (rel.saldo_banco - total < 0 ? '<b class="rojo-t">falta ' + dinero2(total - rel.saldo_banco) + '</b>' : 'queda ' + dinero2(rel.saldo_banco - total)) + '</p>' : '';
-  const docs = rel && rel.archivos.length ? '<div class="card"><h2>Documentos de la relación · ' + rel.archivos.length + '</h2><p class="nota" style="margin-top:0">Son los anexos que salen en la relación impresa y en «PDF de soportes». Quite los que no correspondan.</p><ul class="docs-rel">' +
+  const docs = rel && rel.archivos.length ? '<div class="card"><h2>Documentos de la relación · ' + rel.archivos.length + '</h2><p class="nota" style="margin-top:0">Son los anexos que salen detrás de la relación impresa y en su PDF. Quite los que no correspondan.</p><ul class="docs-rel">' +
     rel.archivos.map((a, i) => { const usos = lista.filter(p => p.soportes.includes(a.id)).length;
       return '<li><span class="nota">' + (a.tipo === 'relacion' ? 'Original' : 'A-' + (i + 1)) + '</span><a href="' + esc(a.url) + '" target="_blank" rel="noopener" data-visor>' + esc(a.nombre) + '</a><small class="nota">' + (usos ? plural(usos, 'pago', 'pagos') : 'sin pago enlazado') + '</small>' +
         (c.puede_editar && (rel.estado !== 'pagada' || c.gerente) ? '<button type="button" class="quitar-sop" data-cxp-quitar-doc="' + esc(a.id) + '" data-id="' + esc(rel.id) + '">✕ Quitar</button>' : '') + '</li>'; }).join('') + '</ul></div>' : '';
@@ -867,6 +867,130 @@ function imprimirCotejo() {
   const fin = () => { document.body.classList.remove('imprimiendo'); document.documentElement.removeAttribute('data-imprimir'); removeEventListener('afterprint', fin); };
   addEventListener('afterprint', fin); setTimeout(() => window.print(), 50);
 }
+// v2.7.8 · la relación en PDF: la relación en hojas horizontales y cada soporte en hoja vertical (carta)
+const pdfTexto = t => String(t == null ? '' : t).replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\u2013/g, '-').replace(/[^\x20-\x7E\u00A0-\u00FF\u2014\u2022\u20AC]/g, '');
+async function pdfRelacion(id, destino) {
+  const c = S.cxp, r = c.relaciones.find(x => x.id === id); if (!r) { if (destino && destino.close) destino.close(); return; }
+  const ps = c.partidas.filter(p => p.relacion_id === id && p.estado !== 'anulada');
+  const lab = etiquetasSoportes(c, r, ps), anexos = Object.keys(lab), tipos = c.tipos_pago || TIPOS_PAGO_DEF, tipoDe = p => tipoPagoDe(c, p);
+  const m = v => (Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (destino && destino.document) destino.document.write('<p style="font:16px sans-serif;padding:24px">Preparando el PDF de la relación…</p>');
+  Progreso.avance(0, anexos.length + 1, 'Preparando la relación…');
+  try {
+    await cargarLib(PDFLIB_URL, 'PDFLib');
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const doc = await PDFDocument.create();
+    const F = await doc.embedFont(StandardFonts.Helvetica), FB = await doc.embedFont(StandardFonts.HelveticaBold);
+    const NAVY = rgb(0, 0.227, 0.459), ORO = rgb(0.788, 0.635, 0.153), GRIS = rgb(0.42, 0.455, 0.5), TINTA = rgb(0.106, 0.141, 0.188), LINEA = rgb(0.894, 0.91, 0.925);
+    let logo = null; try { logo = await doc.embedPng(await (await fetch('portal/logo.png')).arrayBuffer()); } catch (e) { logo = null; }
+    // ---- relación: carta horizontal
+    const W = 792, H = 612, MX = 30, MY = 30;
+    let pg, y;
+    const corta = (t, f, tam, ancho) => { t = pdfTexto(t); if (f.widthOfTextAtSize(t, tam) <= ancho) return t; while (t && f.widthOfTextAtSize(t + '…', tam) > ancho) t = t.slice(0, -1); return t + '…'; };
+    const lineas = (t, f, tam, ancho, max) => { const pal = pdfTexto(t).split(/\s+/).filter(Boolean), out = []; let l = '';
+      pal.forEach(w => { const prueba = l ? l + ' ' + w : w; if (f.widthOfTextAtSize(prueba, tam) <= ancho) l = prueba; else { if (l) out.push(l); l = w; } }); if (l) out.push(l);
+      if (out.length > max) { out.length = max; out[max - 1] = corta(out[max - 1] + ' …', f, tam, ancho); } return out.length ? out.map(x => corta(x, f, tam, ancho)) : ['']; };
+    const txt = (t, x, yy, o = {}) => { const f = o.f || F, tam = o.tam || 8; t = o.ancho ? corta(t, f, tam, o.ancho) : pdfTexto(t);
+      const xx = o.der ? x - f.widthOfTextAtSize(t, tam) : x; pg.drawText(t, { x: xx, y: yy, size: tam, font: f, color: o.color || TINTA }); };
+    const COLS = [['#', 16], ['Beneficiario', 132], ['RNC / Cédula', 66], ['Concepto', 150], ['NCF', 64], ['Fecha fact.', 50], ['Forma de pago', 118], ['Monto RD$', 68, 1], ['Soporte', 68]];
+    const xs = []; COLS.reduce((x, col) => { xs.push(x); return x + col[1]; }, MX);
+    const cabTabla = () => { COLS.forEach(([n, w, der], i) => txt(n.toUpperCase(), der ? xs[i] + w - 4 : xs[i] + 2, y, { tam: 6.2, f: FB, color: GRIS, der: !!der })); y -= 4;
+      pg.drawLine({ start: { x: MX, y: y }, end: { x: W - MX, y: y }, thickness: 0.8, color: TINTA }); y -= 10; };
+    const nueva = primera => { pg = doc.addPage([W, H]); y = H - MY;
+      if (primera) {
+        if (logo) { const h = 30, w = logo.width * h / logo.height; pg.drawImage(logo, { x: MX, y: y - h, width: w, height: h }); }
+        txt('RELACIÓN DE PAGOS', MX + 120, y - 9, { tam: 7, f: FB, color: GRIS }); txt(c.torre, MX + 120, y - 25, { tam: 15, f: FB, color: NAVY, ancho: 330 });
+        txt(r.titulo, W - MX, y - 9, { tam: 10, f: FB, der: true }); txt('Emitida el ' + new Date().toLocaleDateString('es-DO'), W - MX, y - 22, { tam: 7.5, color: GRIS, der: true });
+        y -= 38; pg.drawLine({ start: { x: MX, y: y }, end: { x: W - MX, y: y }, thickness: 1, color: ORO }); y -= 13;
+      } else { txt(c.torre + ' · ' + r.titulo + ' (continuación)', MX, y - 8, { tam: 8, f: FB, color: NAVY }); y -= 22; }
+    };
+    nueva(true);
+    const orig = r.archivos.find(a => a.tipo === 'relacion');
+    txt('Preparada por ' + r.creada_por + ' · ' + r.creada_en + '   ·   Estado: ' + (CXP_REL_EST[r.estado] || r.estado) + (r.aprobada_por ? ' (' + r.aprobada_por + ')' : '') +
+      '   ·   Cuenta pagadora: ' + (c.cuenta ? c.cuenta.banco + ' ' + c.cuenta.cuenta : '—') + (orig ? '   ·   Original: ' + orig.nombre : ''), MX, y, { tam: 7.5, color: GRIS, ancho: W - 2 * MX }); y -= 22;
+    const total = ps.reduce((x, p) => x + (p.monto || 0), 0), sum = f => ps.filter(f).reduce((x, p) => x + (p.monto || 0), 0), hayS = r.saldo_banco !== null && r.saldo_banco !== undefined;
+    const cifras = [];
+    if (hayS) cifras.push(['Balance en banco · ' + (r.saldo_fecha || ''), 'RD$ ' + m(r.saldo_banco)]);
+    cifras.push(['Total de la relación · ' + ps.length + ' pagos', 'RD$ ' + m(total)]);
+    if (hayS) cifras.push([r.saldo_banco - total < 0 ? 'Falta en banco' : 'Queda en banco', 'RD$ ' + m(Math.abs(r.saldo_banco - total)), r.saldo_banco - total < 0]);
+    Object.keys(tipos).filter(k => ps.some(p => tipoDe(p) === k)).forEach(k => cifras.push([tipos[k], 'RD$ ' + m(sum(p => tipoDe(p) === k))]));
+    let cx = MX; cifras.forEach(([l, v, rojo]) => { const w = Math.max(FB.widthOfTextAtSize(pdfTexto(v), 11), F.widthOfTextAtSize(pdfTexto(l.toUpperCase()), 6.4)) + 22;
+      if (cx + w > W - MX) { cx = MX; y -= 30; } txt(l.toUpperCase(), cx, y, { tam: 6.4, color: GRIS }); txt(v, cx, y - 13, { tam: 11, f: FB, color: rojo ? rgb(0.702, 0.149, 0.118) : TINTA }); cx += w; });
+    y -= 30;
+    txt('En cheques RD$ ' + m(sum(p => p.forma_pago === 'cheque')) + '   ·   En transferencias RD$ ' + m(sum(p => p.forma_pago === 'transferencia')) + (sum(p => !p.forma_pago) ? '   ·   Sin forma de pago RD$ ' + m(sum(p => !p.forma_pago)) : ''), MX, y, { tam: 7.5, color: GRIS }); y -= 18;
+    cabTabla();
+    const espacio = h => { if (y - h < MY + 14) { nueva(false); cabTabla(); } };
+    const forma = p => p.forma_pago === 'cheque' ? 'Cheque ' + (p.cheque || '______') : p.forma_pago === 'transferencia' ? 'Transf. ' + ((p.banco_destino || '') + ' ' + (p.cuenta_destino || '')).trim() : '—';
+    let n = 0;
+    Object.keys(tipos).forEach(k => {
+      const gr = ps.filter(p => tipoDe(p) === k); if (!gr.length) return;
+      espacio(30); y -= 3; txt(tipos[k].toUpperCase() + '  · ' + gr.length, MX + 2, y, { tam: 6.8, f: FB, color: NAVY }); y -= 11;
+      gr.forEach(p => {
+        const ben = lineas(p.suplidor, F, 7.6, COLS[1][1] - 6, 2), con = lineas(p.concepto, F, 7.6, COLS[3][1] - 6, 2), h = Math.max(ben.length, con.length) * 9 + 4;
+        espacio(h); n++;
+        txt(String(n), xs[0] + 2, y, { tam: 7, color: GRIS });
+        ben.forEach((l, i) => txt(l, xs[1] + 2, y - i * 9, { tam: 7.6 })); con.forEach((l, i) => txt(l, xs[3] + 2, y - i * 9, { tam: 7.6 }));
+        txt(p.rnc || p.documento || '', xs[2] + 2, y, { tam: 7, color: GRIS, ancho: COLS[2][1] - 4 }); txt(p.ncf || '', xs[4] + 2, y, { tam: 7, color: GRIS, ancho: COLS[4][1] - 4 });
+        txt(p.factura_fecha || '', xs[5] + 2, y, { tam: 7, color: GRIS, ancho: COLS[5][1] - 4 }); txt(forma(p), xs[6] + 2, y, { tam: 7.2, ancho: COLS[6][1] - 6 });
+        txt(m(p.monto), xs[7] + COLS[7][1] - 4, y, { tam: 7.6, der: true });
+        const so = tipoDe(p) === 'nomina' ? 'Nómina' : p.soportes.length ? p.soportes.map(x => lab[x]).join(', ') : 'Falta';
+        txt(so, xs[8] + 4, y, { tam: 7, f: so === 'Falta' ? FB : F, color: so === 'Falta' ? TINTA : GRIS, ancho: COLS[8][1] - 6 });
+        y -= h - 6; pg.drawLine({ start: { x: MX, y: y + 2 }, end: { x: W - MX, y: y + 2 }, thickness: 0.4, color: LINEA }); y -= 8;
+      });
+      espacio(14); txt(k === 'nomina' ? 'Total nómina' : 'Subtotal ' + tipos[k].toLowerCase(), MX + 2, y, { tam: 7.2, color: GRIS });
+      pg.drawLine({ start: { x: xs[7] + 4, y: y + 9 }, end: { x: xs[7] + COLS[7][1], y: y + 9 }, thickness: 0.5, color: GRIS });
+      txt(m(gr.reduce((x, p) => x + (p.monto || 0), 0)), xs[7] + COLS[7][1] - 4, y, { tam: 7.6, f: FB, der: true }); y -= 14;
+    });
+    espacio(20); pg.drawLine({ start: { x: MX, y: y + 9 }, end: { x: W - MX, y: y + 9 }, thickness: 1.4, color: TINTA }); y -= 3;
+    txt('Total general', MX + 2, y, { tam: 9, f: FB }); txt(m(total), xs[7] + COLS[7][1] - 4, y, { tam: 9, f: FB, der: true }); y -= 20;
+    if (y < MY + 60) nueva(false);
+    y = Math.min(y - 30, MY + 50); const fw = (W - 2 * MX - 2 * 40) / 3;
+    ['Preparado por', 'Revisado por · Contabilidad', 'Aprobado por · Gerente General'].forEach((t, i) => { const x = MX + i * (fw + 40);
+      pg.drawLine({ start: { x: x, y: y }, end: { x: x + fw, y: y }, thickness: 0.8, color: TINTA }); txt(t, x, y - 11, { tam: 7.5, color: GRIS }); });
+    const pagRel = doc.getPageCount();
+    doc.getPages().forEach((p2, i) => { pg = p2; txt('Página ' + (i + 1) + ' de ' + pagRel, W - MX, 16, { tam: 6.5, color: GRIS, der: true }); });
+    // ---- soportes: carta vertical, cada hoja con su anexo
+    const PW = 612, PH = 792, BAND = 22, M2 = 22, omitidos = [];
+    const hoja = (titulo, dibujar, ancho, alto) => { const p2 = doc.addPage([PW, PH]);
+      p2.drawRectangle({ x: 0, y: PH - BAND, width: PW, height: BAND, color: NAVY });
+      p2.drawText(corta(titulo, FB, 9, PW - 20), { x: 10, y: PH - 15, size: 9, font: FB, color: rgb(1, 1, 1) });
+      const aw = PW - 2 * M2, ah = PH - BAND - 2 * M2, e = Math.min(aw / ancho, ah / alto);
+      dibujar(p2, M2 + (aw - ancho * e) / 2, M2 + (ah - alto * e) / 2, ancho * e, alto * e); };
+    if (anexos.length && !DEMO) {
+      const { archivos } = await api('cxp_soportes', { torre: S.torre, ids: anexos });
+      for (let i = 0; i < anexos.length; i++) {
+        Progreso.avance(i + 1, anexos.length + 1, 'Soportes ' + (i + 1) + ' de ' + anexos.length);
+        const a = archivos.find(x => x.id === anexos[i]); const etq = lab[anexos[i]];
+        if (!a || !a.base64) { omitidos.push(etq); continue; }
+        const pagado = ps.find(p => p.soportes.includes(a.id));
+        const titulo = 'Anexo ' + etq + ' · ' + (/^Nómina/.test(etq) || !pagado ? a.nombre : pagado.suplidor + ' · RD$ ' + m(pagado.monto));
+        const bytes = Uint8Array.from(atob(a.base64), x => x.charCodeAt(0));
+        try {
+          if (/pdf/.test(a.mime)) {
+            const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+            const emb = await doc.embedPdf(src, src.getPageIndices());
+            emb.forEach((e, k) => hoja(titulo + (emb.length > 1 ? ' (' + (k + 1) + '/' + emb.length + ')' : ''), (p2, x, yy, w, h) => p2.drawPage(e, { x: x, y: yy, width: w, height: h }), e.width, e.height));
+          } else if (/image\/(png|jpe?g)/.test(a.mime)) {
+            const img = /png/.test(a.mime) ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+            hoja(titulo, (p2, x, yy, w, h) => p2.drawImage(img, { x: x, y: yy, width: w, height: h }), img.width, img.height);
+          } else throw new Error('formato');
+        } catch (e) {   // PDF protegido o imagen de otro formato: se convierte a imágenes
+          try { const imgs = await paginasDeSoporte(a); if (!imgs.length) throw e;
+            for (let k = 0; k < imgs.length; k++) { const img = await doc.embedJpg(Uint8Array.from(atob(imgs[k].split(',')[1]), x => x.charCodeAt(0)));
+              hoja(titulo + (imgs.length > 1 ? ' (' + (k + 1) + '/' + imgs.length + ')' : ''), (p2, x, yy, w, h) => p2.drawImage(img, { x: x, y: yy, width: w, height: h }), img.width, img.height); }
+          } catch (e2) { omitidos.push(etq + ' (' + a.nombre + ')'); }
+        }
+      }
+    }
+    const blob = new Blob([await doc.save()], { type: 'application/pdf' }), url = URL.createObjectURL(blob);
+    const nombre = pdfTexto('Relación · ' + c.torre + ' · ' + r.titulo).replace(/[\\/:*?"<>|]/g, '-') + '.pdf';
+    if (destino && destino.location) destino.location.href = url;
+    else { const a = document.createElement('a'); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); }
+    setTimeout(() => URL.revokeObjectURL(url), 10 * 60000);
+    toast((destino && destino.location ? 'PDF abierto: imprímalo desde esa pestaña.' : 'PDF descargado.') + (omitidos.length ? ' No se pudieron unir: ' + omitidos.join(', ') + ' (ábralos aparte).' : ''), !!omitidos.length);
+  } catch (err) { if (destino && destino.close) destino.close(); toast('No se pudo preparar el PDF: ' + err.message, true); }
+  finally { Progreso.listo(); }
+}
 // Todos los soportes de la relación en un solo PDF, cada página marcada con su anexo
 async function pdfSoportes(id) {
   const c = S.cxp, r = c.relaciones.find(x => x.id === id); if (!r) return;
@@ -941,8 +1065,8 @@ document.addEventListener('click', async e => {
   const d = b.dataset;
   if (d.cxpTab) { S.cxpTab = d.cxpTab; return pintarCxp(); }
   if (d.cxpVer !== undefined) { S.cxpRel = d.cxpVer || null; S.cxpTab = 'pagos'; const r = S.cxp.relaciones.find(x => x.id === d.cxpVer); if (r && r.periodo !== S.cxp.periodo) return cargarCxp(r.periodo); return pintarCxp(); }
-  if (d.cxpImprimir) return imprimirRelacion(d.cxpImprimir);
-  if (d.cxpPdf) return pdfSoportes(d.cxpPdf);
+  if (d.cxpImprimir) { const w = window.open('', '_blank'); return pdfRelacion(d.cxpImprimir, w || 'descargar'); }
+  if (d.cxpPdf) return pdfRelacion(d.cxpPdf, 'descargar');
   if (d.cxpCotejo !== undefined) return imprimirCotejo();
   if (d.cxpCsv !== undefined) return csvTransferencias();
   if (d.armar) return armarAccion(d.armar, b);
