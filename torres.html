@@ -749,14 +749,29 @@ async function paginasDeSoporte(a) {
   }
   return out;
 }
+// v2.7.6 · la TSS es un servicio, no nómina; la nómina lleva solo su planilla («Nómina») y lo demás su anexo A-n
+const TIPOS_PAGO_DEF = { servicios: 'Servicios públicos', mantenimiento: 'Mantenimiento', nomina: 'Nómina', igualas: 'Igualas', otros: 'Otros pagos' };
+function tipoPagoDe(c, p) {
+  const tipos = c.tipos_pago || TIPOS_PAGO_DEF;
+  if (/TSS/i.test(p.categoria || '')) return 'servicios';
+  return tipos[p.tipo_pago] ? p.tipo_pago : (p.origen === 'nomina' ? 'nomina' : 'otros');
+}
+function etiquetasSoportes(c, r, ps) {
+  const orden = Object.keys(c.tipos_pago || TIPOS_PAGO_DEF), lab = {}, nom = [];
+  let n = 0;
+  orden.forEach(k => ps.filter(p => tipoPagoDe(c, p) === k).forEach(p => p.soportes.forEach(s => {
+    if (lab[s]) return; if (k === 'nomina') { if (!nom.includes(s)) nom.push(s); } else lab[s] = 'A-' + (++n); })));
+  nom.forEach((s, i) => { if (!lab[s]) lab[s] = 'Nómina' + (nom.length > 1 ? ' ' + (i + 1) : ''); });
+  r.archivos.forEach(a => { if (a.tipo === 'soporte' && !lab[a.id]) lab[a.id] = 'A-' + (++n); });
+  return lab;
+}
 async function imprimirRelacion(id) {
   const c = S.cxp, r = c.relaciones.find(x => x.id === id); if (!r) return;
   const ps = c.partidas.filter(p => p.relacion_id === id && p.estado !== 'anulada');
-  const anexos = [];
-  const anexo = sid => { let i = anexos.indexOf(sid); if (i < 0) { anexos.push(sid); i = anexos.length - 1; } return i + 1; };
+  const lab = etiquetasSoportes(c, r, ps), anexos = Object.keys(lab);
   const arch = sid => c.archivos.find(a => a.id === sid) || r.archivos.find(a => a.id === sid) || { nombre: sid, url: '' };
-  const tipos = c.tipos_pago || { servicios: 'Servicios públicos', mantenimiento: 'Mantenimiento', nomina: 'Nómina', igualas: 'Igualas', otros: 'Otros pagos' };
-  const tipoDe = p => tipos[p.tipo_pago] ? p.tipo_pago : (p.origen === 'nomina' ? 'nomina' : 'otros');
+  const tipos = c.tipos_pago || TIPOS_PAGO_DEF;
+  const tipoDe = p => tipoPagoDe(c, p);
   const m = v => (Number(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const forma = p => p.forma_pago === 'cheque' ? 'Cheque ' + esc(p.cheque || '______') : p.forma_pago === 'transferencia' ? 'Transf.' + (p.cuenta_destino ? ' <span class="t">' + esc((p.banco_destino || '') + ' ' + p.cuenta_destino) + '</span>' : '') : '—';
   let n = 0;
@@ -764,10 +779,9 @@ async function imprimirRelacion(id) {
     const g = ps.filter(p => tipoDe(p) === k); if (!g.length) return '';
     return '<tr class="grupo"><td colspan="9">' + esc(tipos[k]) + ' <small>· ' + g.length + '</small></td></tr>' + g.map(p => '<tr><td class="n">' + (++n) + '</td><td><div class="l2">' + esc(p.suplidor) + '</div></td><td class="t">' + esc(p.rnc || p.documento || '') +
       '</td><td><div class="l2">' + esc(p.concepto) + '</div></td><td class="t">' + esc(p.ncf || '') + '</td><td class="t">' + esc(p.factura_fecha || '') + '</td><td class="f1">' + forma(p) +
-      '</td><td class="num">' + m(p.monto) + '</td><td class="t">' + (p.soportes.length ? p.soportes.map(s => 'A-' + anexo(s)).join(', ') : (p.origen === 'nomina' ? 'Nómina' : '<b>Falta</b>')) + '</td></tr>').join('') +
+      '</td><td class="num">' + m(p.monto) + '</td><td class="t">' + (tipoDe(p) === 'nomina' ? 'Nómina' : p.soportes.length ? p.soportes.map(s => lab[s]).join(', ') : '<b>Falta</b>') + '</td></tr>').join('') +
       '<tr class="subtotal"><td colspan="7">' + (k === 'nomina' ? 'Total nómina' : 'Subtotal ' + esc(tipos[k].toLowerCase())) + '</td><td class="num">' + m(g.reduce((s, p) => s + (p.monto || 0), 0)) + '</td><td></td></tr>';
   }).join('');
-  r.archivos.forEach(a => { if (a.tipo === 'soporte') anexo(a.id); });
   const total = ps.reduce((s, p) => s + (p.monto || 0), 0), sum = f => ps.filter(f).reduce((s, p) => s + (p.monto || 0), 0);
   const orig = r.archivos.find(a => a.tipo === 'relacion');
   // Soportes: se traen y se convierten en páginas para que salgan impresos detrás de la relación
@@ -780,11 +794,11 @@ async function imprimirRelacion(id) {
         const a = archivos.find(x => x.id === anexos[i]) || { nombre: arch(anexos[i]).nombre };
         const pagado = ps.find(p => p.soportes.includes(anexos[i]));
         let imgs = []; try { imgs = await paginasDeSoporte(a); } catch (e) { imgs = []; }
-        if (!imgs.length) faltan.push('A-' + (i + 1));
-        hojas += imgs.map((src, k) => '<section class="anexo-hoja"><p>Anexo A-' + (i + 1) + (imgs.length > 1 ? ' (' + (k + 1) + '/' + imgs.length + ')' : '') + ' · ' + esc(pagado ? pagado.suplidor + ' · RD$ ' + m(pagado.monto) : a.nombre) + '</p><img src="' + src + '" alt=""></section>').join('');
+        if (!imgs.length) faltan.push(lab[anexos[i]]);
+        hojas += imgs.map((src, k) => '<section class="anexo-hoja"><p>Anexo ' + esc(lab[anexos[i]]) + (imgs.length > 1 ? ' (' + (k + 1) + '/' + imgs.length + ')' : '') + ' · ' + esc(/^Nómina/.test(lab[anexos[i]]) ? a.nombre : pagado ? pagado.suplidor + ' · RD$ ' + m(pagado.monto) : a.nombre) + '</p><img src="' + src + '" alt=""></section>').join('');
         Progreso.avance(i + 1, anexos.length, 'Soportes ' + (i + 1) + ' de ' + anexos.length);
       }
-    } catch (e) { faltan = anexos.map((s, i) => 'A-' + (i + 1)); }
+    } catch (e) { faltan = anexos.map(s => lab[s]); }
     finally { Progreso.listo(); }
     if (faltan.length) toast('No pude adjuntar ' + faltan.join(', ') + ' a la impresión. Use «PDF de soportes» para esos.', true);
   }
@@ -800,7 +814,6 @@ async function imprimirRelacion(id) {
     '<p class="meta">En cheques RD$ ' + m(sum(p => p.forma_pago === 'cheque')) + ' &nbsp;·&nbsp; En transferencias RD$ ' + m(sum(p => p.forma_pago === 'transferencia')) + (sum(p => !p.forma_pago) ? ' &nbsp;·&nbsp; Sin forma de pago RD$ ' + m(sum(p => !p.forma_pago)) : '') + '</p>' +
     '<table class="det"><thead><tr><th class="n">#</th><th>Beneficiario</th><th>RNC / Cédula</th><th>Concepto</th><th>NCF</th><th>Fecha fact.</th><th>Forma de pago</th><th class="num">Monto RD$</th><th>Soporte</th></tr></thead><tbody>' + filas +
     '<tr class="total"><td colspan="7">Total general</td><td class="num">' + m(total) + '</td><td></td></tr></tbody></table>' +
-    (anexos.length ? '<h2>Anexos</h2><ol class="anexos">' + anexos.map((s, i) => '<li><span>A-' + (i + 1) + '</span>' + esc(arch(s).nombre) + '</li>').join('') + '</ol>' : '') +
     '<div class="firmas"><div>Preparado por</div><div>Revisado por · Contabilidad</div><div>Aprobado por · Gerente General</div></div>' + hojas;
   S.cxpAnexos = { id: id, anexos: anexos };
   document.documentElement.setAttribute('data-imprimir', ''); document.body.classList.add('imprimiendo');
@@ -828,9 +841,7 @@ function imprimirCotejo() {
 async function pdfSoportes(id) {
   const c = S.cxp, r = c.relaciones.find(x => x.id === id); if (!r) return;
   const ps = c.partidas.filter(p => p.relacion_id === id && p.estado !== 'anulada');
-  const orden = [];
-  ps.forEach(p => p.soportes.forEach(s => { if (!orden.includes(s)) orden.push(s); }));
-  r.archivos.forEach(a => { if (a.tipo === 'soporte' && !orden.includes(a.id)) orden.push(a.id); });
+  const lab = etiquetasSoportes(c, r, ps), orden = Object.keys(lab);
   if (!orden.length) return toast('Esta relación no tiene soportes.', true);
   toast('Preparando el PDF con ' + orden.length + ' soporte' + (orden.length === 1 ? '' : 's') + '…');
   try {
@@ -840,9 +851,9 @@ async function pdfSoportes(id) {
     const doc = await PDFDocument.create(), fuente = await doc.embedFont(StandardFonts.HelveticaBold);
     const omitidos = [];
     for (let i = 0; i < archivos.length; i++) {
-      const a = archivos[i], etiqueta = 'Anexo A-' + (orden.indexOf(a.id) + 1) + ' · ' + a.nombre.replace(/[^\x20-\x7EÀ-ÿ]/g, '');
+      const a = archivos[i], etiqueta = 'Anexo ' + lab[a.id] + ' · ' + a.nombre.replace(/[^\x20-\x7EÀ-ÿ]/g, '');
       const pagado = ps.find(p => p.soportes.includes(a.id));
-      const linea = etiqueta + (pagado ? ' · ' + pagado.suplidor.replace(/[^\x20-\x7EÀ-ÿ]/g, '') + ' · ' + dinero2(pagado.monto) : '');
+      const linea = etiqueta + (pagado && !/^Nómina/.test(lab[a.id]) ? ' · ' + pagado.suplidor.replace(/[^\x20-\x7EÀ-ÿ]/g, '') + ' · ' + dinero2(pagado.monto) : '');
       if (!a.base64) { omitidos.push(a.nombre); continue; }
       const bytes = Uint8Array.from(atob(a.base64), x => x.charCodeAt(0));
       let paginas = [];

@@ -199,6 +199,7 @@ details.nueva-tarea { margin: 0 0 12px; } details.nueva-tarea summary { cursor: 
 #dlg-cxp { max-width: 640px; width: calc(100% - 32px); border: 0; border-radius: var(--r); padding: 18px; background: var(--panel); color: var(--fg); }
 #dlg-cxp::backdrop { background: rgba(0,0,0,.4); }
 @page horizontal { size: letter landscape; margin: 11mm 12mm; }
+@page vertical { size: letter portrait; margin: 10mm 10mm; }   /* v2.7.6 · los soportes salen en vertical */
 @media print {
   #impresion { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   #impresion.horizontal { page: horizontal; }
@@ -229,9 +230,9 @@ details.nueva-tarea { margin: 0 0 12px; } details.nueva-tarea summary { cursor: 
   #impresion.relacion ul.obs { margin: 0; padding-left: 16px; color: #4a5562; font-size: 8.5pt; }
   #impresion.relacion ol.anexos { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 32px; font-size: 8.5pt; } #impresion.relacion ol.anexos li { break-inside: avoid; padding: 2px 0; }
   #impresion.relacion ol.anexos span { display: inline-block; width: 38px; color: #9aa3ad; }
-  #impresion.relacion .anexo-hoja { break-before: page; page-break-before: always; text-align: center; }
+  #impresion.relacion .anexo-hoja { page: vertical; break-before: page; page-break-before: always; text-align: center; }
   #impresion.relacion .anexo-hoja p { text-align: left; font-size: 7.5pt; letter-spacing: .08em; text-transform: uppercase; color: #003A75; font-weight: 600; margin: 0 0 4mm; }
-  #impresion.relacion .anexo-hoja img { max-width: 100%; max-height: 172mm; object-fit: contain; }
+  #impresion.relacion .anexo-hoja img { max-width: 100%; max-height: 246mm; object-fit: contain; }
   #impresion.relacion .firmas { margin-top: 44px; gap: 48px; } #impresion.relacion .firmas div { border-top: 1px solid #1b2430; font-size: 8pt; color: #4a5562; }
 }
 
