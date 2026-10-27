@@ -606,7 +606,11 @@ function cxpPagos(c) {
     (nAl ? '<li>' + nAl + ' pago' + (nAl === 1 ? '' : 's') + ' con alertas: revíselos en la tabla de abajo.</li>' : '') + '</ul></div>' : '';
   const balance = rel && rel.saldo_banco !== null && rel.saldo_banco !== undefined ? '<p class="nota" style="margin-top:0">Balance en banco ' + dinero2(rel.saldo_banco) + ' al ' + esc(rel.saldo_fecha) + ' · esta relación ' + dinero2(total) + ' · ' +
     (rel.saldo_banco - total < 0 ? '<b class="rojo-t">falta ' + dinero2(total - rel.saldo_banco) + '</b>' : 'queda ' + dinero2(rel.saldo_banco - total)) + '</p>' : '';
-  return interno + '<div class="card pagos-cxp"><div class="cab"><h2>' + (rel ? esc(rel.titulo) : 'Pagos de ' + esc(nombreMes(c.periodo))) + ' · ' + dinero2(total) + '</h2><span class="acciones-fila">' +
+  const docs = rel && rel.archivos.length ? '<div class="card"><h2>Documentos de la relación · ' + rel.archivos.length + '</h2><p class="nota" style="margin-top:0">Son los anexos que salen en la relación impresa y en «PDF de soportes». Quite los que no correspondan.</p><ul class="docs-rel">' +
+    rel.archivos.map((a, i) => { const usos = lista.filter(p => p.soportes.includes(a.id)).length;
+      return '<li><span class="nota">' + (a.tipo === 'relacion' ? 'Original' : 'A-' + (i + 1)) + '</span><a href="' + esc(a.url) + '" target="_blank" rel="noopener" data-visor>' + esc(a.nombre) + '</a><small class="nota">' + (usos ? plural(usos, 'pago', 'pagos') : 'sin pago enlazado') + '</small>' +
+        (c.puede_editar && (rel.estado !== 'pagada' || c.gerente) ? '<button type="button" class="quitar-sop" data-cxp-quitar-doc="' + esc(a.id) + '" data-id="' + esc(rel.id) + '">✕ Quitar</button>' : '') + '</li>'; }).join('') + '</ul></div>' : '';
+  return interno + docs + '<div class="card pagos-cxp"><div class="cab"><h2>' + (rel ? esc(rel.titulo) : 'Pagos de ' + esc(nombreMes(c.periodo))) + ' · ' + dinero2(total) + '</h2><span class="acciones-fila">' +
       (rel ? '<button type="button" class="btn" data-cxp-ver="">Ver todo el mes</button>' : '') + (c.puede_editar ? '<button type="button" class="btn" data-cxp-nueva>+ Agregar pago</button>' : '') + '</span></div>' + balance +
     tabla(['Beneficiario', 'Concepto', 'Monto', 'Forma de pago', 'Soporte', 'Estado y alertas', ''], lista.map(p => '<tr' + (p.estado === 'anulada' ? ' class="cerrada"' : '') + '><td><b>' + esc(p.suplidor || '(sin nombre)') + '</b>' +
       (p.rnc ? '<br><small>RNC ' + esc(p.rnc) + '</small>' : '') + '<br>' + (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<select data-cxp-campo="tipo_pago" data-id="' + esc(p.id) + '" aria-label="Tipo de pago" title="Se recuerda para el próximo pago a este beneficiario">' +
@@ -614,7 +618,7 @@ function cxpPagos(c) {
       '<br><small class="nota">' + esc(p.categoria) + (p.origen === 'recurrente' ? ' · recurrente' : p.origen === 'nomina' ? ' · desde Nómina' : p.origen === 'factura' ? ' · leída de la factura' : '') + '</small></td><td>' + esc(p.concepto) +
       (p.ncf ? '<br><small>NCF ' + esc(p.ncf) + '</small>' : '') + (p.factura_fecha ? '<br><small>Factura ' + esc(p.factura_fecha) + '</small>' : '') + '</td><td class="num">' +
       (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<input data-cxp-campo="monto" data-id="' + esc(p.id) + '" value="' + esc(p.monto) + '" inputmode="decimal" aria-label="Monto" style="width:110px;text-align:right">' : '<b>' + dinero2(p.monto) + '</b>') +
-      '</td><td>' + formaPago(p, c) + '</td><td>' + (p.soportes.length ? p.soportes.map(id => { const a = sop(id); const quitar = c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<button type="button" class="quitar-sop" data-cxp-quitar-sop="' + esc(id) + '" data-id="' + esc(p.id) + '" title="Quitar este soporte" aria-label="Quitar soporte">✕</button>' : '';
+      '</td><td>' + formaPago(p, c) + '</td><td>' + (p.soportes.length ? p.soportes.map(id => { const a = sop(id); const quitar = c.puede_editar && p.estado !== 'anulada' && (p.estado !== 'pagada' || c.gerente) ? '<button type="button" class="quitar-sop" data-cxp-quitar-sop="' + esc(id) + '" data-id="' + esc(p.id) + '" title="Quitar este soporte del pago">✕ Quitar</button>' : '';
         return '<span class="sop">' + (a ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" data-visor>' + esc(a.nombre) + '</a>' : '<span class="nota">Soporte</span>') + quitar + '</span>'; }).join('') : '<span class="nota">—</span>') +
       (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) && c.archivos.some(a => a.tipo === 'soporte') ? '<br><select data-cxp-soporte data-id="' + esc(p.id) + '" aria-label="Agregar soporte"><option value="">+ Soporte…</option>' +
         c.archivos.filter(a => a.tipo === 'soporte' && !p.soportes.includes(a.id)).slice(0, 60).map(a => '<option value="' + esc(a.id) + '">' + esc(a.periodo + ' · ' + a.nombre) + '</option>').join('') + '</select>' : '') +
@@ -863,7 +867,10 @@ document.addEventListener('click', async e => {
   if (d.cxpCsv !== undefined) return csvTransferencias();
   if (d.armar) return armarAccion(d.armar, b);
   if (d.cxpQuitarSop) { const p = S.cxp.partidas.find(x => x.id === d.id); if (!p || !confirm('¿Quitar este soporte del pago a ' + p.suplidor + '? El archivo queda guardado en Drive.')) return;
-    return cxpLlamar('cxp_partida', { id: p.id, operacion: 'editar', datos: { soportes: p.soportes.filter(s => s !== d.cxpQuitarSop) } }, 'Soporte quitado.'); }
+    return cxpLlamar('cxp_partida', { id: p.id, operacion: 'quitar_soporte', archivo: d.cxpQuitarSop }, 'Soporte quitado del pago.'); }
+  if (d.cxpQuitarDoc) { const r = S.cxp.relaciones.find(x => x.id === d.id), a = r && r.archivos.find(x => x.id === d.cxpQuitarDoc);
+    if (!r || !confirm('¿Quitar «' + (a ? a.nombre : 'este documento') + '» de la relación y de sus pagos? No saldrá en la relación impresa. El archivo queda guardado en Drive.')) return;
+    return cxpLlamar('cxp_relacion', { id: r.id, operacion: 'quitar_archivo', archivo: d.cxpQuitarDoc }, 'Documento quitado de la relación.'); }
   if (d.cxpTraer) { if (!confirm('¿Traer esta nómina? Se crea un pago por empleado (por relacionar).')) return; b.disabled = true;
     return cxpLlamar('cxp_nomina_traer', { id: d.cxpTraer }, 'Nómina traída: un pago por empleado, por relacionar.'); }
   if (d.cxpNombre) { b.disabled = true; return cxpLlamar('cxp_partida', { id: d.cxpNombre, operacion: 'nombre', usar: d.usar }, d.usar ? 'Unificado con «' + d.usar + '».' : 'Guardado como otro beneficiario.'); }

@@ -289,7 +289,12 @@ body.ancho main, body.ancho .secciones nav, body.ancho .cabecera .fila { max-wid
 .pagos-cxp .acciones-fila .btn { padding: 6px 8px; font-size: 13px; white-space: normal; }
 .pagos-cxp .sop { display: flex; align-items: flex-start; gap: 4px; margin-bottom: 4px; }
 .pagos-cxp .sop a { flex: 1 1 auto; min-width: 0; }
-.quitar-sop { flex: 0 0 auto; border: 1px solid var(--line); background: var(--panel); color: var(--crit); border-radius: 6px; width: 22px; height: 22px; line-height: 18px; padding: 0; cursor: pointer; font-size: 12px; }
+.quitar-sop { flex: 0 0 auto; border: 1px solid #E4B4B0; background: #FDF1F0; color: var(--crit); border-radius: 6px; padding: 2px 8px; cursor: pointer; font: 600 12px/1.5 inherit; white-space: nowrap; }
+.quitar-sop:hover { background: #F9DEDB; }
+.pagos-cxp .sop { flex-wrap: wrap; }
+ul.docs-rel { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+ul.docs-rel li { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px solid var(--line); }
+ul.docs-rel li a { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 900px) {
   .pagos-cxp table, .pagos-cxp tbody, .pagos-cxp td { display: block; width: 100%; }
   .pagos-cxp thead { display: none; }
