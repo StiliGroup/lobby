@@ -323,20 +323,22 @@ async function armarAccion(a, b) {
   if (a === 'sugerir') {
     if (saldo === null) return toast('Escriba primero el balance del banco.', true);
     S.cxpSel.clear(); let resta = saldo;
-    const orden = p => ORDEN_TIPO.indexOf(c.tipos_pago[p.tipo_pago] ? p.tipo_pago : 'otros');
+    const orden = p => ORDEN_TIPO.indexOf(tipoPagoDe(c, p));
     const fecha = p => { const m = String(p.factura_fecha || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? m[3] + m[2] + m[1] : String(p.periodo || '') + '99'; };
     cand.filter(p => !p.alertas.some(x => x.nivel === 'rojo')).sort((x, y) => orden(x) - orden(y) || (fecha(x) < fecha(y) ? -1 : 1))
       .forEach(p => { if ((p.monto || 0) <= resta + 0.005) { S.cxpSel.add(p.id); resta -= p.monto || 0; } });
     toast(S.cxpSel.size + ' factura' + (S.cxpSel.size === 1 ? '' : 's') + ' caben en el balance. Revise y ajuste.');
   }
   if (a === 'crear') {
-    const ids = cand.filter(p => S.cxpSel.has(p.id)).map(p => p.id), tot = cand.filter(p => S.cxpSel.has(p.id)).reduce((s, p) => s + (p.monto || 0), 0);
+    const ids = cand.filter(p => S.cxpSel.has(p.id)).map(p => p.id), tot = cand.filter(p => S.cxpSel.has(p.id)).reduce((s, p) => s + aPagar(p), 0);
+    const montos = {}; ids.forEach(id => { const p = cand.find(x => x.id === id); if (aPagar(p) < (p.monto || 0)) montos[id] = aPagar(p); });
+    if (Object.keys(montos).length && !confirm(Object.keys(montos).length + ' factura' + (Object.keys(montos).length === 1 ? ' va' : 's van') + ' con avance. Lo que no se paga ahora queda como saldo pendiente, por relacionar. ¿Seguir?')) return;
     if (saldo === null) return toast('Escriba el balance del banco.', true);
     if (tot > saldo + 0.005 && !confirm('La relación (' + dinero2(tot) + ') pasa del balance del banco (' + dinero2(saldo) + ') por ' + dinero2(tot - saldo) + '. ¿Crearla de todos modos?')) return;
     b.disabled = true;
     try {
-      S.cxp = await api('cxp_armar', { torre: S.torre, periodo: $('#armar-mes').value, titulo: $('#armar-titulo').value, saldo_banco: S.cxpSaldo, saldo_fecha: S.cxpSaldoFecha || new Date().toLocaleDateString('en-CA'), ids });
-      S.cxpSel.clear(); S.cxpNuevas = null; S.cxpPer = S.cxp.periodo; S.cxpRel = S.cxp.relacion_id; S.cxpTab = 'pagos'; pintarCxp();
+      S.cxp = await api('cxp_armar', { torre: S.torre, periodo: $('#armar-mes').value, titulo: $('#armar-titulo').value, saldo_banco: S.cxpSaldo, saldo_fecha: S.cxpSaldoFecha || new Date().toLocaleDateString('en-CA'), ids, montos });
+      S.cxpSel.clear(); S.cxpMontos = {}; S.cxpNuevas = null; S.cxpPer = S.cxp.periodo; S.cxpRel = S.cxp.relacion_id; S.cxpTab = 'pagos'; pintarCxp();
       toast('Relación creada con ' + ids.length + ' pago' + (ids.length === 1 ? '' : 's') + '. Las demás facturas siguen por relacionar.');
     } catch (err) { b.disabled = false; toast(err.message, true); }
     return;
@@ -347,7 +349,10 @@ async function armarAccion(a, b) {
 document.addEventListener('input', e => {
   if (e.target.id === 'cxp-saldo') { S.cxpSaldo = e.target.value; resumenArmar(); }
   if (e.target.id === 'cxp-saldo-fecha') S.cxpSaldoFecha = e.target.value;
+  if (e.target.classList && e.target.classList.contains('armar-monto')) { S.cxpMontos = S.cxpMontos || {}; S.cxpMontos[e.target.dataset.id] = e.target.value;
+    if (montoTexto(e.target.value) > 0 && !S.cxpSel.has(e.target.dataset.id)) { S.cxpSel.add(e.target.dataset.id); const ch = $('.armar-chk[data-id="' + e.target.dataset.id + '"]'); if (ch) ch.checked = true; } resumenArmar(); }
 });
+document.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('levantamiento')) S.cxpLevAbierto = e.target.open; }, true);
 document.addEventListener('change', e => {
   if (!e.target.classList || !e.target.classList.contains('armar-chk')) return;
   if (e.target.checked) S.cxpSel.add(e.target.dataset.id); else S.cxpSel.delete(e.target.dataset.id);
@@ -505,7 +510,15 @@ async function cargarCxp(periodo) {
 function alertaCxp(a, p) {
   if (a.tipo === 'nombre' && p && S.cxp && S.cxp.puede_editar) return '<li class="al-ambar">' + esc(a.texto) + '<span class="acciones-fila" style="margin-top:4px"><button type="button" class="btn" data-cxp-nombre="' + esc(p.id) +
     '" data-usar="' + esc(a.sugerido) + '">Sí, usar «' + esc(a.sugerido) + '»</button><button type="button" class="btn" data-cxp-nombre="' + esc(p.id) + '" data-usar="">No, es otro</button></span></li>';
+  if (a.tipo === 'avance' && p && a.grupo && S.cxp && S.cxp.puede_editar) return '<li class="al-ambar">' + esc(a.texto) + '<span class="acciones-fila" style="margin-top:4px"><button type="button" class="btn" data-cxp-avance="' + esc(p.id) +
+    '" data-grupo="' + esc(a.grupo) + '" data-si="1">Sí, es avance</button><button type="button" class="btn" data-cxp-avance="' + esc(p.id) + '" data-grupo="' + esc(a.grupo) + '" data-si="">No aplica</button></span></li>';
   return '<li class="al-' + (a.nivel || 'azul') + '">' + esc(a.texto) + '</li>';
+}
+// v2.7.7 · factura con avances: lo pagado y lo que falta, para mostrar debajo de cada pago
+function lineaFactura(c, p) {
+  const f = p.factura_id && (c.facturas_avance || []).find(x => x.id === p.factura_id); if (!f) return '';
+  const i = f.avances.findIndex(x => x.id === p.id) + 1;
+  return '<br><small class="avance-info">Avance ' + (i || '') + ' de ' + f.pagos + ' · factura ' + dinero2(f.total) + ' · pagado ' + dinero2(f.pagado) + ' · falta ' + dinero2(Math.max(0, f.total - f.pagado)) + '</small>';
 }
 function pintarCxp() {
   const c = S.cxp, el = $('#cxp'); if (!el || !c) return;
@@ -526,10 +539,12 @@ function candidatosCxp(c) {
   const abiertas = new Set(c.relaciones.filter(r => r.estado === 'borrador').map(r => r.id));
   return c.partidas.filter(p => ['pendiente', 'aprobada'].includes(p.estado) && (!p.relacion_id || abiertas.has(p.relacion_id)));
 }
+// v2.7.7 · en la relación puede ir solo un avance de la factura
+function aPagar(p) { const m = montoTexto((S.cxpMontos || {})[p.id]); return m > 0 && m < (p.monto || 0) ? m : (p.monto || 0); }
 function resumenArmar() {
   const c = S.cxp, el = $('#armar-resumen'); if (!el || !c) return;
   const saldo = montoTexto(S.cxpSaldo), cand = candidatosCxp(c), sel = cand.filter(p => S.cxpSel.has(p.id));
-  const tot = sel.reduce((s, p) => s + (p.monto || 0), 0), queda = saldo === null ? null : saldo - tot;
+  const tot = sel.reduce((s, p) => s + aPagar(p), 0), queda = saldo === null ? null : saldo - tot;
   el.innerHTML = '<div><span>Balance en banco</span><b>' + (saldo === null ? '—' : dinero2(saldo)) + '</b></div><div><span>Seleccionado · ' + sel.length + '</span><b>' + dinero2(tot) + '</b></div>' +
     '<div class="' + (queda !== null && queda < 0 ? 'falta' : 'queda') + '"><span>' + (queda !== null && queda < 0 ? 'Falta' : 'Queda') + '</span><b>' + (queda === null ? '—' : dinero2(Math.abs(queda))) + '</b></div>';
   $$('.armar-chk').forEach(x => { x.disabled = saldo === null; });
@@ -541,7 +556,7 @@ function cxpRelaciones(c) {
   S.cxpSel = S.cxpSel || new Set();
   const cand = candidatosCxp(c), nombreRel = id => (c.relaciones.find(r => r.id === id) || {}).titulo || '';
   S.cxpSel.forEach(id => { if (!cand.some(p => p.id === id)) S.cxpSel.delete(id); });
-  const grupos = ORDEN_TIPO.map(k => [k, cand.filter(p => (c.tipos_pago[p.tipo_pago] ? p.tipo_pago : 'otros') === k)]).filter(([, l]) => l.length);
+  const grupos = ORDEN_TIPO.map(k => [k, cand.filter(p => tipoPagoDe(c, p) === k)]).filter(([, l]) => l.length);
   const nuevas = S.cxpNuevas || new Set();
   const armar = c.puede_editar ? '<div class="card armar"><h2>Armar la relación de pagos</h2>' +
       '<ol class="pasos"><li><b>Cargue todas las facturas que tiene.</b> Quedan «por relacionar» hasta que usted las elija.<form class="form" id="f-cxp-lote" style="margin-top:8px">' +
@@ -560,11 +575,12 @@ function cxpRelaciones(c) {
       (cand.length ? '<div class="armar-barra"><div class="armar-cifras" id="armar-resumen"></div><div class="acciones-fila"><button type="button" class="btn" data-armar="sugerir" title="Marca primero nómina, servicios públicos e igualas; luego las facturas más viejas, mientras alcance el balance">Sugerir según el balance</button>' +
           '<button type="button" class="btn" data-armar="todas">Todas</button><button type="button" class="btn" data-armar="ninguna">Ninguna</button></div></div>' +
         '<p class="nota" id="armar-aviso">Escriba primero el balance del banco para poder marcar.</p>' +
-        '<div class="tabla"><table><thead><tr><th></th><th>Beneficiario</th><th>Concepto</th><th>Fecha fact.</th><th class="num">Monto</th><th></th></tr></thead><tbody>' +
-        grupos.map(([k, l]) => '<tr class="grupo-fila"><td colspan="6">' + esc(c.tipos_pago[k]) + ' · ' + l.length + ' · ' + dinero2(l.reduce((s, p) => s + (p.monto || 0), 0)) + '</td></tr>' +
+        '<div class="tabla"><table><thead><tr><th></th><th>Beneficiario</th><th>Concepto</th><th>Fecha fact.</th><th class="num">Monto</th><th class="num">A pagar ahora</th><th></th></tr></thead><tbody>' +
+        grupos.map(([k, l]) => '<tr class="grupo-fila"><td colspan="7">' + esc(c.tipos_pago[k]) + ' · ' + l.length + ' · ' + dinero2(l.reduce((s, p) => s + (p.monto || 0), 0)) + '</td></tr>' +
           l.map(p => '<tr><td><input type="checkbox" class="armar-chk" data-id="' + esc(p.id) + '"' + (S.cxpSel.has(p.id) ? ' checked' : '') + ' aria-label="Incluir ' + esc(p.suplidor) + '"></td><td><b>' + esc(p.suplidor || '(sin nombre)') + '</b>' +
             (nuevas.has(p.id) ? ' <span class="chip nuevo">Nueva</span>' : '') + (p.relacion_id ? '<br><small class="nota">Ahora en ' + esc(nombreRel(p.relacion_id)) + '</small>' : '') + '</td><td>' + esc(p.concepto) + (p.ncf ? '<br><small>NCF ' + esc(p.ncf) + '</small>' : '') +
-            '</td><td>' + esc(p.factura_fecha || nombreMes(p.periodo)) + '</td><td class="num"><b>' + dinero2(p.monto) + '</b></td><td>' + (p.alertas.some(a => a.nivel === 'rojo') ? '<span class="chip rojo" title="' + esc(p.alertas.filter(a => a.nivel === 'rojo').map(a => a.texto).join(' · ')) + '">Alerta</span>' : '') +
+            '</td><td>' + esc(p.factura_fecha || nombreMes(p.periodo)) + '</td><td class="num"><b>' + dinero2(p.monto) + '</b>' + lineaFactura(c, p) + '</td><td class="num"><input class="armar-monto" data-id="' + esc(p.id) +
+            '" inputmode="decimal" placeholder="Todo" value="' + esc((S.cxpMontos || {})[p.id] || '') + '" aria-label="Monto a pagar ahora a ' + esc(p.suplidor) + '" title="Deje vacío para pagar todo; escriba un monto para pagar un avance" style="width:110px;text-align:right"></td><td>' + (p.alertas.some(a => a.nivel === 'rojo') ? '<span class="chip rojo" title="' + esc(p.alertas.filter(a => a.nivel === 'rojo').map(a => a.texto).join(' · ')) + '">Alerta</span>' : '') +
             (p.estado === 'aprobada' ? '<span class="chip verde">Aprobada</span>' : '') + '</td></tr>').join('')).join('') + '</tbody></table></div>' +
         '<div class="form" style="margin-top:12px"><label>Nombre de la relación (opcional)<input id="armar-titulo" placeholder="Ej.: Relación 2.ª quincena"></label><label>Mes de pago<input type="month" id="armar-mes" value="' + esc(mes) + '"></label></div>' +
         '<div class="acciones-fila"><button type="button" class="btn primario" data-armar="crear" disabled>Crear relación</button></div>'
@@ -590,7 +606,7 @@ function cxpRelaciones(c) {
 }
 function formaPago(p, c) {
   if (!c.puede_editar || p.estado === 'pagada' || p.estado === 'anulada') return esc(p.forma_pago === 'cheque' ? 'Cheque n.º ' + (p.cheque || '—') : p.forma_pago === 'transferencia' ? 'Transferencia' + (p.cuenta_destino ? ' · ' + p.banco_destino + ' ' + p.cuenta_destino : '') : '—');
-  return '<select data-cxp-campo="forma_pago" data-id="' + esc(p.id) + '" aria-label="Forma de pago"><option value="">Elegir…</option><option value="cheque"' + (p.forma_pago === 'cheque' ? ' selected' : '') + '>Cheque</option>' +
+  return '<select data-cxp-campo="forma_pago" data-id="' + esc(p.id) + '" aria-label="Forma de pago"><option value="">Elegir…</option>' + (c.maneja_cheques !== false || p.forma_pago === 'cheque' ? '<option value="cheque"' + (p.forma_pago === 'cheque' ? ' selected' : '') + '>Cheque</option>' : '') +
     '<option value="transferencia"' + (p.forma_pago === 'transferencia' ? ' selected' : '') + '>Transferencia</option></select>' +
     (p.forma_pago === 'cheque' ? '<input data-cxp-campo="cheque" data-id="' + esc(p.id) + '" value="' + esc(p.cheque) + '" placeholder="N.º ' + esc(c.siguiente_cheque) + '" inputmode="numeric" aria-label="Número de cheque" style="width:90px;margin-top:4px">' : '') +
     (p.forma_pago === 'transferencia' ? '<input data-cxp-campo="banco_destino" data-id="' + esc(p.id) + '" value="' + esc(p.banco_destino) + '" placeholder="Banco" aria-label="Banco de destino" style="margin-top:4px">' +
@@ -611,13 +627,21 @@ function cxpPagos(c) {
     rel.archivos.map((a, i) => { const usos = lista.filter(p => p.soportes.includes(a.id)).length;
       return '<li><span class="nota">' + (a.tipo === 'relacion' ? 'Original' : 'A-' + (i + 1)) + '</span><a href="' + esc(a.url) + '" target="_blank" rel="noopener" data-visor>' + esc(a.nombre) + '</a><small class="nota">' + (usos ? plural(usos, 'pago', 'pagos') : 'sin pago enlazado') + '</small>' +
         (c.puede_editar && (rel.estado !== 'pagada' || c.gerente) ? '<button type="button" class="quitar-sop" data-cxp-quitar-doc="' + esc(a.id) + '" data-id="' + esc(rel.id) + '">✕ Quitar</button>' : '') + '</li>'; }).join('') + '</ul></div>' : '';
-  return interno + docs + '<div class="card pagos-cxp"><div class="cab"><h2>' + (rel ? esc(rel.titulo) : 'Pagos de ' + esc(nombreMes(c.periodo))) + ' · ' + dinero2(total) + '</h2><span class="acciones-fila">' +
+  const fav = c.facturas_avance || [];
+  const lev = fav.length ? '<details class="card levantamiento"' + (S.cxpLevAbierto ? ' open' : '') + '><summary><h2 style="display:inline">Avances y saldos de facturas · ' + fav.length + '</h2> <span class="nota">· falta pagar ' +
+      dinero2(fav.reduce((x, f) => x + Math.max(0, f.total - f.pagado), 0)) + '</span></summary>' +
+    tabla(['Beneficiario', 'Factura', 'Total', 'Pagado', 'En relación', 'Por relacionar', 'Avances'], fav.map(f => '<tr><td><b>' + esc(f.suplidor) + '</b></td><td>' + esc(f.ncf || f.concepto) +
+      '</td><td class="num">' + dinero2(f.total) + '</td><td class="num">' + dinero2(f.pagado) + '</td><td class="num">' + dinero2(f.en_relacion) + '</td><td class="num">' + dinero2(f.por_relacionar) +
+      (Math.abs(f.diferencia) > 0.5 ? '<br><small class="rojo-t">' + (f.diferencia > 0 ? 'Sin cubrir ' : 'Pasa por ') + dinero2(Math.abs(f.diferencia)) + '</small>' : '') + '</td><td><small>' +
+      f.avances.map(a => dinero2(a.monto) + ' · ' + esc(c.estados[a.estado] || a.estado) + (a.pagado_en ? ' ' + esc(a.pagado_en) : '')).join('<br>') + '</small></td></tr>'), '') +
+    '<p class="nota">Cada avance es un pago; lo que falta de la factura queda «por relacionar» para la próxima relación.</p></details>' : '';
+  return interno + docs + lev + '<div class="card pagos-cxp"><div class="cab"><h2>' + (rel ? esc(rel.titulo) : 'Pagos de ' + esc(nombreMes(c.periodo))) + ' · ' + dinero2(total) + '</h2><span class="acciones-fila">' +
       (rel ? '<button type="button" class="btn" data-cxp-ver="">Ver todo el mes</button>' : '') + (c.puede_editar ? '<button type="button" class="btn" data-cxp-nueva>+ Agregar pago</button>' : '') + '</span></div>' + balance +
     tabla(['Beneficiario', 'Concepto', 'Monto', 'Forma de pago', 'Soporte', 'Estado y alertas', ''], lista.map(p => '<tr' + (p.estado === 'anulada' ? ' class="cerrada"' : '') + '><td><b>' + esc(p.suplidor || '(sin nombre)') + '</b>' +
       (p.rnc ? '<br><small>RNC ' + esc(p.rnc) + '</small>' : '') + '<br>' + (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<select data-cxp-campo="tipo_pago" data-id="' + esc(p.id) + '" aria-label="Tipo de pago" title="Se recuerda para el próximo pago a este beneficiario">' +
         Object.entries(c.tipos_pago || {}).map(([k, n]) => '<option value="' + k + '"' + (k === p.tipo_pago ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' : '<small class="nota">' + esc((c.tipos_pago || {})[p.tipo_pago] || '') + '</small>') +
       '<br><small class="nota">' + esc(p.categoria) + (p.origen === 'recurrente' ? ' · recurrente' : p.origen === 'nomina' ? ' · desde Nómina' : p.origen === 'factura' ? ' · leída de la factura' : '') + '</small></td><td>' + esc(p.concepto) +
-      (p.ncf ? '<br><small>NCF ' + esc(p.ncf) + '</small>' : '') + (p.factura_fecha ? '<br><small>Factura ' + esc(p.factura_fecha) + '</small>' : '') + '</td><td class="num">' +
+      (p.ncf ? '<br><small>NCF ' + esc(p.ncf) + '</small>' : '') + (p.factura_fecha ? '<br><small>Factura ' + esc(p.factura_fecha) + '</small>' : '') + lineaFactura(c, p) + '</td><td class="num">' +
       (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<input data-cxp-campo="monto" data-id="' + esc(p.id) + '" value="' + esc(p.monto) + '" inputmode="decimal" aria-label="Monto" style="width:110px;text-align:right">' : '<b>' + dinero2(p.monto) + '</b>') +
       '</td><td>' + formaPago(p, c) + '</td><td>' + (p.soportes.length ? p.soportes.map(id => { const a = sop(id); const quitar = c.puede_editar && p.estado !== 'anulada' && (p.estado !== 'pagada' || c.gerente) ? '<button type="button" class="quitar-sop" data-cxp-quitar-sop="' + esc(id) + '" data-id="' + esc(p.id) + '" title="Quitar este soporte del pago">✕ Quitar</button>' : '';
         return '<span class="sop">' + (a ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" data-visor>' + esc(a.nombre) + '</a>' : '<span class="nota">Soporte</span>') + quitar + '</span>'; }).join('') : '<span class="nota">—</span>') +
@@ -627,6 +651,7 @@ function cxpPagos(c) {
       (p.alertas.length ? '<ul class="alertas-cxp chicas">' + p.alertas.map(a => alertaCxp(a, p)).join('') + '</ul>' : '') + '</td><td><div class="acciones-fila">' +
       (c.puede_editar && p.estado === 'pendiente' ? '<button type="button" class="btn primario" data-cxp-op="aprobar" data-id="' + esc(p.id) + '">Aprobar</button>' : '') +
       (c.puede_editar && p.estado === 'aprobada' ? '<button type="button" class="btn primario" data-cxp-op="pagada" data-id="' + esc(p.id) + '">Pagada</button>' : '') +
+      (c.puede_editar && (p.estado === 'pendiente' || (p.estado === 'aprobada' && c.gerente)) && p.monto > 0 ? '<button type="button" class="btn" data-cxp-avance-monto="' + esc(p.id) + '" title="Pagar solo una parte; el resto queda como saldo pendiente de la factura">Pagar avance</button>' : '') +
       (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<button type="button" class="btn" data-cxp-editar="' + esc(p.id) + '">Editar</button><button type="button" class="btn" data-cxp-op="anular" data-id="' + esc(p.id) + '">Anular</button>' : '') +
       (c.gerente && ['aprobada', 'pagada'].includes(p.estado) ? '<button type="button" class="btn" data-cxp-op="reabrir" data-id="' + esc(p.id) + '">Reabrir</button>' : '') +
       (c.puede_editar && p.relacion_id && !['pagada', 'anulada'].includes(p.estado) && (c.relaciones.find(r => r.id === p.relacion_id) || {}).estado === 'borrador' ? '<button type="button" class="btn" data-cxp-op="sacar" data-id="' + esc(p.id) + '" title="Vuelve a «por relacionar» para la próxima relación">Sacar de la relación</button>' : '') +
@@ -703,16 +728,21 @@ function cxpBanco(c) {
           '</td><td><span class="chip ' + e[1] + '">' + esc(e[0]) + '</span></td></tr>'; }), 'Todavía no hay pagos marcados como pagados.') + '</div>' +
     '<div class="card"><h2>Débitos del banco · ' + c.banco.movimientos.length + '</h2>' + tabla(['Cuenta', 'Fecha', 'Referencia', 'Descripción', 'Monto'], c.banco.movimientos.map(b => '<tr><td><small>' + esc(b.cuenta || b.cuenta_id ? ctaEtiqueta(ctaDe(c, b.cuenta_id, b.cuenta)) : '—') + '</small></td><td>' + esc(b.fecha) +
       '</td><td>' + esc(b.referencia) + '</td><td>' + esc(b.descripcion) + '</td><td class="num">' + dinero2(b.monto) + '</td></tr>'), 'Todavía no se ha leído ningún estado.') + '</div>' +
-    '<div class="card"><h2>Cuentas bancarias de la torre · ' + cts.length + '</h2>' + tabla(['Cuenta', 'Banco y número', ''], cts.map(x => '<tr><td><b>' + esc(x.alias || x.banco) + '</b>' + (x.principal ? ' <span class="chip azul">Principal</span>' : '') +
+    '<div class="card"><h2>Cuentas bancarias de la torre · ' + cts.length + '</h2>' + tabla(['Cuenta', 'Banco y número', ''], cts.map(x => '<tr><td><b>' + esc(x.alias || x.banco) + '</b>' + (x.principal ? ' <span class="chip azul">Principal</span>' : '') + (x.cheques ? ' <span class="chip">Chequera</span>' : '') +
       '</td><td>' + esc(x.banco + ' · ' + x.tipo + ' · ' + x.cuenta) + '</td><td><div class="acciones-fila">' + (c.puede_editar ? (x.principal ? '' : '<button type="button" class="btn" data-cxp-cta="principal" data-id="' + esc(x.id) + '">Hacer principal</button>') +
         '<button type="button" class="btn" data-cxp-cta="editar" data-id="' + esc(x.id) + '">Editar</button><button type="button" class="btn" data-cxp-cta="quitar" data-id="' + esc(x.id) + '">Quitar</button>' : '') + '</div></td></tr>'),
       'Todavía no hay cuentas registradas.') +
     (c.puede_editar ? '<h3 class="sub" id="cxp-cta-tit">Agregar una cuenta</h3><form class="form" id="f-cxp-cuenta"><input type="hidden" name="id"><label>Nombre corto<input name="alias" maxlength="40" placeholder="Operativa, Fondo de reserva…"></label><label>Banco<select name="banco">' + c.bancos.map(b => '<option>' + esc(b) + '</option>').join('') +
       '</select></label><label>Tipo<select name="tipo"><option value="corriente">Corriente</option><option value="ahorro">Ahorro</option></select></label>' +
-      '<label>Número de cuenta<input name="cuenta" inputmode="numeric" required></label><div class="acciones-fila ancho"><button class="btn primario">Agregar cuenta</button><button type="button" class="btn" data-cxp-cta="cancelar" hidden>Cancelar</button></div></form>' +
+      '<label>Número de cuenta<input name="cuenta" inputmode="numeric" required></label><label class="chk ancho" style="flex-direction:row"><input type="checkbox" name="cheques" style="width:auto"> Esta cuenta tiene chequera (la torre paga con cheques)</label><div class="acciones-fila ancho"><button class="btn primario">Agregar cuenta</button><button type="button" class="btn" data-cxp-cta="cancelar" hidden>Cancelar</button></div></form>' +
       '<p class="nota">La principal es la cuenta pagadora: de ella salen los cheques, las transferencias y la que se imprime en la relación. Las demás se usan para confirmar los pagos.</p>' : '') + '</div>';
 }
 function cxpCheques(c) {
+  if (c.maneja_cheques === false) return '<div class="card"><h2>Cheques</h2><p class="nota" style="margin-top:0">Esta torre no maneja cheques: los pagos salen por transferencia y no se vigila la secuencia de la chequera. ' +
+    'Si alguna cuenta tiene chequera, márquelo en «Banco y confirmación» → Cuentas bancarias de la torre.</p></div>' + (c.cheques.length ? cxpChequesLista(c) : '');
+  return cxpChequesLista(c);
+}
+function cxpChequesLista(c) {
   const EST = { emitido: ['Emitido', 'azul'], nulo: ['Nulo', 'rojo'], corregido: ['Corregido', ''] };
   return '<div class="card"><h2>Chequera de la torre</h2><div class="kpis"><div class="kpi"><span>Próximo cheque</span><b>' + esc(c.siguiente_cheque || '—') + '</b></div><div class="kpi"><span>Emitidos</span><b>' +
       c.cheques.filter(x => x.estado === 'emitido').length + '</b></div><div class="kpi"><span>Nulos</span><b>' + c.cheques.filter(x => x.estado === 'nulo').length + '</b></div><div class="kpi' + (c.saltados.length ? ' kpi-alerta' : '') +
@@ -918,7 +948,7 @@ document.addEventListener('click', async e => {
   if (d.armar) return armarAccion(d.armar, b);
   if (d.cxpCta) { const f = $('#f-cxp-cuenta'), x = (S.cxp.cuentas || []).find(y => y.id === d.id);
     if (d.cxpCta === 'editar' || d.cxpCta === 'cancelar') { if (!f) return; const ed = d.cxpCta === 'editar' && x;
-      f.id.value = ed ? x.id : ''; f.alias.value = ed ? x.alias : ''; f.cuenta.value = ed ? x.cuenta : ''; if (ed) { f.banco.value = x.banco; f.tipo.value = x.tipo; }
+      f.id.value = ed ? x.id : ''; f.alias.value = ed ? x.alias : ''; f.cuenta.value = ed ? x.cuenta : ''; f.cheques.checked = !!(ed && x.cheques); if (ed) { f.banco.value = x.banco; f.tipo.value = x.tipo; }
       f.querySelector('.primario').textContent = ed ? 'Guardar cambios' : 'Agregar cuenta'; f.querySelector('[data-cxp-cta="cancelar"]').hidden = !ed; $('#cxp-cta-tit').textContent = ed ? 'Editar ' + ctaEtiqueta(x) : 'Agregar una cuenta';
       if (ed) { f.scrollIntoView({ behavior: 'smooth', block: 'center' }); f.alias.focus(); } return; }
     if (d.cxpCta === 'quitar' && !confirm('¿Quitar la cuenta ' + ctaEtiqueta(x) + '? Los débitos ya leídos de esa cuenta se quedan.')) return;
@@ -930,6 +960,11 @@ document.addEventListener('click', async e => {
     return cxpLlamar('cxp_relacion', { id: r.id, operacion: 'quitar_archivo', archivo: d.cxpQuitarDoc }, 'Documento quitado de la relación.'); }
   if (d.cxpTraer) { if (!confirm('¿Traer esta nómina? Se crea un pago por empleado (por relacionar).')) return; b.disabled = true;
     return cxpLlamar('cxp_nomina_traer', { id: d.cxpTraer }, 'Nómina traída: un pago por empleado, por relacionar.'); }
+  if (d.cxpAvance) { b.disabled = true; return cxpLlamar('cxp_partida', { id: d.cxpAvance, operacion: d.si ? 'aplicar_avance' : 'no_avance', grupo: d.grupo }, d.si ? 'Aplicado como avance.' : 'Listo: no se volverá a sugerir.'); }
+  if (d.cxpAvanceMonto) { const p = S.cxp.partidas.find(x => x.id === d.cxpAvanceMonto); if (!p) return;
+    const v = prompt('Pago a ' + p.suplidor + ' por ' + dinero2(p.monto) + '.\n\n¿Cuánto se paga ahora? El resto queda como saldo pendiente de la factura, por relacionar.', ''); if (!v) return;
+    const m = montoTexto(v); if (!(m > 0) || m >= p.monto) return toast('El avance debe ser mayor que cero y menor que ' + dinero2(p.monto) + '.', true);
+    b.disabled = true; return cxpLlamar('cxp_partida', { id: p.id, operacion: 'avance', monto: m }); }
   if (d.cxpNombre) { b.disabled = true; return cxpLlamar('cxp_partida', { id: d.cxpNombre, operacion: 'nombre', usar: d.usar }, d.usar ? 'Unificado con «' + d.usar + '».' : 'Guardado como otro beneficiario.'); }
   if (d.cxpNueva !== undefined) return editarPartida(null);
   if (d.cxpEditar) return editarPartida(S.cxp.partidas.find(p => p.id === d.cxpEditar));
@@ -1059,7 +1094,7 @@ document.addEventListener('submit', async e => {
       toast(avisos.concat(fallas).join(' · '), !!fallas.length);
     }
     if (id === 'f-cxp-nulo') await cxpLlamar('cxp_cheque_nulo', { torre: S.torre, desde: fd.get('desde'), hasta: fd.get('hasta'), motivo: fd.get('motivo') }, 'Cheque nulo registrado.');
-    if (id === 'f-cxp-cuenta') await cxpLlamar('cxp_cuenta', { torre: S.torre, operacion: 'guardar', id: fd.get('id'), alias: fd.get('alias'), banco: fd.get('banco'), tipo: fd.get('tipo'), cuenta: fd.get('cuenta') }, fd.get('id') ? 'Cuenta guardada.' : 'Cuenta agregada.');
+    if (id === 'f-cxp-cuenta') await cxpLlamar('cxp_cuenta', { torre: S.torre, operacion: 'guardar', id: fd.get('id'), alias: fd.get('alias'), banco: fd.get('banco'), tipo: fd.get('tipo'), cuenta: fd.get('cuenta'), cheques: fd.get('cheques') === 'on' }, fd.get('id') ? 'Cuenta guardada.' : 'Cuenta agregada.');
   } catch (err) { toast(err.message, true); } finally { if (btn) btn.disabled = false; }
 });
 // ------------------------------------------------------------------ Tareas y levantamientos (v2.2)
@@ -1523,6 +1558,8 @@ const Demo = {
       tipos_pago: { servicios: 'Servicios públicos', mantenimiento: 'Mantenimiento', nomina: 'Nómina', igualas: 'Igualas', otros: 'Otros pagos' },
       frecuencias: ['mensual', 'quincenal', 'bimestral', 'trimestral', 'semestral', 'anual'], estados: { pendiente: 'Por aprobar', aprobada: 'Aprobada', pagada: 'Pagada', anulada: 'Anulada' }, bancos: ['Banco Popular', 'BHD', 'Banreservas', 'BDI', 'Otro'],
       cuenta: { id: 'CT1', banco: 'Banco Popular', cuenta: '7120045588', tipo: 'corriente', alias: 'Operativa', principal: true },
+      maneja_cheques: true, facturas_avance: [{ id: 'P4', suplidor: 'Ferretería Ochoa', ncf: 'B0100055555', concepto: 'Bombillos LED', total: 9000, pagado: 0, en_relacion: 4500, por_relacionar: 4500, diferencia: 0, pagos: 2,
+        avances: [{ id: 'P4', monto: 4500, estado: 'pendiente', relacion_id: 'RL-1', pagado_en: '' }, { id: 'P4b', monto: 4500, estado: 'pendiente', relacion_id: '', pagado_en: '' }] }],
       cuentas: [{ id: 'CT1', banco: 'Banco Popular', cuenta: '7120045588', tipo: 'corriente', alias: 'Operativa', principal: true }, { id: 'CT2', banco: 'BHD', cuenta: '2233445566', tipo: 'ahorro', alias: 'Fondo de reserva', principal: false }],
       extractos: [{ id: 'EX2', cuenta_id: 'CT1', cuenta: '7120045588', nombre: 'Popular 16-24.pdf', desde: ant + '-16', hasta: ant + '-24', debitos: 3, nuevos: 2, repetidos: 1, cargado_por: 'Lissette López', cargado_en: 'ayer' },
         { id: 'EX1', cuenta_id: 'CT1', cuenta: '7120045588', nombre: 'Popular 1-15.pdf', desde: ant + '-01', hasta: ant + '-15', debitos: 5, nuevos: 5, repetidos: 0, cargado_por: 'Lissette López', cargado_en: 'hace 8 días' },

@@ -318,3 +318,5 @@ ul.docs-rel li a { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
 .cob i.pend { background: var(--panel-2); border: 1px solid var(--line); }
 .cob i.fut { background: transparent; border: 1px dashed var(--line); }
 .verde-t { color: var(--ok); }
+.avance-info { color: var(--banda); font-weight: 600; }
+details.levantamiento summary { cursor: pointer; list-style-position: inside; }
