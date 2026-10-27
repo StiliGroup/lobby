@@ -5,6 +5,11 @@
  * Los botones que no caben en la pantalla pasan al desplegable «Más ▾» (StiliModulos.mas(nav)).
  * Usa la misma sesión del Portal y del Panel (localStorage 'stili-admin').
  */
+// v2.7.2 · tema de pantalla: claro por defecto (también con el teléfono o la PC en modo oscuro); se puede cambiar en la barra
+(function () {
+  let tema = 'claro'; try { tema = localStorage.getItem('stili-tema') || 'claro'; } catch (e) { /* sin almacenamiento */ }
+  if (tema !== 'auto') document.documentElement.setAttribute('data-theme', tema === 'oscuro' ? 'dark' : 'light');
+})();
 (function () {
   const LS = 'stili-admin';
   const leer = () => { try { return JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) { return {}; } };
@@ -60,6 +65,7 @@
   background: none; border: 0; cursor: pointer; }
 .sm-menu a:hover, .sm-menu button:hover, .sm-menu [aria-selected="true"], .sm-menu [aria-current="page"] { background: #E3E8F4; color: #003A75; }
 .sm-usuario { flex: 0 0 auto; color: #C9D3DF; font-size: 13px; margin-left: 8px; white-space: nowrap; }
+.sm-tema { flex: 0 0 auto; background: transparent; border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 999px; width: 30px; height: 28px; margin-left: 8px; cursor: pointer; font-size: 14px; line-height: 1; }
 .sm-salir { flex: 0 0 auto; background: transparent; border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 999px; padding: 5px 12px; font: 600 13px Montserrat, system-ui, sans-serif; cursor: pointer; margin-left: 8px; }
 @media (max-width: 640px) { .sm-logo b, .sm-usuario { display: none; } }
 .sm-oculto { display: none !important; }
@@ -178,10 +184,21 @@
     estilo();
     const cont = document.createElement('div'); cont.className = 'sm-barra'; cont.setAttribute('role', 'navigation'); cont.setAttribute('aria-label', 'Módulos de Stili');
     cont.innerHTML = '<div class="sm-fila"><a class="sm-logo" href="' + BASE + 'portal/"><img src="' + BASE + 'portal/icono-192.png" alt=""><b>STILI SOFT</b></a>' +
-      '<nav class="sm-nav"></nav><span class="sm-usuario"></span><button type="button" class="sm-salir" hidden>Salir</button></div>';
+      '<nav class="sm-nav"></nav><span class="sm-usuario"></span><button type="button" class="sm-tema" title="Cambiar el tema de la pantalla"></button><button type="button" class="sm-salir" hidden>Salir</button></div>';
     donde.insertBefore(cont, donde.firstChild);
     const sub = document.createElement('div'); sub.className = 'sm-sub'; sub.hidden = true; sub.setAttribute('role', 'navigation'); sub.setAttribute('aria-label', 'Páginas del módulo');
     sub.innerHTML = '<nav class="sm-nav"></nav>'; cont.after(sub);
+    const TEMAS = { claro: ['☀', 'Tema claro'], oscuro: ['☾', 'Tema oscuro'], auto: ['◐', 'Tema automático (como el equipo)'] }, ORDEN = ['claro', 'oscuro', 'auto'];
+    const bt = cont.querySelector('.sm-tema');
+    const pintarTema = () => { let x = 'claro'; try { x = localStorage.getItem('stili-tema') || 'claro'; } catch (e) { /* nada */ } bt.textContent = TEMAS[x][0]; bt.setAttribute('aria-label', TEMAS[x][1]); bt.title = TEMAS[x][1] + ' · clic para cambiar'; };
+    bt.addEventListener('click', () => {
+      let x = 'claro'; try { x = localStorage.getItem('stili-tema') || 'claro'; } catch (e) { /* nada */ }
+      x = ORDEN[(ORDEN.indexOf(x) + 1) % ORDEN.length];
+      try { localStorage.setItem('stili-tema', x); } catch (e) { /* nada */ }
+      if (x === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', x === 'oscuro' ? 'dark' : 'light');
+      pintarTema();
+    });
+    pintarTema();
     cont.querySelector('.sm-salir').addEventListener('click', () => { guardar({ sesion: '', modulos: {}, usuario: {} }); location.href = BASE + 'portal/'; });
     pintar(cont, actual);
     StiliModulos.refrescar().then(() => pintar(cont, actual)).catch(() => {});

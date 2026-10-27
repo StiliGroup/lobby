@@ -195,11 +195,16 @@ $('#tabs').addEventListener('click', e => { const b = e.target.closest('button[d
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-ir]'); if (!b || !S.detalle) return;
   const k = b.dataset.ir;
+  if (!MODULO_SECCIONES[MODULO].includes(k)) {   // v2.7.2 · el dato es de otro módulo: se abre ese módulo en la misma torre
+    const m = Object.keys(MODULO_SECCIONES).find(x => x !== 'inicio' && MODULO_SECCIONES[x].includes(k)) || 'inicio';
+    location.href = 'torres.html?m=' + m + (DEMO ? '&demo=1' : '') + '#' + encodeURIComponent(S.torre) + '/' + k; return;
+  }
   if (!tieneSeccion(k, S.detalle)) return;
   if ((k === 'general' || k === 'finanzas') && S.detalle.puede_editar && k === 'general') S.editando = 'general';
   verSeccion(k); $('#seccion').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 function verSeccion(k) {
+  document.body.classList.toggle('ancho', k === 'cxp');
   S.seccion = k; guardar({ torre_seccion: k, ['seccion_' + MODULO]: k });
   $$('#tabs > button[data-s]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.s === k)));
   StiliModulos.mas($('#tabs'), { items: ':scope > button' });
@@ -375,17 +380,18 @@ function pintarTorre(d) {
     if (S.seccion === 'completar') S.seccion = primeraSeccion(d);
     if (!tieneSeccion(S.seccion, d)) S.seccion = primeraSeccion(d);
     const porVencer = d.contratos.filter(c => c.dias !== null && c.dias <= 30).length;
+    const faltan = (d.completar || []).filter(x => MODULO === 'inicio' || MODULO_SECCIONES[MODULO].includes(x.seccion));
     const rnc = (d.general.find(c => c.clave === 'rnc') || {}).valor, dir = (d.general.find(c => c.clave === 'direccion') || {}).valor;
     $('#contenido').innerHTML = '<section class="card resumen"><div><h1>' + esc(d.torre) + '</h1><div class="nota">' + [dir, rnc ? 'RNC ' + rnc : '', d.gestor ? 'Gestor(a): ' + d.gestor : ''].filter(Boolean).map(esc).join(' · ') + '</div>' +
       (d.puede_asignar ? '<div class="gestor-fila"><label for="g-sel">Gestor responsable</label><select class="gestor" id="g-sel">' + opcionesGestor(d.gestor_id, d.equipo) + '</select></div>' : '') +
       '<div class="chips">' + (d.reclamaciones ? '<span class="chip ' + (d.reclamaciones.resumen.abiertas ? 'rojo' : 'verde') + '">' + plural(d.reclamaciones.resumen.abiertas, 'reclamación abierta', 'reclamaciones abiertas') + '</span>' : '') +
       (porVencer ? '<span class="chip ambar">' + plural(porVencer, 'contrato vence', 'contratos vencen') + ' en 30 días</span>' : '') +
       (d.tareas_abiertas ? '<span class="chip ambar">' + plural(d.tareas_abiertas, 'tarea abierta', 'tareas abiertas') + '</span>' : '') + '<span class="chip azul">' + plural(d.proveedores.length, 'proveedor', 'proveedores') + '</span><span class="chip azul">' + plural(d.empleados.length, 'empleado', 'empleados') + '</span></div>' +
-      ((d.completar || []).length ? '<details class="completar"' + (cfg().torre_seccion === 'completar' ? ' open' : '') + '><summary>⚠ ' + plural(d.completar.length, 'dato por completar', 'datos por completar') + '</summary><div class="chips">' +
-        d.completar.map(x => '<button type="button" class="chip ambar" data-ir="' + esc(x.seccion) + '" title="Ir a ' + esc(x.seccion) + '">' + esc(x.texto) + '</button>').join('') + '</div></details>' : '') +
+      (faltan.length ? '<details class="completar"' + (cfg().torre_seccion === 'completar' ? ' open' : '') + '><summary>⚠ ' + plural(faltan.length, 'dato por completar', 'datos por completar') + (MODULO === 'inicio' ? '' : ' en ' + esc(NOMBRE_MODULO[MODULO])) + '</summary><div class="chips">' +
+        faltan.map(x => '<button type="button" class="chip ambar" data-ir="' + esc(x.seccion) + '" title="Ir a ' + esc(x.seccion) + '">' + esc(x.texto) + '</button>').join('') + '</div></details>' : '') +
       '</div><div class="acciones">' + (S.lista.bot ? '<a class="btn primario" href="' + esc(S.lista.bot) + '" target="_blank" rel="noopener">Agregar o corregir en el Bot de Torres ↗</a>' : '') + '</div></section>' +
       '<div id="seccion"></div>';
-    S.editando = null; pintarTabs(); pintarSeccion();
+    S.editando = null; pintarTabs(); document.body.classList.toggle('ancho', S.seccion === 'cxp'); pintarSeccion();
     const gs = $('#g-sel'); if (gs) gs.addEventListener('change', () => cambiarGestor(gs.value));
   }
 }
@@ -541,6 +547,12 @@ function cxpRelaciones(c) {
       '<ol class="pasos"><li><b>Cargue todas las facturas que tiene.</b> Quedan «por relacionar» hasta que usted las elija.<form class="form" id="f-cxp-lote" style="margin-top:8px">' +
         '<label class="ancho subida">Facturas (PDF o fotos; un PDF puede traer varias)<input type="file" name="facturas" accept=".pdf,image/*" multiple required></label>' +
         '<input type="hidden" name="periodo" value="' + esc(mes) + '"><div class="acciones-fila ancho"><button class="btn"' + (c.ia ? '' : ' disabled') + '>Subir y leer con IA</button>' + (c.ia ? '' : '<span class="nota">Falta la clave de la IA en el servicio (Gerencia).</span>') + '</div></form></li>' +
+      '<li><b>Nómina:</b> tráigala del módulo de Nómina o cargue la relación de nómina completa; cada empleado queda como un pago de nómina.' +
+        ((c.nominas || []).length ? '<div class="tabla" style="margin-top:8px"><table><tbody>' + c.nominas.map(n => '<tr><td><b>' + esc(n.descripcion || ('Nómina ' + nombreMes(n.periodo))) + '</b><br><small class="nota">Enviada desde Nómina ' + esc(n.recibida_en) + '</small></td><td class="num">' +
+          plural(n.empleados, 'empleado', 'empleados') + '</td><td class="num"><b>' + dinero2(n.neto) + '</b></td><td>' + (n.estado === 'traida' ? '<span class="chip verde">Traída</span><br><small class="nota">' + esc(n.traida_por) + ' · ' + esc(n.traida_en) + '</small>'
+          : '<button type="button" class="btn primario" data-cxp-traer="' + esc(n.id) + '">Traer de Nómina</button>') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="nota" style="margin:6px 0 0">No hay nóminas enviadas desde el módulo de Nómina para esta torre.</p>') +
+        '<form class="form" id="f-cxp-nomina" style="margin-top:8px"><label class="ancho subida">Relación de nómina completa (PDF, foto o Excel)<input type="file" name="nomina" accept=".pdf,image/*,.xlsx,.xls,.csv" required></label>' +
+        '<input type="hidden" name="periodo" value="' + esc(mes) + '"><div class="acciones-fila ancho"><button class="btn"' + (c.ia ? '' : ' disabled') + '>Leer la nómina</button></div></form></li>' +
       '<li><b>Escriba el balance disponible en el banco.</b><div class="form" style="margin-top:8px"><label>Balance disponible (RD$)<input id="cxp-saldo" inputmode="decimal" autocomplete="off" placeholder="0.00" value="' + esc(S.cxpSaldo || '') + '"></label>' +
         '<label>Al día<input type="date" id="cxp-saldo-fecha" value="' + esc(S.cxpSaldoFecha || new Date().toLocaleDateString('en-CA')) + '"></label></div>' +
         (c.ultimo_saldo ? '<p class="nota" style="margin:4px 0 0">Último balance anotado: ' + dinero2(c.ultimo_saldo.monto) + ' al ' + esc(c.ultimo_saldo.fecha) + ' (' + esc(c.ultimo_saldo.relacion) + ').</p>' : '') + '</li>' +
@@ -594,7 +606,7 @@ function cxpPagos(c) {
     (nAl ? '<li>' + nAl + ' pago' + (nAl === 1 ? '' : 's') + ' con alertas: revíselos en la tabla de abajo.</li>' : '') + '</ul></div>' : '';
   const balance = rel && rel.saldo_banco !== null && rel.saldo_banco !== undefined ? '<p class="nota" style="margin-top:0">Balance en banco ' + dinero2(rel.saldo_banco) + ' al ' + esc(rel.saldo_fecha) + ' · esta relación ' + dinero2(total) + ' · ' +
     (rel.saldo_banco - total < 0 ? '<b class="rojo-t">falta ' + dinero2(total - rel.saldo_banco) + '</b>' : 'queda ' + dinero2(rel.saldo_banco - total)) + '</p>' : '';
-  return interno + '<div class="card"><div class="cab"><h2>' + (rel ? esc(rel.titulo) : 'Pagos de ' + esc(nombreMes(c.periodo))) + ' · ' + dinero2(total) + '</h2><span class="acciones-fila">' +
+  return interno + '<div class="card pagos-cxp"><div class="cab"><h2>' + (rel ? esc(rel.titulo) : 'Pagos de ' + esc(nombreMes(c.periodo))) + ' · ' + dinero2(total) + '</h2><span class="acciones-fila">' +
       (rel ? '<button type="button" class="btn" data-cxp-ver="">Ver todo el mes</button>' : '') + (c.puede_editar ? '<button type="button" class="btn" data-cxp-nueva>+ Agregar pago</button>' : '') + '</span></div>' + balance +
     tabla(['Beneficiario', 'Concepto', 'Monto', 'Forma de pago', 'Soporte', 'Estado y alertas', ''], lista.map(p => '<tr' + (p.estado === 'anulada' ? ' class="cerrada"' : '') + '><td><b>' + esc(p.suplidor || '(sin nombre)') + '</b>' +
       (p.rnc ? '<br><small>RNC ' + esc(p.rnc) + '</small>' : '') + '<br>' + (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<select data-cxp-campo="tipo_pago" data-id="' + esc(p.id) + '" aria-label="Tipo de pago" title="Se recuerda para el próximo pago a este beneficiario">' +
@@ -602,7 +614,8 @@ function cxpPagos(c) {
       '<br><small class="nota">' + esc(p.categoria) + (p.origen === 'recurrente' ? ' · recurrente' : p.origen === 'nomina' ? ' · desde Nómina' : p.origen === 'factura' ? ' · leída de la factura' : '') + '</small></td><td>' + esc(p.concepto) +
       (p.ncf ? '<br><small>NCF ' + esc(p.ncf) + '</small>' : '') + (p.factura_fecha ? '<br><small>Factura ' + esc(p.factura_fecha) + '</small>' : '') + '</td><td class="num">' +
       (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<input data-cxp-campo="monto" data-id="' + esc(p.id) + '" value="' + esc(p.monto) + '" inputmode="decimal" aria-label="Monto" style="width:110px;text-align:right">' : '<b>' + dinero2(p.monto) + '</b>') +
-      '</td><td>' + formaPago(p, c) + '</td><td>' + (p.soportes.length ? p.soportes.map(id => { const a = sop(id); return a ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" data-visor>' + esc(a.nombre) + '</a>' : ''; }).join('<br>') : '<span class="nota">—</span>') +
+      '</td><td>' + formaPago(p, c) + '</td><td>' + (p.soportes.length ? p.soportes.map(id => { const a = sop(id); const quitar = c.puede_editar && !['pagada', 'anulada'].includes(p.estado) ? '<button type="button" class="quitar-sop" data-cxp-quitar-sop="' + esc(id) + '" data-id="' + esc(p.id) + '" title="Quitar este soporte" aria-label="Quitar soporte">✕</button>' : '';
+        return '<span class="sop">' + (a ? '<a href="' + esc(a.url) + '" target="_blank" rel="noopener" data-visor>' + esc(a.nombre) + '</a>' : '<span class="nota">Soporte</span>') + quitar + '</span>'; }).join('') : '<span class="nota">—</span>') +
       (c.puede_editar && !['pagada', 'anulada'].includes(p.estado) && c.archivos.some(a => a.tipo === 'soporte') ? '<br><select data-cxp-soporte data-id="' + esc(p.id) + '" aria-label="Agregar soporte"><option value="">+ Soporte…</option>' +
         c.archivos.filter(a => a.tipo === 'soporte' && !p.soportes.includes(a.id)).slice(0, 60).map(a => '<option value="' + esc(a.id) + '">' + esc(a.periodo + ' · ' + a.nombre) + '</option>').join('') + '</select>' : '') +
       '</td><td><span class="chip ' + (CXP_COLOR[p.estado] || '') + '">' + esc(c.estados[p.estado] || p.estado) + '</span>' + (p.aprobado_por ? '<br><small>' + esc(p.aprobado_por) + '</small>' : '') +
@@ -849,6 +862,10 @@ document.addEventListener('click', async e => {
   if (d.cxpCotejo !== undefined) return imprimirCotejo();
   if (d.cxpCsv !== undefined) return csvTransferencias();
   if (d.armar) return armarAccion(d.armar, b);
+  if (d.cxpQuitarSop) { const p = S.cxp.partidas.find(x => x.id === d.id); if (!p || !confirm('¿Quitar este soporte del pago a ' + p.suplidor + '? El archivo queda guardado en Drive.')) return;
+    return cxpLlamar('cxp_partida', { id: p.id, operacion: 'editar', datos: { soportes: p.soportes.filter(s => s !== d.cxpQuitarSop) } }, 'Soporte quitado.'); }
+  if (d.cxpTraer) { if (!confirm('¿Traer esta nómina? Se crea un pago por empleado (por relacionar).')) return; b.disabled = true;
+    return cxpLlamar('cxp_nomina_traer', { id: d.cxpTraer }, 'Nómina traída: un pago por empleado, por relacionar.'); }
   if (d.cxpNombre) { b.disabled = true; return cxpLlamar('cxp_partida', { id: d.cxpNombre, operacion: 'nombre', usar: d.usar }, d.usar ? 'Unificado con «' + d.usar + '».' : 'Guardado como otro beneficiario.'); }
   if (d.cxpNueva !== undefined) return editarPartida(null);
   if (d.cxpEditar) return editarPartida(S.cxp.partidas.find(p => p.id === d.cxpEditar));
@@ -885,7 +902,7 @@ document.addEventListener('change', async e => {
   if (t.dataset.cxpAuto) return cxpLlamar('cxp_recurrente', { id: t.dataset.cxpAuto, operacion: 'automatico', valor: t.checked }, t.checked ? 'Se generará solo cada mes.' : 'Ya no se genera solo: saldrá una alerta si falta su solicitud.');
 });
 document.addEventListener('submit', async e => {
-  const id = e.target.id; if (!['f-cxp-rel', 'f-cxp-lote', 'f-cxp-banco', 'f-cxp-nulo', 'f-cxp-cuenta'].includes(id)) return;
+  const id = e.target.id; if (!['f-cxp-rel', 'f-cxp-lote', 'f-cxp-nomina', 'f-cxp-banco', 'f-cxp-nulo', 'f-cxp-cuenta'].includes(id)) return;
   e.preventDefault(); const fd = new FormData(e.target), btn = e.target.querySelector('button.primario, button');
   if (btn) btn.disabled = true;
   try {
@@ -900,6 +917,17 @@ document.addEventListener('submit', async e => {
       S.cxpPer = S.cxp.periodo; S.cxpRel = S.cxp.relacion_id; S.cxpTab = 'pagos'; pintarCxp();
       const n = S.cxp.partidas.filter(p => p.relacion_id === S.cxpRel).length;
       toast(n + ' pagos leídos. Revise las alertas y apruebe.' + (S.cxp.avisos && S.cxp.avisos.length ? ' ' + S.cxp.avisos.join(' ') : ''));
+    }
+    if (id === 'f-cxp-nomina') {   // v2.7.2 · relación de nómina completa → un pago de nómina por empleado
+      const f = fd.get('nomina'); if (!f || !f.size) throw new Error('Elija la relación de nómina.');
+      Progreso.avance(1, 3, 'Subiendo la nómina…');
+      const sub = await api('fin_subir', { torre: S.torre, tipo: 'soporte', periodo: fd.get('periodo'), ligero: true, archivo: await leerArchivo(f) });
+      Progreso.avance(2, 3, 'Leyendo cada empleado…');
+      let r; try { r = await api('cxp_nomina_doc', { torre: S.torre, archivo: sub.subido }); } finally { Progreso.listo(); }
+      S.cxp = r; S.cxpPer = r.periodo; S.cxpTab = 'relaciones';
+      S.cxpNuevas = new Set(r.partidas.filter(p => p.origen === 'nomina' && p.soportes.includes(sub.subido)).map(p => p.id)); pintarCxp();
+      toast(r.empleados + ' empleados leídos (' + dinero2(r.suma) + ')' + (r.creadas < r.empleados ? ' · ' + (r.empleados - r.creadas) + ' ya estaban' : '') +
+        (r.total_documento ? (r.cuadra ? ' · cuadra con el total del documento.' : ' · NO cuadra con el total del documento (' + dinero2(r.total_documento) + '): revíselo.') : '.'), !r.cuadra);
     }
     if (id === 'f-cxp-lote') {   // v2.6.1 · una llamada por factura: cada una cabe en el límite de 60 s de Google
       const per = fd.get('periodo'), elegidas = fd.getAll('facturas').filter(x => x && x.size);
@@ -1411,6 +1439,7 @@ const Demo = {
       tipo_pago: { 'Energía eléctrica': 'servicios', Agua: 'servicios', Seguridad: 'igualas', Limpieza: 'igualas', Ascensores: 'mantenimiento', 'Compras y materiales': 'mantenimiento', Nómina: 'nomina', 'TSS e INFOTEP': 'nomina' }[categoria] || 'otros' });
     const E = (i, nombre, ced, neto) => Object.assign(P('PE' + i, nombre, '', 'Nómina 2.ª quincena · pago neto', 'Nómina', '', neto, 'transferencia', '', 'pendiente', 'nomina', [], []), { documento: ced, cuenta_destino: '80012' + i + '4471' });
     return { torre: 'Torre Niza 7', periodo: per, puede_editar: true, gerente: true, ia: true, categorias: ['Energía eléctrica', 'Agua', 'Seguridad', 'Limpieza', 'Ascensores', 'Nómina', 'TSS e INFOTEP', 'Compras y materiales', 'Otros'],
+      nominas: [{ id: 'N31', periodo: per, descripcion: 'Nómina 2.ª quincena de octubre 2026', neto: 146053.37, empleados: 13, estado: 'disponible', recibida_en: '27/10/2026' }],
       ultimo_saldo: { monto: 412300, fecha: '2026-10-05', relacion: 'Relación 1 de ' + nombreMes(per) },
       tipos_pago: { servicios: 'Servicios públicos', mantenimiento: 'Mantenimiento', nomina: 'Nómina', igualas: 'Igualas', otros: 'Otros pagos' },
       frecuencias: ['mensual', 'quincenal', 'bimestral', 'trimestral', 'semestral', 'anual'], estados: { pendiente: 'Por aprobar', aprobada: 'Aprobada', pagada: 'Pagada', anulada: 'Anulada' }, bancos: ['Banco Popular', 'BHD', 'Banreservas', 'BDI', 'Otro'],

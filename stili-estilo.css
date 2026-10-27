@@ -276,3 +276,25 @@ td.rojo-t { color: var(--crit); font-weight: 600; }
 tr.grupo-fila td { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--titulo); background: var(--panel-2); }
 .armar input[type="checkbox"] { width: 18px; height: 18px; }
 .chip.nuevo { background: #FFF4CC; color: #7A5B00; }
+
+/* v2.7.2 · Cuentas por pagar a pantalla completa, sin barra de desplazamiento */
+body.ancho main, body.ancho .secciones nav, body.ancho .cabecera .fila { max-width: none; }
+.pagos-cxp .tabla { overflow-x: visible; }
+.pagos-cxp table { table-layout: fixed; width: 100%; }
+.pagos-cxp th, .pagos-cxp td { overflow-wrap: anywhere; word-break: normal; padding-left: 6px; padding-right: 6px; }
+.pagos-cxp th:nth-child(1) { width: 17%; } .pagos-cxp th:nth-child(2) { width: 15%; } .pagos-cxp th:nth-child(3) { width: 10%; }
+.pagos-cxp th:nth-child(4) { width: 15%; } .pagos-cxp th:nth-child(5) { width: 14%; } .pagos-cxp th:nth-child(6) { width: 16%; } .pagos-cxp th:nth-child(7) { width: 13%; }
+.pagos-cxp input, .pagos-cxp select { width: 100% !important; max-width: 100%; min-width: 0; box-sizing: border-box; }
+.pagos-cxp .acciones-fila { flex-direction: column; align-items: stretch; gap: 4px; }
+.pagos-cxp .acciones-fila .btn { padding: 6px 8px; font-size: 13px; white-space: normal; }
+.pagos-cxp .sop { display: flex; align-items: flex-start; gap: 4px; margin-bottom: 4px; }
+.pagos-cxp .sop a { flex: 1 1 auto; min-width: 0; }
+.quitar-sop { flex: 0 0 auto; border: 1px solid var(--line); background: var(--panel); color: var(--crit); border-radius: 6px; width: 22px; height: 22px; line-height: 18px; padding: 0; cursor: pointer; font-size: 12px; }
+@media (max-width: 900px) {
+  .pagos-cxp table, .pagos-cxp tbody, .pagos-cxp td { display: block; width: 100%; }
+  .pagos-cxp thead { display: none; }
+  .pagos-cxp tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .pagos-cxp td { border: 0; padding: 0; }
+  .pagos-cxp td:first-child, .pagos-cxp td:last-child { grid-column: 1 / -1; }
+  .pagos-cxp .acciones-fila { flex-direction: row; flex-wrap: wrap; }
+}
