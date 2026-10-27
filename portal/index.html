@@ -330,16 +330,19 @@ function pintarPortal(r) {
     $('#perfil').textContent = u.segmento_nombre + ' · ' + u.correo;
     guardarCfg({ modulos: a, usuario: u });
     if (window.StiliModulos && !$('#modulos .sm-barra')) { StiliModulos.montar($('#modulos'), 'inicio'); $('#barra-login').hidden = true; }
-    // v2.1 · las mismas seis puertas de la barra, en el mismo orden
-    const lobby = a.lobby !== undefined ? a.lobby : (a.invitados || a.panel), fin = a.finanzas !== undefined ? a.finanzas : a.presupuesto, admin = a.admin !== undefined ? a.admin : a.usuarios;
+    // v2.7 · los mismos siete módulos de la barra, en el mismo orden (con un servicio viejo se usan las claves de antes)
+    const tiene = (k, viejo) => a[k] !== undefined ? !!a[k] : !!(viejo && a[viejo]);
+    const lobby = a.lobby !== undefined ? a.lobby : (a.invitados || a.panel);
     let h = '';
-    if (a.torres) h += tile('🏢', 'Torres', 'Todo de cada torre: reclamaciones, finanzas y presupuesto, proveedores y contratos, apartamentos, personal, Junta y reglamentos.', 'href="../torres.html"');
-    if (lobby) h += tile('🛎', 'Lobby', 'El día a día de portería: tablero, buscar apartamento, hosts y renta corta, solicitudes por revisar y lista negra.', 'href="../admin.html?m=lobby"');
-    if (fin) h += tile('📊', 'Finanzas', 'Semáforo de todas las torres: presupuesto vs real, cobranza, liquidez y alerta temprana.', 'href="../presupuesto.html"');
-    if (a.nomina) h += tile('💼', 'Nómina y RRHH', 'Empleados, cubre turnos, novedades, nóminas, licencias, vacaciones y reportes legales.', 'href="#" data-nomina="1"', 'oro');
-    else if (a.nomina_permiso && !a.nomina_configurada) h += tile('💼', 'Nómina y RRHH', 'Falta la dirección de la Nómina (URL_NOMINA en la pestaña Config).', 'href="#" data-sin="1"', 'oro');
-    if (admin) h += tile('⚙️', 'Administración', 'Usuarios y permisos' + (a.papelera ? ', papelera' : '') + ' y ajustes del sistema.', 'href="../admin.html?m=admin"');
-    h += tile('🙋', 'Mi espacio', 'Mis datos, mi firma de correo, foto de WhatsApp y tarjeta, y los descargables de la marca (logos, hoja timbrada, plantillas).', 'href="#mi" data-mi="1"');
+    if (a.torres) h += tile('🏢', 'Condominios', 'El tablero de cada condominio: semáforo, cobros, pagos y personal de turno; ficha, Junta Directiva, reglamentos e historial.', 'href="../torres.html?m=inicio"');
+    if (tiene('personal', 'nomina_permiso')) h += tile('👥', 'Personal', 'Ponchador y horas por quincena, personal de cada torre y la Nómina (empleados, novedades, licencias y vacaciones).',
+      tiene('personal') && (a.panel || a.torres) ? 'href="../admin.html?m=personal"' : a.nomina ? 'href="#" data-nomina="1"' : 'href="#" data-sin="1"', 'oro');
+    if (tiene('finanzas', 'presupuesto')) h += tile('📊', 'Finanzas', 'Semáforo de todas las torres, cuentas por cobrar (listado semanal), estados con IA y cuentas por pagar.', 'href="../' + (a.presupuesto ? 'presupuesto.html' : a.cobros ? 'cobros.html' : 'torres.html?m=finanzas') + '"');
+    if (tiene('operaciones', 'torres')) h += tile('🛠', 'Operaciones', 'Reclamaciones y comunicados, tareas y levantamientos, pedidos de limpieza, suplidores y contratos.', 'href="../torres.html?m=operaciones"');
+    if (lobby) h += tile('🛎', 'Lobby', 'Portería: registro de accesos, tablero, apartamentos, hosts y renta corta, solicitudes por revisar y lista negra.', 'href="../admin.html?m=lobby"');
+    if (tiene('ajustes', 'admin')) h += tile('⚙️', 'Ajustes', 'Usuarios, claves y permisos' + (a.papelera ? ', papelera' : '') + ' y políticas del sistema.', 'href="../admin.html?m=admin"');
+    if (tiene('demo') || a.demo === undefined) h += tile('🧪', 'DEMO', 'Pruebe todos los módulos con datos de ejemplo: portería, propietarios, hosts, huéspedes y los módulos nuevos.', 'href="../demo.html"');
+    h += tile('🙋', 'Mi tarjeta, display y firma', 'Mis datos, mi firma de correo, foto de WhatsApp (display) y tarjeta, y los descargables de la marca (logos, hoja timbrada, plantillas).', 'href="#mi" data-mi="1"');
     $('#tiles').innerHTML = h || '<p class="nota">Su usuario todavía no tiene secciones asignadas. Pídalas al Gerente General.</p>';
     pintarMi(u, a);
     const bots = [[a.bot_torres, '🏢', 'Bot de Torres', 'Ficha de cada torre, proveedores, contratos, reclamaciones y comunicados.'],
@@ -430,6 +433,7 @@ $('#b-instalar').addEventListener('click', async () => { if (!aviso) return; avi
 })();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
+addEventListener('hashchange', () => { const mi = location.hash === '#mi'; if (mi && $('#mi').hidden && !$('#inicio').hidden) ver('mi'); else if (!mi && !$('#mi').hidden) ver('inicio'); });   // v2.7 · «Mi tarjeta, display y firma» desde la barra
 if (sesion) cargar().then(() => { if (location.hash.length > 1 && location.hash !== '#mi') { const d = document.getElementById(location.hash.slice(1)); if (d) d.scrollIntoView({ behavior: 'smooth' }); } }); else salir('');
 </script>
 </body>
