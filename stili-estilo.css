@@ -264,3 +264,15 @@ h3.sub { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; colo
 td.rojo-t { color: var(--crit); font-weight: 600; }
 .kpis.anchos .kpi b { font-size: 22px; line-height: 1.2; }
 .kpi .chip { align-self: flex-start; }
+
+/* v2.7.1 · armar la relación con el balance del banco */
+.armar ol.pasos { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 12px; }
+.armar-barra { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; background: var(--panel); padding: 10px 0; border-bottom: 1px solid var(--line); }
+.armar-cifras { display: flex; gap: 22px; flex-wrap: wrap; }
+.armar-cifras div { display: flex; flex-direction: column; }
+.armar-cifras span { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.armar-cifras b { font-size: 20px; color: var(--titulo); font-variant-numeric: tabular-nums; }
+.armar-cifras .falta b { color: var(--crit); } .armar-cifras .queda b { color: var(--ok); }
+tr.grupo-fila td { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--titulo); background: var(--panel-2); }
+.armar input[type="checkbox"] { width: 18px; height: 18px; }
+.chip.nuevo { background: #FFF4CC; color: #7A5B00; }
