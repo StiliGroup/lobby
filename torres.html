@@ -584,7 +584,8 @@ function cxpRelaciones(c) {
       (r.archivos.length ? '<button type="button" class="btn" data-cxp-pdf="' + esc(r.id) + '">PDF de soportes</button>' : '') +
       (c.puede_editar && r.estado === 'borrador' ? '<button type="button" class="btn primario" data-cxp-rel="aprobar" data-id="' + esc(r.id) + '">Aprobar</button>' : '') +
       (c.puede_editar && r.estado === 'aprobada' ? '<button type="button" class="btn primario" data-cxp-rel="pagada" data-id="' + esc(r.id) + '">Marcar pagada</button>' : '') +
-      (c.gerente && !r.partidas ? '<button type="button" class="btn" data-cxp-rel="eliminar" data-id="' + esc(r.id) + '">Eliminar</button>' : '') + '</div></td></tr>'),
+      ((r.estado === 'aprobada' && c.puede_editar) || (r.estado === 'pagada' && c.gerente) ? '<button type="button" class="btn" data-cxp-rel="reabrir" data-id="' + esc(r.id) + '" title="Vuelve a borrador para corregirla">Reabrir y modificar</button>' : '') +
+      (c.gerente || (c.puede_editar && (r.estado === 'borrador' || !r.partidas)) ? '<button type="button" class="btn peligro" data-cxp-rel="eliminar" data-id="' + esc(r.id) + '">Eliminar</button>' : '') + '</div></td></tr>'),
       'Todavía no hay relaciones. Ármela arriba.') + '</div>';
 }
 function formaPago(p, c) {
@@ -878,9 +879,13 @@ document.addEventListener('click', async e => {
   if (d.cxpEditar) return editarPartida(S.cxp.partidas.find(p => p.id === d.cxpEditar));
   if (d.cxpRel) {
     if (d.cxpRel === 'pagada' && !confirm('¿Marcar como pagados todos los pagos aprobados de esta relación?')) return;
-    if (d.cxpRel === 'eliminar' && !confirm('¿Eliminar esta relación vacía? Los archivos quedan guardados en Drive.')) return;
+    const rel = S.cxp.relaciones.find(x => x.id === d.id) || {};
+    if (d.cxpRel === 'reabrir' && !confirm('¿Reabrir «' + (rel.titulo || 'esta relación') + '»?\n\nVuelve a borrador: podrá agregar, sacar o corregir pagos y soportes. ' +
+      (rel.estado === 'pagada' ? 'Sus pagos dejan de estar marcados como pagados y ' : 'Sus pagos ') + 'quedan por aprobar otra vez.')) return;
+    if (d.cxpRel === 'eliminar' && !confirm(rel.partidas ? '¿Eliminar «' + (rel.titulo || 'esta relación') + '»?\n\nSus ' + rel.partidas + ' pagos no se borran: vuelven a «por relacionar»' +
+      (rel.estado !== 'borrador' ? ' y quedan por aprobar otra vez' : '') + '. Los archivos quedan guardados en Drive.' : '¿Eliminar esta relación vacía? Los archivos quedan guardados en Drive.')) return;
     b.disabled = true;
-    const r = await cxpLlamar('cxp_relacion', { id: d.id, operacion: d.cxpRel }, ({ aprobar: 'Relación aprobada.', pagada: 'Relación marcada como pagada.', eliminar: 'Relación eliminada.' })[d.cxpRel]);
+    const r = await cxpLlamar('cxp_relacion', { id: d.id, operacion: d.cxpRel }, ({ aprobar: 'Relación aprobada.', pagada: 'Relación marcada como pagada.', eliminar: 'Relación eliminada: sus pagos quedan por relacionar.', reabrir: 'Relación reabierta: ya puede modificarla.' })[d.cxpRel]);
     if (r && r.con_alerta) toast(r.con_alerta + ' pago' + (r.con_alerta === 1 ? '' : 's') + ' con alerta roja quedaron por aprobar: revíselos uno a uno.', true);
     return;
   }
@@ -1465,7 +1470,9 @@ const Demo = {
         P('P6', 'Tesorería de la Seguridad Social', '', 'TSS (empleado + empleador) e INFOTEP', 'TSS e INFOTEP', '', 21500, 'transferencia', '', 'pendiente', 'nomina', [], [])],
       relaciones: [{ id: 'RL-1', periodo: per, numero: 1, titulo: 'Relación 1 de ' + nombreMes(per), estado: 'borrador', creada_por: 'Lissette López', creada_en: '05/' + per.slice(5) + '/' + per.slice(0, 4), aprobada_por: '', aprobada_en: '',
         observaciones: ['Falta la factura de Elevadores del Caribe', 'Seguridad Total pidió el pago antes del día 10.'], saldo_banco: 412300, saldo_fecha: '2026-10-05', saldo_por: 'Lissette López', archivos: [{ id: 'R0', nombre: 'Relación de pagos.xlsx', url: '#', tipo: 'relacion' }, { id: 'S1', nombre: 'EDESUR B0100001234.pdf', url: '#', tipo: 'soporte' },
-          { id: 'S2', nombre: 'Factura seguridad.pdf', url: '#', tipo: 'soporte' }, { id: 'S3', nombre: 'Ferretería Ochoa.jpg', url: '#', tipo: 'soporte' }], total: 272500.5, partidas: 6 }],
+          { id: 'S2', nombre: 'Factura seguridad.pdf', url: '#', tipo: 'soporte' }, { id: 'S3', nombre: 'Ferretería Ochoa.jpg', url: '#', tipo: 'soporte' }], total: 272500.5, partidas: 6 },
+        { id: 'RL-0', periodo: '2026-09', numero: 1, titulo: 'Relación 1 de septiembre', estado: 'pagada', creada_por: 'Lissette López', creada_en: '05/09/2026', aprobada_por: 'Ronald Larrauri', aprobada_en: '06/09/2026',
+          observaciones: [], saldo_banco: 300000, saldo_fecha: '2026-09-05', archivos: [], total: 198400, partidas: 0 }],
       recurrentes: [{ id: 'R1', suplidor: 'EDESUR Dominicana', rnc: '101821248', concepto: 'Energía áreas comunes', categoria: 'Energía eléctrica', monto: 18500.5, variable: true, frecuencia: 'mensual', dia: '', forma_pago: 'transferencia', estado: 'validado', automatico: true,
           meses_vistos: [ant, per], montos_vistos: ant + ':17980;' + per + ':18500.5', fuente: 'Visto en 2 meses', validado_por: 'Ronald Larrauri', validado_en: '02/' + per.slice(5) + '/' + per.slice(0, 4) },
         { id: 'R2', suplidor: 'Seguridad Total SRL', rnc: '130456789', concepto: 'Vigilancia 24 horas', categoria: 'Seguridad', monto: 95000, variable: false, frecuencia: 'mensual', dia: '', forma_pago: 'cheque', estado: 'propuesto', automatico: true,
@@ -1506,6 +1513,11 @@ const Demo = {
     lineas: [{ rubro: 'Cuotas de mantenimiento', tipo: 'ingreso', mensual: 100000, real_promedio: null, ejecucion: null }, { rubro: 'Seguridad', tipo: 'gasto', mensual: 50000, real_promedio: 60000, ejecucion: 1.2 },
       { rubro: 'Limpieza', tipo: 'gasto', mensual: 20000, real_promedio: 19000, ejecucion: 0.95 }, { rubro: 'Energía eléctrica', tipo: 'gasto', mensual: 25000, real_promedio: 31000, ejecucion: 1.24 }],
     archivos: [{ id: 'FA3', nombre: 'Presupuesto 2026 aprobado.pdf', periodo: '2026-01' }] }),
+  cxp_relacion: d => { const x = Demo.cxp_datos(), r = x.relaciones.find(y => y.id === d.id);
+    if (d.operacion === 'eliminar') { x.relaciones = x.relaciones.filter(y => y !== r); x.partidas.forEach(p => { if (p.relacion_id === d.id) { p.relacion_id = ''; if (p.estado !== 'anulada') p.estado = 'pendiente'; } }); }
+    else if (d.operacion === 'reabrir') { r.estado = 'borrador'; r.aprobada_por = ''; x.partidas.forEach(p => { if (p.relacion_id === d.id && ['aprobada', 'pagada'].includes(p.estado)) p.estado = 'pendiente'; }); }
+    else if (d.operacion === 'aprobar') r.estado = 'aprobada'; else if (d.operacion === 'pagada') r.estado = 'pagada';
+    return x; },
   cxp_armar: d => { const x = Demo.cxp_datos(); const n = x.relaciones.length + 1;
     x.relaciones.unshift({ id: 'RL-' + n, periodo: x.periodo, numero: n, titulo: d.titulo || 'Relación ' + n + ' de ' + nombreMes(x.periodo), estado: 'borrador', creada_por: 'Lissette López', creada_en: 'hoy', aprobada_por: '', aprobada_en: '',
       observaciones: [], archivos: [], saldo_banco: Number(String(d.saldo_banco).replace(/[^\d.]/g, '')), saldo_fecha: d.saldo_fecha, total: 0, partidas: d.ids.length });
