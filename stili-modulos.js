@@ -75,6 +75,11 @@
         { t: 'Horas por quincena', href: 'admin.html?m=personal#quincena', ve: 'personal', viejo: 'panel' },
         { t: 'Vacaciones', nomina: '/vacaciones', ve: 'nomina' },
         { t: 'Licencias médicas', nomina: '/licencias', ve: 'nomina' }] },
+      { t: 'Reclutamiento', items: [
+        { t: 'Candidatos', d: 'Solicitudes ordenadas por puntaje', href: 'reclutamiento.html', ve: 'personal', viejo: 'nomina_permiso' },
+        { t: 'Vacantes', href: 'reclutamiento.html#vacantes', ve: 'personal', viejo: 'nomina_permiso' },
+        { t: 'Avisos y canales', d: 'Textos con enlace, QR y alcance por canal', href: 'reclutamiento.html#canales', ve: 'personal', viejo: 'nomina_permiso' },
+        { t: 'Página pública de empleos', href: 'empleo.html', siempre: true }] },
       { t: 'Cumplimiento', items: [
         { t: 'Reportes legales', d: 'TSS, ISR, IR-13, DGT', nomina: '/reportes', ve: 'nomina' },
         { t: 'Calculadoras', d: 'Neto y prestaciones', nomina: '/calculadoras', ve: 'nomina' },

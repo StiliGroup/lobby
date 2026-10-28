@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Empleos en Stili Group</title>
+<meta name="description" content="Vacantes de Stili Group en torres residenciales de Santo Domingo. Aplique desde su celular.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+<script src="config.js"></script>
+<style>
+/* v2.8 · Empleos de Stili: vacantes abiertas y solicitud desde el celular, con enlace único por canal. */
+:root { --bg: #F3F5F9; --panel: #FFFFFF; --fg: #13293D; --muted: #5A6B78; --line: #DCE3EC; --azul: #003A75; --oro: #DCB40C;
+  --ok: #1E7D4F; --ok-s: #E3F3EA; --crit: #B3261E; --crit-s: #FBE6E4; --sel: #E3E8F4; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0C1822; --panel: #13222F; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A; --azul: #6E9BD6; --sel: #1E3346; --ok: #4CC08A; --ok-s: #143024; --crit: #F07C73; --crit-s: #3A1A18; } }
+* { box-sizing: border-box; } [hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Montserrat, "Segoe UI", system-ui, sans-serif; }
+input, textarea, button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--oro); outline-offset: 2px; }
+.top { background: #003A75; color: #fff; border-bottom: 3px solid var(--oro); }
+.top .in, main { max-width: 600px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.top .in { padding-block: 18px; }
+.top small { color: var(--oro); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.top h1 { margin: 2px 0 2px; font-size: 21px; } .top p { margin: 0; font-size: 13.5px; color: #DCE6F2; }
+main { padding-block: 16px 56px; }
+form { display: grid; gap: 12px; }
+fieldset { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 14px 16px; margin: 0; display: grid; gap: 12px; min-width: 0; }
+legend { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 0 6px; }
+.p { font-weight: 600; font-size: 14px; margin: 0 0 6px; }
+.p small { display: block; font-weight: 500; color: var(--muted); font-size: 12.5px; }
+.estrellas { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.estrellas label { cursor: pointer; }
+.estrellas input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.estrellas span { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); font-size: 15px; font-weight: 700; color: var(--muted); }
+.estrellas input:checked + span { background: var(--azul); border-color: var(--azul); color: #fff; }
+.estrellas input:focus-visible + span { outline: 3px solid var(--oro); }
+.estrellas .na span { width: auto; padding: 0 10px; font-size: 12.5px; font-weight: 600; }
+.leyenda { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); max-width: 230px; }
+.nps { display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px; }
+.nps label { cursor: pointer; } .nps input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.nps span { display: grid; place-items: center; height: 38px; border-radius: 8px; border: 1px solid var(--line); font-weight: 700; font-size: 14px; color: var(--muted); }
+.nps input:checked + span { background: var(--azul); border-color: var(--azul); color: #fff; }
+.nps input:focus-visible + span { outline: 3px solid var(--oro); }
+.opc { display: flex; gap: 6px; flex-wrap: wrap; }
+.opc label { border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.opc label:has(input:checked) { background: var(--sel); border-color: var(--azul); color: var(--azul); }
+.opc input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+label.campo { display: grid; gap: 4px; font-size: 13.5px; font-weight: 600; }
+input[type=text], input[type=tel], textarea { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 12px; font-size: 16px; width: 100%; }
+textarea { min-height: 74px; resize: vertical; }
+.priv { font-size: 12.5px; color: var(--muted); }
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; }
+.btn { border: 0; background: var(--azul); color: #fff; border-radius: 10px; padding: 13px 18px; font-weight: 700; font-size: 16px; cursor: pointer; }
+.btn:disabled { opacity: .6; }
+.error { color: var(--crit); font-size: 13px; font-weight: 600; border-left: 2px solid var(--crit); padding-left: 9px; }
+.listo { background: var(--ok-s); color: var(--ok); border-radius: 12px; padding: 22px; text-align: center; }
+.listo h2 { margin: 0 0 4px; font-size: 19px; }
+.demo { color: #8A5300; font-size: 12px; font-weight: 600; border-left: 2px solid #C98A00; padding-left: 9px; margin-bottom: 10px; }
+
+.vac { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 6px; }
+.vac h2 { margin: 0; font-size: 17px; color: var(--azul); }
+.vac .meta { font-size: 13px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.vac ul { margin: 2px 0 0; padding-left: 18px; font-size: 13.5px; }
+.lista-vac { display: grid; gap: 10px; }
+.sel-vac { background: var(--sel); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.sel-vac b { color: var(--azul); }
+select { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 12px; font-size: 16px; width: 100%; color: inherit; font: inherit; }
+.enl { background: none; border: 0; padding: 0; color: var(--azul); font-weight: 600; text-decoration: underline; cursor: pointer; }
+.nunca { font-size: 12.5px; color: var(--ok); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="top"><div class="in"><small>Stili Group · Empleos</small><h1 id="h1">Trabaja con nosotros</h1><p>Torres residenciales en Santo Domingo. Aplicar es gratis y toma unos minutos.</p></div></div>
+<main>
+  <div class="demo" id="demo" hidden>Demostración: las solicitudes no se guardan.</div>
+  <div class="error" id="err-carga" hidden></div>
+  <section id="vacantes" hidden><p class="nunca">✓ Stili nunca cobra por aplicar ni por contratar.</p><div class="lista-vac" id="lista"></div></section>
+  <form id="f" hidden novalidate>
+    <div class="sel-vac" id="sel-vac"></div>
+    <fieldset>
+      <legend>Sus datos</legend>
+      <label class="campo">Nombre completo<input type="text" name="nombre" autocomplete="name" maxlength="80" required></label>
+      <label class="campo">Teléfono<input type="tel" name="telefono" autocomplete="tel" maxlength="20" placeholder="809-000-0000" required></label>
+      <label class="check"><input type="checkbox" name="whatsapp" value="SI" checked> Ese número tiene WhatsApp</label>
+      <label class="campo">Usuario de Telegram <span style="font-weight:500;color:var(--muted)">(opcional)</span><input type="text" name="telegram" maxlength="40" placeholder="@usuario"></label>
+      <label class="campo">Correo <span style="font-weight:500;color:var(--muted)">(opcional)</span><input type="text" name="correo" inputmode="email" autocomplete="email" maxlength="80"></label>
+      <label class="campo">¿Dónde vive?<select name="zona" id="zona" required><option value="">Elija…</option></select></label>
+      <label class="campo">Sector<input type="text" name="sector" maxlength="60" placeholder="Ej.: Los Mina, Herrera, Villa Mella"></label>
+    </fieldset>
+    <fieldset>
+      <legend>Pre-entrevista</legend>
+      <div><p class="p">¿En qué horario puede trabajar?</p><div class="opc">
+        <label><input type="radio" name="disponibilidad" value="dia"> De día</label><label><input type="radio" name="disponibilidad" value="noche"> De noche</label><label><input type="radio" name="disponibilidad" value="cualquiera"> Cualquier turno</label></div></div>
+      <div><p class="p" id="p-exp">¿Cuánta experiencia tiene en este trabajo?</p><div class="opc">
+        <label><input type="radio" name="experiencia_anios" value="0"> Ninguna</label><label><input type="radio" name="experiencia_anios" value="0.5"> Menos de 1 año</label><label><input type="radio" name="experiencia_anios" value="1"> 1 año</label>
+        <label><input type="radio" name="experiencia_anios" value="2"> 2 a 4 años</label><label><input type="radio" name="experiencia_anios" value="5"> 5 años o más</label></div></div>
+      <label class="campo">Último trabajo (empresa y puesto)<input type="text" name="ultimo_empleo" maxlength="120"></label>
+      <label class="campo">¿Por qué salió? <span style="font-weight:500;color:var(--muted)">(opcional)</span><input type="text" name="motivo_salida" maxlength="200"></label>
+      <label class="campo">Dos referencias laborales (nombre y teléfono)<textarea name="referencias" maxlength="400" placeholder="Juan Pérez · 809-555-0000&#10;María Gómez · 829-555-0000"></textarea></label>
+      <div><p class="p">Certificado de buena conducta</p><div class="opc">
+        <label><input type="radio" name="buena_conducta" value="tiene"> Lo tengo</label><label><input type="radio" name="buena_conducta" value="puede"> Lo puedo sacar</label><label><input type="radio" name="buena_conducta" value="no"> No</label></div></div>
+      <label class="campo">Salario que espera (RD$ al mes) <span style="font-weight:500;color:var(--muted)">(opcional)</span><input type="text" name="expectativa" inputmode="numeric" maxlength="12"></label>
+      <label class="campo">¿Cuándo puede empezar?<input type="text" name="inicio" maxlength="40" placeholder="Inmediato, en 2 semanas…"></label>
+      <label class="campo">Hoja de vida <span style="font-weight:500;color:var(--muted)">(opcional: PDF, Word o foto, hasta 5 MB)</span><input type="file" name="hoja_vida" accept=".pdf,.doc,.docx,image/*"></label>
+      <label class="campo" id="campo-ref">¿Alguien que trabaja en Stili le refirió? <span style="font-weight:500;color:var(--muted)">(opcional)</span><input type="text" name="referido_por" maxlength="80" placeholder="Nombre de quien le refirió"></label>
+    </fieldset>
+    <fieldset>
+      <legend>Para enviar</legend>
+      <label class="check"><input type="checkbox" name="mayor_edad" value="SI"> Soy mayor de 18 años.</label>
+      <label class="check"><input type="checkbox" name="acepta_privacidad" value="SI"> Autorizo a Stili Group a usar estos datos solo para evaluar mi solicitud y contactarme sobre vacantes (Ley 172-13). Puedo pedir que los borren cuando quiera.</label>
+    </fieldset>
+    <div class="error" id="err" hidden></div>
+    <button class="btn" type="submit" id="enviar">Enviar solicitud</button>
+    <button class="enl" type="button" id="volver">← Ver otras vacantes</button>
+  </form>
+  <div class="listo" id="listo" hidden><h2>¡Solicitud recibida!</h2><p style="margin:0">Gracias. Si su perfil encaja, le contactaremos por teléfono, WhatsApp o Telegram. Stili nunca le pedirá dinero.</p></div>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const Q = new URLSearchParams(location.search), DEMO = Q.has('demo') || !(window.STILI && window.STILI.servicio);
+const CANAL = (Q.get('c') || 'web').replace(/[^a-z0-9-]/gi, '').slice(0, 40), REF = (Q.get('r') || '').slice(0, 80);
+const TURNO = { dia: 'De día', noche: 'De noche', rotativo: 'Turnos rotativos', oficina: 'Horario de oficina' };
+const ZONAS = ['Distrito Nacional', 'Santo Domingo Este', 'Santo Domingo Norte', 'Santo Domingo Oeste', 'Los Alcarrizos', 'Boca Chica', 'Pedro Brand', 'San Cristóbal', 'Otra provincia'];
+const VAC_DEMO = [
+  { codigo: 'POR-7K2Q', puesto: 'portero_nocturno', titulo: 'Portero(a) nocturno', zona: 'Distrito Nacional', turno: 'noche', horario: '7:00 p. m. a 7:00 a. m., 6 noches a la semana', salario: null, requisitos: ['Experiencia en portería o seguridad', 'Buena conducta', 'Trato amable con residentes'], publicada: '27/10/2026' },
+  { codigo: 'CON-3M8D', puesto: 'conserje', titulo: 'Conserje', zona: 'Distrito Nacional', turno: 'dia', horario: '7:00 a. m. a 5:00 p. m., lunes a sábado', salario: 18500, requisitos: ['Limpieza de áreas comunes', 'Responsable y puntual'], publicada: '26/10/2026' },
+  { codigo: 'CUB-9T4F', puesto: 'cubre_turnos', titulo: 'Cubre turnos (porteros)', zona: 'Santo Domingo Este', turno: 'rotativo', horario: 'Según los turnos libres de las torres', salario: null, requisitos: ['Disponibilidad de día y de noche', 'Experiencia en portería'], publicada: '25/10/2026' }];
+async function api(accion, datos) {
+  if (DEMO) return accion === 'empleo_vacantes' ? { vacantes: datos.v ? VAC_DEMO.filter(v => v.codigo === datos.v) : VAC_DEMO, zonas: ZONAS } : { recibida: true };
+  const r = await fetch(window.STILI.servicio, { method: 'POST', body: JSON.stringify(Object.assign({ accion }, datos)) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error || 'No se pudo enviar.'); return j;
+}
+const dinero = n => 'RD$ ' + Number(n).toLocaleString('es-DO');
+let vacantes = [], elegida = null;
+function pintarLista() {
+  $('#lista').innerHTML = vacantes.length ? vacantes.map(v => '<article class="vac"><h2>' + esc(v.titulo) + '</h2><div class="meta"><span>📍 ' + esc(v.zona || 'Santo Domingo') + '</span><span>🕒 ' + esc(v.horario || TURNO[v.turno] || '') + '</span>' +
+    (v.salario ? '<span>💵 ' + dinero(v.salario) + ' + beneficios de ley</span>' : '') + '</div>' + (v.requisitos.length ? '<ul>' + v.requisitos.map(r => '<li>' + esc(r) + '</li>').join('') + '</ul>' : '') +
+    '<button class="btn" type="button" data-aplicar="' + esc(v.codigo) + '">Aplicar</button></article>').join('') : '<div class="vac"><p style="margin:0">En este momento no hay vacantes abiertas. Síganos en el canal de Telegram para ver las próximas.</p></div>';
+  $('#vacantes').hidden = false; $('#f').hidden = true;
+}
+function abrir(codigo) {
+  elegida = vacantes.find(v => v.codigo === codigo); if (!elegida) return;
+  $('#sel-vac').innerHTML = 'Aplicando a <b>' + esc(elegida.titulo) + '</b> · ' + esc(elegida.zona || '') + ' · ' + esc(elegida.horario || TURNO[elegida.turno] || '');
+  $('#p-exp').textContent = '¿Cuánta experiencia tiene como ' + elegida.titulo.toLowerCase() + '?';
+  $('#vacantes').hidden = true; $('#f').hidden = false; $('#volver').hidden = vacantes.length < 2; scrollTo({ top: 0 });
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-aplicar]'); if (b) abrir(b.dataset.aplicar); });
+$('#volver').addEventListener('click', pintarLista);
+$('#f').addEventListener('change', () => { $('#err').hidden = true; });
+const leerArchivo = f => new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok({ nombre: f.name, mime: f.type || 'application/octet-stream', base64: String(r.result).split(',')[1] }); r.onerror = () => mal(new Error('No se pudo leer el archivo.')); r.readAsDataURL(f); });
+$('#f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = new FormData(e.target), err = $('#err'), faltan = [];
+  if (String(f.get('nombre') || '').trim().split(/\s+/).length < 2) faltan.push('su nombre completo');
+  if (String(f.get('telefono') || '').replace(/\D/g, '').length < 10) faltan.push('un teléfono de 10 dígitos');
+  if (!f.get('zona')) faltan.push('dónde vive');
+  if (!f.get('disponibilidad')) faltan.push('el horario');
+  if (f.get('experiencia_anios') === null) faltan.push('la experiencia');
+  if (!f.get('mayor_edad')) faltan.push('confirmar que es mayor de 18 años');
+  if (!f.get('acepta_privacidad')) faltan.push('aceptar el aviso de privacidad');
+  const hv = f.get('hoja_vida');
+  if (hv && hv.size > 5 * 1024 * 1024) faltan.push('una hoja de vida de menos de 5 MB');
+  if (faltan.length) { err.textContent = 'Falta: ' + faltan.join(', ') + '.'; err.hidden = false; err.scrollIntoView({ block: 'center' }); return; }
+  $('#enviar').disabled = true; $('#enviar').textContent = 'Enviando…';
+  try {
+    const s = { vacante: elegida.codigo, canal: CANAL, hoja_vida: hv && hv.size ? await leerArchivo(hv) : null };
+    ['nombre', 'telefono', 'whatsapp', 'telegram', 'correo', 'zona', 'sector', 'disponibilidad', 'experiencia_anios', 'ultimo_empleo', 'motivo_salida', 'referencias', 'buena_conducta', 'expectativa', 'inicio', 'referido_por', 'mayor_edad', 'acepta_privacidad']
+      .forEach(k => { s[k] = f.get(k) || ''; });
+    if (REF && !s.referido_por) s.referido_por = REF;
+    await api('empleo_postular', { solicitud: s });
+    $('#f').hidden = true; $('#listo').hidden = false; scrollTo({ top: 0 });
+  } catch (x) { err.textContent = x.message; err.hidden = false; $('#enviar').disabled = false; $('#enviar').textContent = 'Enviar solicitud'; }
+});
+(async () => {
+  $('#demo').hidden = !DEMO;
+  if (REF) { $('[name=referido_por]').value = REF; }
+  try {
+    const r = await api('empleo_vacantes', {});
+    vacantes = r.vacantes; $('#zona').insertAdjacentHTML('beforeend', (r.zonas || ZONAS).map(z => '<option>' + esc(z) + '</option>').join(''));
+    const v = (Q.get('v') || '').toUpperCase();
+    if (v && vacantes.some(x => x.codigo === v)) abrir(v); else { pintarLista(); if (v) { $('#err-carga').textContent = 'Esa vacante ya se cerró. Estas son las abiertas.'; $('#err-carga').hidden = false; } }
+  } catch (x) { $('#err-carga').textContent = x.message; $('#err-carga').hidden = false; }
+})();
+</script>
+</body>
+</html>

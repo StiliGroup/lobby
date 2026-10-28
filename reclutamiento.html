@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reclutamiento · Stili Soft</title>
+<meta name="description" content="Vacantes, candidatos ordenados por puntaje, avisos con enlace por canal y alcance de cada canal.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css">
+<script src="config.js"></script>
+<script src="stili-modulos.js"></script>
+<script src="stili-qr.js"></script>
+<style>
+.vistas { display: flex; background: rgba(255,255,255,.12); border-radius: 10px; padding: 3px; gap: 3px; flex-wrap: wrap; }
+.vistas button { border: 0; background: transparent; color: #fff; padding: 7px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.vistas button[aria-pressed="true"] { background: #fff; color: #003A75; }
+h2.sec { margin: 0 0 10px; font-size: 15px; color: var(--titulo); }
+.form { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 10px 12px; align-items: end; }
+.form label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.form input, .form select, .form textarea { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--panel); color: var(--fg); font: inherit; font-size: 14px; }
+.form .ancho { grid-column: 1 / -1; }
+.form .chk { display: flex; gap: 8px; align-items: center; color: var(--fg); }
+.filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.filtros select { border-radius: 8px; padding: 7px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.pts { display: inline-grid; place-items: center; min-width: 40px; padding: 3px 8px; border-radius: 8px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pts.alto { background: var(--ok-suave); color: var(--ok); } .pts.medio { background: var(--warn-suave); color: var(--warn); } .pts.bajo { background: var(--panel-2); color: var(--muted); }
+details.det summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+details.det ul { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
+.acciones-fila { display: flex; gap: 6px; flex-wrap: wrap; }
+.aviso { white-space: pre-wrap; background: var(--panel-2); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; }
+.avisos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.avisos h3 { margin: 0 0 6px; font-size: 14px; }
+.cartel { background: #fff; color: #13293D; border: 1px solid var(--line); border-radius: 14px; padding: 22px; text-align: center; display: grid; gap: 8px; justify-items: center; max-width: 360px; }
+.cartel .marca { color: #003A75; font-weight: 700; letter-spacing: .14em; font-size: 12px; text-transform: uppercase; border-bottom: 3px solid #DCB40C; padding-bottom: 4px; }
+.cartel h3 { margin: 0; font-size: 22px; color: #003A75; } .cartel svg { width: 190px; height: 190px; }
+.nota-legal { font-size: 12.5px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; }
+@media print { body * { visibility: hidden; } #imprimir, #imprimir * { visibility: visible; } #imprimir { position: absolute; inset: 0; display: grid !important; place-items: center; }
+  #imprimir .cartel { border: 0; max-width: none; gap: 18px; } #imprimir .cartel h3 { font-size: 40px; } #imprimir .cartel svg { width: 11cm; height: 11cm; } #imprimir .cartel p { font-size: 20px; } }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Personal</small><b id="titulo">Reclutamiento</b></div>
+  <div class="seg vistas" role="tablist"><button type="button" data-vista="candidatos" aria-pressed="true">Candidatos</button><button type="button" data-vista="vacantes" aria-pressed="false">Vacantes</button><button type="button" data-vista="canales" aria-pressed="false">Avisos y canales</button></div></div></header>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<div id="imprimir" hidden></div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const api = (a, d) => DEMO ? Promise.resolve(Demo[a](d || {})) : StiliModulos.api(a, d);
+const BASE = location.href.replace(/[^/]*([?#].*)?$/, '');
+const enlace = (canal, v) => BASE + 'empleo.html?' + (v ? 'v=' + encodeURIComponent(v) + '&' : '') + 'c=' + encodeURIComponent(canal);
+const dinero = n => n ? 'RD$ ' + Number(n).toLocaleString('es-DO') : '';
+const TURNO = { dia: 'De día', noche: 'De noche', rotativo: 'Turnos rotativos', oficina: 'Horario de oficina' };
+const DISP = { dia: 'De día', noche: 'De noche', cualquiera: 'Cualquier turno' };
+const BC = { tiene: 'Tiene', puede: 'Puede sacarlo', no: 'No' };
+let D = null, filtroVac = '', filtroEst = 'activos';
+
+async function cargar() {
+  try { D = await api('reclutamiento_datos'); cambiarVista(); }
+  catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
+}
+const canalNombre = k => (D.canales.find(c => c.codigo === k) || {}).nombre || k;
+const vacNombre = k => { const v = D.vacantes.find(x => x.codigo === k); return v ? v.titulo + (v.torre ? ' · ' + v.torre : '') : k; };
+
+// --------------------------------------------------------------- Candidatos
+function pintarCandidatos() {
+  const l = D.postulantes.filter(p => (!filtroVac || p.vacante === filtroVac) && (filtroEst === 'todos' || (filtroEst === 'activos' ? ['descartado', 'contratado'].indexOf(p.estado) < 0 : p.estado === filtroEst)));
+  const abiertas = D.vacantes.filter(v => v.estado === 'abierta');
+  $('#contenido').innerHTML = '<div class="card"><div class="kpis anchos" style="margin:0">' +
+      '<div class="kpi"><span>Vacantes abiertas</span><b>' + abiertas.length + '</b><small>' + abiertas.reduce((a, v) => a + v.plazas, 0) + ' plaza(s)</small></div>' +
+      '<div class="kpi' + (D.postulantes.some(p => p.estado === 'nuevo') ? ' ambar' : '') + '"><span>Solicitudes nuevas</span><b>' + D.postulantes.filter(p => p.estado === 'nuevo').length + '</b><small>Por revisar</small></div>' +
+      '<div class="kpi"><span>En proceso</span><b>' + D.postulantes.filter(p => ['preseleccionado', 'entrevista'].indexOf(p.estado) >= 0).length + '</b><small>Preseleccionados y en entrevista</small></div>' +
+      '<div class="kpi"><span>Contratados</span><b>' + D.postulantes.filter(p => p.estado === 'contratado').length + '</b></div></div></div>' +
+    '<section class="card"><div class="filtros"><select id="f-vac" aria-label="Vacante"><option value="">Todas las vacantes</option>' + D.vacantes.map(v => '<option value="' + esc(v.codigo) + '"' + (v.codigo === filtroVac ? ' selected' : '') + '>' + esc(v.titulo + (v.torre ? ' · ' + v.torre : '') + (v.estado !== 'abierta' ? ' (' + v.estado + ')' : '')) + '</option>').join('') + '</select>' +
+      '<select id="f-est" aria-label="Estado"><option value="activos">En curso</option><option value="todos">Todos</option>' + Object.entries(D.estados).map(([k, n]) => '<option value="' + k + '"' + (k === filtroEst ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' +
+      '<span class="nota">Ordenados por puntaje. El puntaje solo ordena: la decisión es de RRHH.</span></div>' +
+      (l.length ? '<div class="tabla"><table><thead><tr><th>Puntaje</th><th>Candidato</th><th>Vacante</th><th>Pre-entrevista</th><th>Llegó por</th><th>Estado</th></tr></thead><tbody>' + l.map(filaCand).join('') + '</tbody></table></div>'
+        : '<div class="vacio">No hay candidatos con ese filtro. Publique la vacante en «Avisos y canales».</div>') + '</section>' +
+    '<p class="nota-legal">Los datos de los candidatos son para uso interno de RRHH (Ley 172-13). El puntaje no usa sexo, edad, estado civil, foto ni nacionalidad. ' + (D.profundo ? '' : 'Su usuario ve los candidatos sin teléfono ni hoja de vida.') + '</p>';
+  $('#f-est').value = filtroEst;
+}
+function filaCand(p) {
+  const c = p.puntaje >= 70 ? 'alto' : p.puntaje >= 45 ? 'medio' : 'bajo', tel = (p.telefono || '').replace(/\D/g, '');
+  const wa = tel && p.whatsapp ? 'https://wa.me/' + (tel.length === 10 ? '1' + tel : tel) + '?text=' + encodeURIComponent('Hola ' + p.nombre.split(' ')[0] + ', le saluda RRHH de Stili Group por su solicitud de ' + p.puesto.replace(/_/g, ' ') + '.') : '';
+  return '<tr><td><span class="pts ' + c + '">' + p.puntaje + '</span><details class="det"><summary>Por qué</summary><ul>' + p.detalle.map(([t, n, m]) => '<li>' + esc(t) + ': ' + n + '/' + m + '</li>').join('') + '</ul></details></td>' +
+    '<td><b>' + esc(p.nombre) + '</b><br><small class="nota">' + esc(p.fecha) + ' · ' + esc(p.zona) + (p.sector ? ', ' + esc(p.sector) : '') + '</small>' +
+      (p.telefono ? '<div class="acciones-fila" style="margin-top:4px"><a class="btn" href="tel:' + esc(tel) + '">Llamar</a>' + (wa ? '<a class="btn" href="' + esc(wa) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') +
+        (p.telegram ? '<a class="btn" href="https://t.me/' + esc(p.telegram.replace('@', '')) + '" target="_blank" rel="noopener">Telegram</a>' : '') + (p.hoja_vida_url ? '<a class="btn" href="' + esc(p.hoja_vida_url) + '" target="_blank" rel="noopener">Hoja de vida</a>' : '') + '</div>' : '') + '</td>' +
+    '<td>' + esc(vacNombre(p.vacante)) + '</td>' +
+    '<td><small>' + esc(DISP[p.disponibilidad] || '—') + ' · ' + (p.experiencia_anios ? (p.experiencia_anios < 1 ? 'menos de 1 año' : p.experiencia_anios + (p.experiencia_anios >= 5 ? '+' : '') + ' año(s)') : 'sin experiencia') +
+      '<br>Buena conducta: ' + esc(BC[p.buena_conducta] || '—') + (p.ultimo_empleo ? '<br>Último: ' + esc(p.ultimo_empleo) : '') + (p.expectativa ? '<br>Espera: RD$ ' + esc(p.expectativa) : '') + (p.inicio ? '<br>Empieza: ' + esc(p.inicio) : '') +
+      (p.referencias ? '<br>Referencias: ' + esc(p.referencias).replace(/\n/g, ' · ') : '') + '</small></td>' +
+    '<td><small>' + esc(canalNombre(p.canal)) + (p.referido_por ? '<br>Refirió: ' + esc(p.referido_por) : '') + '</small></td>' +
+    '<td><select data-estado="' + esc(p.id) + '" aria-label="Estado de ' + esc(p.nombre) + '">' + Object.entries(D.estados).map(([k, n]) => '<option value="' + k + '"' + (k === p.estado ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' +
+      (p.estado_por ? '<br><small class="nota">' + esc(p.estado_por) + ' · ' + esc(p.estado_en) + '</small>' : '') + (p.estado === 'contratado' ? '<br><small class="nota">Pase sus datos a Nómina (en la parte 2 será con un clic).</small>' : '') + '</td></tr>';
+}
+document.addEventListener('change', async e => {
+  if (e.target.id === 'f-vac') { filtroVac = e.target.value; return pintarCandidatos(); }
+  if (e.target.id === 'f-est') { filtroEst = e.target.value; return pintarCandidatos(); }
+  const s = e.target.closest('[data-estado]');
+  if (s) { s.disabled = true; try { D = await api('postulante_estado', { id: s.dataset.estado, estado: s.value }); pintarCandidatos(); } catch (err) { alert(err.message); s.disabled = false; } }
+});
+
+// ----------------------------------------------------------------- Vacantes
+function pintarVacantes(edit) {
+  const v = edit || {};
+  $('#contenido').innerHTML = '<section class="card"><h2 class="sec">' + (v.id ? 'Editar vacante ' + esc(v.codigo) : 'Nueva vacante') + '</h2><form class="form" id="f-vacante"><input type="hidden" name="id" value="' + esc(v.id || '') + '">' +
+      '<label>Puesto<select name="puesto" required><option value="">Elija…</option>' + Object.entries(D.puestos).map(([k, [n]]) => '<option value="' + k + '"' + (k === v.puesto ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' +
+      '<label>Torre<select name="torre"><option value="">Varias / oficina</option>' + D.torres.map(t => '<option' + (t === v.torre ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></label>' +
+      '<label>Zona (para la cercanía)<select name="zona"><option value="">—</option>' + D.zonas.map(z => '<option' + (z === v.zona ? ' selected' : '') + '>' + esc(z) + '</option>').join('') + '</select></label>' +
+      '<label>Turno<select name="turno">' + Object.entries(TURNO).map(([k, n]) => '<option value="' + k + '"' + (k === v.turno ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>' +
+      '<label>Horario<input name="horario" value="' + esc(v.horario || '') + '" placeholder="7:00 p. m. a 7:00 a. m., 6 noches"></label>' +
+      '<label>Salario que usted asigna (RD$)<input name="salario" inputmode="numeric" value="' + esc(v.salario || '') + '"></label>' +
+      '<label class="chk"><input type="checkbox" name="mostrar_salario"' + (v.mostrar_salario ? ' checked' : '') + '> Mostrar el salario en el aviso</label>' +
+      '<label>Plazas<input name="plazas" inputmode="numeric" value="' + esc(v.plazas || 1) + '"></label>' +
+      '<label class="ancho">Requisitos (uno por línea)<textarea name="requisitos" rows="3">' + esc((v.requisitos || []).join('\n')) + '</textarea></label>' +
+      '<div class="acciones-fila ancho"><button class="btn primario">' + (v.id ? 'Guardar cambios' : 'Crear y abrir la vacante') + '</button>' + (v.id ? '<button type="button" class="btn" data-cancelar>Cancelar</button>' : '') + '</div></form>' +
+      '<p class="nota" style="margin-bottom:0">El sistema no asigna salarios: muestra el que usted escribe. La Nómina avisa si queda por debajo del mínimo de la torre.</p></section>' +
+    '<section class="card"><h2 class="sec">Vacantes · ' + D.vacantes.length + '</h2>' + (D.vacantes.length ? '<div class="tabla"><table><thead><tr><th>Vacante</th><th>Horario</th><th class="num">Salario</th><th class="num">Solicitudes</th><th>Estado</th><th></th></tr></thead><tbody>' +
+      D.vacantes.map(x => { const ps = D.postulantes.filter(p => p.vacante === x.codigo);
+        return '<tr><td><b>' + esc(x.titulo) + '</b><br><small class="nota">' + esc(x.codigo) + (x.torre ? ' · ' + esc(x.torre) : '') + ' · ' + x.plazas + ' plaza(s) · ' + esc(x.publicada) + '</small></td><td><small>' + esc(TURNO[x.turno] || '') + (x.horario ? '<br>' + esc(x.horario) : '') + '</small></td>' +
+          '<td class="num">' + (x.salario ? dinero(x.salario) + (x.mostrar_salario ? '' : '<br><small class="nota">no se muestra</small>') : '—') + '</td><td class="num">' + ps.length + (ps.some(p => p.estado === 'nuevo') ? '<br><small class="nota">' + ps.filter(p => p.estado === 'nuevo').length + ' nuevas</small>' : '') + '</td>' +
+          '<td><span class="chip ' + ({ abierta: 'verde', pausada: 'ambar' }[x.estado] || '') + '">' + esc(x.estado) + '</span></td><td><div class="acciones-fila">' +
+          (x.estado === 'abierta' ? '<button class="btn" type="button" data-publicar="' + esc(x.codigo) + '">Publicar</button><button class="btn" type="button" data-vest="pausada" data-id="' + esc(x.id) + '">Pausar</button>' : '<button class="btn" type="button" data-vest="abierta" data-id="' + esc(x.id) + '">Abrir</button>') +
+          (x.estado !== 'cerrada' ? '<button class="btn" type="button" data-vest="cerrada" data-id="' + esc(x.id) + '">Cerrar</button>' : '') + '<button class="btn" type="button" data-veditar="' + esc(x.id) + '">Editar</button><button class="btn" type="button" data-vercand="' + esc(x.codigo) + '">Candidatos</button></div></td></tr>'; }).join('') +
+      '</tbody></table></div>' : '<div class="vacio">Cree la primera vacante arriba.</div>') + '</section>';
+}
+document.addEventListener('submit', async e => {
+  if (e.target.getAttribute('id') === 'f-vacante') {   // getAttribute: el campo name="id" tapa form.id
+    e.preventDefault(); const f = new FormData(e.target), v = {}; f.forEach((x, k) => { v[k] = x; }); v.mostrar_salario = !!f.get('mostrar_salario');
+    try { D = await api('vacante_guardar', { vacante: v }); pintarVacantes(); } catch (err) { alert(err.message); }
+  }
+  if (e.target.id === 'f-canal') {
+    e.preventDefault(); const f = new FormData(e.target);
+    try { D = await api('canal_guardar', { canal: { nombre: f.get('nombre'), tipo: f.get('tipo'), notas: f.get('notas') } }); pintarCanales(); } catch (err) { alert(err.message); }
+  }
+});
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b || !D) return;
+  if (b.dataset.vest) { b.disabled = true; const x = D.vacantes.find(v => v.id === b.dataset.id);
+    try { D = await api('vacante_guardar', { vacante: Object.assign({}, x, { requisitos: x.requisitos.join('\n'), estado: b.dataset.vest }) }); pintarVacantes(); } catch (err) { alert(err.message); b.disabled = false; } }
+  if (b.dataset.veditar) pintarVacantes(D.vacantes.find(v => v.id === b.dataset.veditar));
+  if (b.hasAttribute('data-cancelar')) pintarVacantes();
+  if (b.dataset.vercand) { filtroVac = b.dataset.vercand; filtroEst = 'todos'; ir('candidatos'); }
+  if (b.dataset.publicar) { avisoVac = b.dataset.publicar; ir('canales'); }
+  if (b.dataset.copiar !== undefined) { const t = document.getElementById(b.dataset.copiar).innerText;
+    try { await navigator.clipboard.writeText(t); b.textContent = '✓ Copiado'; setTimeout(() => { b.textContent = 'Copiar'; }, 1500); } catch (err) { alert('No se pudo copiar. Seleccione el texto y cópielo.'); } }
+  if (b.dataset.imprimir !== undefined) { $('#imprimir').innerHTML = cartel(); print(); }
+});
+
+// --------------------------------------------------------- Avisos y canales
+let avisoVac = '';
+function textoAviso(v, canal) {
+  return '🏢 ' + v.titulo + (v.zona ? ' · ' + v.zona : '') + '\n🕒 Horario: ' + (v.horario || TURNO[v.turno] || '') + '\n💵 Salario: ' + (v.salario && v.mostrar_salario ? dinero(v.salario) : 'según experiencia') + ' + beneficios de ley' +
+    (v.requisitos.length ? '\n📋 Requisitos: ' + v.requisitos.join(' · ') : '') + '\n👉 Aplica aquí: ' + enlace(canal, v.codigo) + '\nAplicar es gratis. Stili nunca cobra por contratar.\nComparte con quien le pueda interesar.';
+}
+function cartel() {
+  const q = qrcode(0, 'M'); q.addData(enlace('qr')); q.make();
+  return '<div class="cartel"><div class="marca">Stili Group · Empleos</div><h3>¿Buscas trabajo?</h3>' + q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }) +
+    '<p style="margin:0">Escanea y mira las vacantes de Stili Group. Aplicar es gratis.</p><small style="color:#5A6B78">' + esc(enlace('qr').replace(/^https?:\/\//, '')) + '</small></div>';
+}
+function pintarCanales() {
+  const abiertas = D.vacantes.filter(v => v.estado === 'abierta'); if (!avisoVac && abiertas[0]) avisoVac = abiertas[0].codigo;
+  const v = D.vacantes.find(x => x.codigo === avisoVac);
+  const canalesAviso = [['telegram', 'Canal de Telegram'], ['whatsapp', 'Canal y grupos de WhatsApp'], ['facebook', 'Facebook e Instagram']]
+    .concat(D.canales.filter(c => !c.propio).slice(0, 6).map(c => [c.codigo, c.nombre]));
+  const tasa = (a, b) => b ? Math.round(a / b * 100) + ' %' : '—';
+  $('#contenido').innerHTML =
+    '<section class="card"><h2 class="sec">Publicar una vacante</h2>' + (abiertas.length ? '<div class="filtros"><select id="f-aviso" aria-label="Vacante a publicar">' + abiertas.map(x => '<option value="' + esc(x.codigo) + '"' + (x.codigo === avisoVac ? ' selected' : '') + '>' + esc(x.titulo + (x.torre ? ' · ' + x.torre : '')) + '</option>').join('') + '</select>' +
+      '<span class="nota">Cada texto lleva su propio enlace: así se sabe por dónde llegó cada candidato.</span></div>' +
+      '<div class="avisos">' + canalesAviso.map(([k, n], i) => '<div><h3>' + esc(n) + '</h3><div class="aviso" id="av-' + i + '">' + esc(textoAviso(v, k)) + '</div><div class="acciones-fila" style="margin-top:6px"><button class="btn" type="button" data-copiar="av-' + i + '">Copiar</button></div></div>').join('') + '</div>' +
+      '<p class="nota" style="margin-bottom:0">Portales (Computrabajo, Empléate Ya, Corotos, LinkedIn): copie el texto y cambie el final del enlace por <code>c=computrabajo</code>, <code>c=empleateya</code>, etc. En la parte 2, el bot «Stili Empleos» publicará solo en el canal de Telegram.</p>'
+      : '<div class="vacio">No hay vacantes abiertas. Créela en «Vacantes».</div>') + '</section>' +
+    '<section class="card"><h2 class="sec">¿Qué canal trae más candidatos?</h2><div class="tabla"><table><thead><tr><th>Canal</th><th class="num">Aplican</th><th class="num">Preseleccionados</th><th class="num">Contratados</th><th class="num">Aplican → contratados</th></tr></thead><tbody>' +
+      D.canales.slice().sort((a, b) => b.aplican - a.aplican).map(c => '<tr><td>' + esc(c.nombre) + (c.propio ? '' : ' <span class="chip">' + esc(c.tipo) + '</span>') + '</td><td class="num">' + c.aplican + '</td><td class="num">' + c.preseleccionados + '</td><td class="num">' + c.contratados + '</td><td class="num">' + tasa(c.contratados, c.aplican) + '</td></tr>').join('') +
+      '</tbody></table></div><h3 style="font-size:14px;margin:14px 0 6px">Registrar un grupo o página</h3><form class="form" id="f-canal"><label>Nombre<input name="nombre" required placeholder="Empleos Santo Domingo Este (Facebook)"></label>' +
+      '<label>Tipo<select name="tipo"><option value="facebook">Facebook</option><option value="whatsapp">WhatsApp</option><option value="telegram">Telegram</option><option value="instagram">Instagram</option><option value="portal">Portal</option><option value="otro">Otro</option></select></label>' +
+      '<label>Notas<input name="notas" placeholder="Administrador, costo, reglas del grupo"></label><div class="acciones-fila"><button class="btn primario">Agregar</button></div></form></section>' +
+    '<section class="card"><h2 class="sec">Cartel con QR para las torres</h2><div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">' + cartel() +
+      '<div style="flex:1 1 260px"><p class="nota" style="margin-top:0">Para el lobby y el área de empleados de las torres. Lleva a todas las vacantes abiertas y cuenta como canal «Cartel con QR».</p><button class="btn primario" type="button" data-imprimir>Imprimir cartel</button>' +
+      '<p class="nota">Referidos: comparta <code>' + esc(enlace('referido')) + '&amp;r=Nombre</code> con cada portero o conserje; su nombre queda en la solicitud.</p></div></div></section>';
+}
+document.addEventListener('change', e => { if (e.target.id === 'f-aviso') { avisoVac = e.target.value; pintarCanales(); } });
+
+// ------------------------------------------------------------------ Vistas
+const VISTAS = { candidatos: 'Reclutamiento · Candidatos', vacantes: 'Reclutamiento · Vacantes', canales: 'Reclutamiento · Avisos y canales' };
+function vista() { const h = location.hash.slice(1); return VISTAS[h] ? h : 'candidatos'; }
+function ir(v) { history.replaceState(null, '', location.pathname + location.search + (v === 'candidatos' ? '' : '#' + v)); cambiarVista(); }
+function cambiarVista() {
+  if (!D) return; const v = vista();
+  document.querySelectorAll('[data-vista]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vista === v)));
+  $('#titulo').textContent = VISTAS[v]; document.title = VISTAS[v] + ' · Stili';
+  if (window.StiliModulos && StiliModulos.marcar) StiliModulos.marcar();
+  ({ vacantes: () => pintarVacantes(), canales: pintarCanales }[v] || pintarCandidatos)();
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-vista]'); if (b) ir(b.dataset.vista); });
+addEventListener('hashchange', cambiarVista);
+
+// -------------------------------------------------------------------- Demo
+const Demo = (() => {
+  const PUESTOS = { portero: ['Portero(a)', 'rotativo'], portero_nocturno: ['Portero(a) nocturno', 'noche'], conserje: ['Conserje', 'dia'], ascensorista: ['Ascensorista', 'dia'], sereno: ['Sereno / vigilante', 'noche'],
+    cubre_turnos: ['Cubre turnos', 'rotativo'], mensajero: ['Mensajero(a)', 'oficina'], supervisor: ['Supervisor(a) de torres', 'oficina'], gestora: ['Gestor(a) de cuentas', 'oficina'], contabilidad: ['Auxiliar de contabilidad', 'oficina'], administrativo: ['Asistente administrativo(a)', 'oficina'] };
+  const ZONAS = ['Distrito Nacional', 'Santo Domingo Este', 'Santo Domingo Norte', 'Santo Domingo Oeste', 'Los Alcarrizos', 'Boca Chica', 'Pedro Brand', 'San Cristóbal', 'Otra provincia'];
+  const ESTADOS = { nuevo: 'Nuevo', preseleccionado: 'Preseleccionado', entrevista: 'Entrevista', contratado: 'Contratado', reserva: 'En reserva', descartado: 'Descartado' };
+  const vac = [{ id: 'VA1', codigo: 'POR-7K2Q', puesto: 'portero_nocturno', titulo: 'Portero(a) nocturno', torre: 'Torre Niza 7', zona: 'Distrito Nacional', turno: 'noche', horario: '7:00 p. m. a 7:00 a. m., 6 noches', salario: 24000, mostrar_salario: false, requisitos: ['Experiencia en portería o seguridad', 'Buena conducta'], plazas: 1, estado: 'abierta', publicada: '27/10/2026' },
+    { id: 'VA2', codigo: 'CON-3M8D', puesto: 'conserje', titulo: 'Conserje', torre: 'Torre Arpel 07', zona: 'Distrito Nacional', turno: 'dia', horario: '7:00 a. m. a 5:00 p. m., lunes a sábado', salario: 18500, mostrar_salario: true, requisitos: ['Limpieza de áreas comunes'], plazas: 2, estado: 'abierta', publicada: '26/10/2026' },
+    { id: 'VA3', codigo: 'CUB-9T4F', puesto: 'cubre_turnos', titulo: 'Cubre turnos', torre: '', zona: 'Santo Domingo Este', turno: 'rotativo', horario: 'Según los turnos libres', salario: null, mostrar_salario: false, requisitos: ['Disponible de día y de noche'], plazas: 3, estado: 'pausada', publicada: '20/10/2026' }];
+  // Misma fórmula que el servicio (puntajePostulante_)
+  function puntaje(p, v) {
+    const d = [], s = (n, m, t) => { d.push([t, n, m]); return n; }, enc = p.disponibilidad === 'cualquiera' || p.disponibilidad === v.turno || (v.turno === 'oficina' && p.disponibilidad === 'dia');
+    let t = s(enc ? 25 : v.turno === 'rotativo' && p.disponibilidad ? 8 : 0, 25, enc ? 'Disponible en el turno de la vacante' : 'Su disponibilidad no coincide con el turno');
+    const a = p.experiencia_anios; t += s(a >= 2 ? 25 : a >= 1 ? 15 : a > 0 ? 8 : 0, 25, a ? a + ' año(s) de experiencia en el puesto' : 'Sin experiencia en el puesto');
+    t += s(v.zona && p.zona === v.zona ? 15 : /santo domingo|distrito|alcarrizos|boca chica|pedro brand/i.test(p.zona) ? 8 : 4, 15, v.zona && p.zona === v.zona ? 'Vive en la misma zona de la torre' : 'Vive en ' + p.zona);
+    const r = p.referencias.split('\n').filter(x => /\d{7,}/.test(x.replace(/\D/g, ''))).length; t += s(r >= 2 ? 10 : r ? 5 : 0, 10, r + ' referencia(s) con teléfono');
+    t += s({ tiene: 10, puede: 6 }[p.buena_conducta] || 0, 10, { tiene: 'Tiene certificado de buena conducta', puede: 'Puede sacar el certificado de buena conducta' }[p.buena_conducta] || 'Sin certificado de buena conducta');
+    t += s(p.hoja_vida_url ? 5 : 0, 5, p.hoja_vida_url ? 'Envió hoja de vida' : 'Sin hoja de vida');
+    const e = Number(p.expectativa) || 0; t += s(!v.salario || !e ? 5 : e <= v.salario ? 10 : e <= v.salario * 1.15 ? 5 : 0, 10, !v.salario || !e ? 'Expectativa salarial sin comparar' : e <= v.salario ? 'Su expectativa cabe en el salario asignado' : 'Su expectativa pasa el salario asignado');
+    return { puntaje: t, detalle: d };
+  }
+  const P = (id, vc, nombre, canal, zona, sector, disp, exp, bc, refs, expct, cv, estado, extra) => { const v = vac.find(x => x.codigo === vc);
+    const p = Object.assign({ id, fecha: (20 + Number(id.slice(-1)) % 8) + '/10/2026', vacante: vc, puesto: v.puesto, torre: v.torre, canal, referido_por: '', nombre, telefono: '809-555-0' + id.slice(-3), whatsapp: true, telegram: id.endsWith('2') ? '@' + nombre.split(' ')[0].toLowerCase() : '', correo: '',
+      zona, sector, disponibilidad: disp, experiencia_anios: exp, ultimo_empleo: exp ? 'Residencial Las Palmas · portero' : '', motivo_salida: '', referencias: refs, buena_conducta: bc, expectativa: expct, inicio: 'Inmediato', hoja_vida_url: cv ? '#' : '', estado, estado_por: estado !== 'nuevo' ? 'Anny Tejada' : '', estado_en: estado !== 'nuevo' ? '27/10/2026' : '', notas: '' }, extra || {});
+    return Object.assign(p, puntaje(p, v)); };
+  const pos = [P('PO101', 'POR-7K2Q', 'RAMÓN ANTONIO FÉLIX', 'telegram', 'Distrito Nacional', 'Villa Juana', 'noche', 5, 'tiene', 'Luis Mejía · 809-555-1100\nCarlos Peña · 829-555-2200', '23000', true, 'preseleccionado'),
+    P('PO102', 'POR-7K2Q', 'JUAN CARLOS ROSARIO', 'facebook', 'Santo Domingo Norte', 'Villa Mella', 'cualquiera', 2, 'puede', 'Ana Díaz · 809-555-3300', '26000', false, 'nuevo'),
+    P('PO103', 'POR-7K2Q', 'PEDRO MARTÍNEZ', 'referido', 'Distrito Nacional', 'Cristo Rey', 'noche', 1, 'tiene', 'José Pérez · 809-555-4400\nMarta Gil · 809-555-5500', '', false, 'entrevista', { referido_por: 'Cirilo de León (Torre Niza 7)' }),
+    P('PO104', 'POR-7K2Q', 'MIGUEL ÁNGEL SOTO', 'computrabajo', 'San Cristóbal', 'Haina', 'dia', 0, 'no', '', '30000', false, 'nuevo'),
+    P('PO105', 'CON-3M8D', 'ROSA MARÍA JIMÉNEZ', 'qr', 'Distrito Nacional', 'Los Prados', 'dia', 2, 'tiene', 'Elena Cruz · 809-555-6600\nRita Paz · 829-555-7700', '18000', true, 'nuevo'),
+    P('PO106', 'CON-3M8D', 'YOKASTA PÉREZ', 'whatsapp', 'Santo Domingo Oeste', 'Herrera', 'cualquiera', 1, 'puede', 'Juana Lora · 809-555-8800', '19000', false, 'nuevo'),
+    P('PO107', 'CON-3M8D', 'ANDRÉS DE LA CRUZ', 'telegram', 'Santo Domingo Este', 'Los Mina', 'dia', 5, 'tiene', 'Pablo Ruiz · 809-555-9900\nLeo Báez · 809-555-1212', '18500', true, 'contratado'),
+    P('PO108', 'CUB-9T4F', 'FRANCISCO REYES', 'empleateya', 'Santo Domingo Este', 'Invivienda', 'cualquiera', 2, 'tiene', 'Sara Mota · 809-555-3434\nIván Paredes · 809-555-5656', '', true, 'reserva')];
+  const canales = [['web', 'Página de empleos de Stili', 'propio'], ['telegram', 'Canal de Telegram Empleos Stili', 'propio'], ['whatsapp', 'Canal de WhatsApp Empleos Stili', 'propio'], ['facebook', 'Facebook e Instagram de Stili', 'propio'],
+    ['qr', 'Cartel con QR en las torres', 'propio'], ['referido', 'Referido por el personal', 'propio'], ['computrabajo', 'Computrabajo', 'portal'], ['empleateya', 'Empléate Ya', 'portal'], ['corotos', 'Corotos', 'portal'], ['linkedin', 'LinkedIn', 'portal']]
+    .map(([codigo, nombre, tipo]) => ({ codigo, nombre, tipo, propio: true }));
+  const extra = [{ codigo: 'empleos-sde-fb', nombre: 'Empleos Santo Domingo Este (Facebook)', tipo: 'facebook' }];
+  const datos = () => { const cs = canales.concat(extra); cs.forEach(c => { const l = pos.filter(p => p.canal === c.codigo); c.aplican = l.length; c.preseleccionados = l.filter(p => ['preseleccionado', 'entrevista', 'contratado'].includes(p.estado)).length; c.contratados = l.filter(p => p.estado === 'contratado').length; });
+    return { profundo: true, vacantes: vac, postulantes: pos.slice().sort((a, b) => b.puntaje - a.puntaje), canales: cs, puestos: PUESTOS, zonas: ZONAS, estados: ESTADOS, torres: ['Gil Roma XXXII', 'Torre Arpel 07', 'Apex Arroyo Hondo', 'Los Hernandez VII', 'Torre Niza 7'] }; };
+  return {
+    reclutamiento_datos: datos,
+    postulante_estado: d => { Object.assign(pos.find(p => p.id === d.id), { estado: d.estado, estado_por: 'Usted (demo)', estado_en: 'hoy' }); return datos(); },
+    vacante_guardar: d => { const v = d.vacante, req = String(v.requisitos || '').split('\n').filter(Boolean);
+      if (v.id) Object.assign(vac.find(x => x.id === v.id), v, { requisitos: req, salario: Number(v.salario) || null, plazas: Number(v.plazas) || 1 });
+      else vac.unshift(Object.assign({}, v, { id: 'VA' + (vac.length + 1), codigo: v.puesto.slice(0, 3).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(), titulo: PUESTOS[v.puesto][0], requisitos: req, salario: Number(v.salario) || null, plazas: Number(v.plazas) || 1, estado: 'abierta', publicada: 'hoy' }));
+      return datos(); },
+    canal_guardar: d => { extra.push({ codigo: 'g' + extra.length, nombre: d.canal.nombre, tipo: d.canal.tipo }); return datos(); },
+  };
+})();
+
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'personal'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Reclutamiento</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>'; }
+else { StiliModulos.montar(document.body, 'personal'); cargar(); }
+</script>
+</body>
+</html>
