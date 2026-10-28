@@ -42,7 +42,10 @@
       { t: 'Contratos y documentos', items: [
         { t: 'Proveedores y contratos', href: 'torres.html?m=inicio#/proveedores', ve: 'torres' },
         { t: 'Reglamentos y documentos', href: 'torres.html?m=inicio#/documentos', ve: 'torres' },
-        { t: 'Accesos y servicios', d: 'EDESUR, CAASD, banca en línea', href: 'torres.html?m=inicio#/accesos', ve: 'torres' }] }] },
+        { t: 'Accesos y servicios', d: 'EDESUR, CAASD, banca en línea', href: 'torres.html?m=inicio#/accesos', ve: 'torres' }] },
+      { t: 'Clientes', items: [
+        { t: 'Opinión de los clientes', d: 'Encuesta por QR, recomendación y comentarios', href: 'opiniones.html', ve: 'torres' },
+        { t: 'Códigos QR del lobby', d: 'Un cartel por torre para imprimir', href: 'opiniones.html#qr', ve: 'torres' }] }] },
     { k: 'finanzas', t: 'Finanzas', ve: 'finanzas', grupos: [
       { t: 'Resumen', items: [
         { t: 'Semáforo de las torres', d: 'Liquidez, por cobrar y por pagar', href: 'presupuesto.html', ve: 'presupuesto' },
@@ -79,7 +82,8 @@
       { t: 'Tareas', items: [
         { t: 'Tareas de la torre', d: 'Levantamientos, estatus y comentarios', href: 'torres.html?m=operaciones#/tareas', ve: 'operaciones', viejo: 'torres' },
         { t: 'Tareas por gestor', href: 'tareas.html', ve: 'operaciones', viejo: 'torres' },
-        { t: 'Tareas por oficio', href: 'tareas.html#oficios', ve: 'operaciones', viejo: 'torres' }] },
+        { t: 'Tareas por oficio', href: 'tareas.html#oficios', ve: 'operaciones', viejo: 'torres' },
+        { t: 'KPI de gestoras', d: 'Tareas a tiempo y opinión de sus torres', href: 'opiniones.html#gestoras', ve: 'operaciones', viejo: 'torres' }] },
       { t: 'Suplidores', items: [
         { t: 'Suplidores', d: 'Registro e invitación a Telegram', href: 'tareas.html#suplidores', ve: 'operaciones', viejo: 'torres' },
         { t: 'Órdenes de trabajo y facturas', href: 'tareas.html#ordenes', ve: 'operaciones', viejo: 'torres' },
@@ -328,7 +332,7 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
   }
   // Las páginas avisan qué sección o pestaña tienen abierta (para marcarla en el menú aunque el hash no la diga)
   const paginaTorre = { seccion: '', cxpTab: '' }, paginaAdmin = { vista: '' };
-  function marcar(datos) { Object.assign(paginaTorre, datos.torre || {}); Object.assign(paginaAdmin, datos.admin || {}); document.querySelectorAll('.sm-barra').forEach(b => b._pintar && b._pintar()); }
+  function marcar(datos) { datos = datos || {}; Object.assign(paginaTorre, datos.torre || {}); Object.assign(paginaAdmin, datos.admin || {}); document.querySelectorAll('.sm-barra').forEach(b => b._pintar && b._pintar()); }
 
   // En la sala DEMO (?demo=1) los enlaces siguen en demostración
   const conDemo = href => { if (!/[?&]demo=1\b/.test(location.search) || /^portal\//.test(href)) return href; const [ruta, hash] = href.split('#'); return ruta + (ruta.includes('?') ? '&' : '?') + 'demo=1' + (hash !== undefined ? '#' + hash : ''); };

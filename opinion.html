@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Su opinión sobre Stili Group</title>
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+<script src="config.js"></script>
+<style>
+/* v2.8 · Encuesta de satisfacción por QR: una columna para el teléfono; cada QR trae el código de su torre. */
+:root { --bg: #F3F5F9; --panel: #FFFFFF; --fg: #13293D; --muted: #5A6B78; --line: #DCE3EC; --azul: #003A75; --oro: #DCB40C;
+  --ok: #1E7D4F; --ok-s: #E3F3EA; --crit: #B3261E; --crit-s: #FBE6E4; --sel: #E3E8F4; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0C1822; --panel: #13222F; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A; --azul: #6E9BD6; --sel: #1E3346; --ok: #4CC08A; --ok-s: #143024; --crit: #F07C73; --crit-s: #3A1A18; } }
+* { box-sizing: border-box; } [hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Montserrat, "Segoe UI", system-ui, sans-serif; }
+input, textarea, button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--oro); outline-offset: 2px; }
+.top { background: #003A75; color: #fff; border-bottom: 3px solid var(--oro); }
+.top .in, main { max-width: 600px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.top .in { padding-block: 18px; }
+.top small { color: var(--oro); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.top h1 { margin: 2px 0 2px; font-size: 21px; } .top p { margin: 0; font-size: 13.5px; color: #DCE6F2; }
+main { padding-block: 16px 56px; }
+form { display: grid; gap: 12px; }
+fieldset { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 14px 16px; margin: 0; display: grid; gap: 12px; min-width: 0; }
+legend { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 0 6px; }
+.p { font-weight: 600; font-size: 14px; margin: 0 0 6px; }
+.p small { display: block; font-weight: 500; color: var(--muted); font-size: 12.5px; }
+.estrellas { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.estrellas label { cursor: pointer; }
+.estrellas input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.estrellas span { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); font-size: 15px; font-weight: 700; color: var(--muted); }
+.estrellas input:checked + span { background: var(--azul); border-color: var(--azul); color: #fff; }
+.estrellas input:focus-visible + span { outline: 3px solid var(--oro); }
+.estrellas .na span { width: auto; padding: 0 10px; font-size: 12.5px; font-weight: 600; }
+.leyenda { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); max-width: 230px; }
+.nps { display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px; }
+.nps label { cursor: pointer; } .nps input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.nps span { display: grid; place-items: center; height: 38px; border-radius: 8px; border: 1px solid var(--line); font-weight: 700; font-size: 14px; color: var(--muted); }
+.nps input:checked + span { background: var(--azul); border-color: var(--azul); color: #fff; }
+.nps input:focus-visible + span { outline: 3px solid var(--oro); }
+.opc { display: flex; gap: 6px; flex-wrap: wrap; }
+.opc label { border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.opc label:has(input:checked) { background: var(--sel); border-color: var(--azul); color: var(--azul); }
+.opc input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+label.campo { display: grid; gap: 4px; font-size: 13.5px; font-weight: 600; }
+input[type=text], input[type=tel], textarea { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 12px; font-size: 16px; width: 100%; }
+textarea { min-height: 74px; resize: vertical; }
+.priv { font-size: 12.5px; color: var(--muted); }
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; }
+.btn { border: 0; background: var(--azul); color: #fff; border-radius: 10px; padding: 13px 18px; font-weight: 700; font-size: 16px; cursor: pointer; }
+.btn:disabled { opacity: .6; }
+.error { color: var(--crit); font-size: 13px; font-weight: 600; border-left: 2px solid var(--crit); padding-left: 9px; }
+.listo { background: var(--ok-s); color: var(--ok); border-radius: 12px; padding: 22px; text-align: center; }
+.listo h2 { margin: 0 0 4px; font-size: 19px; }
+.demo { color: #8A5300; font-size: 12px; font-weight: 600; border-left: 2px solid #C98A00; padding-left: 9px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="top"><div class="in"><small>Stili Group</small><h1>¿Cómo le atendemos?</h1><p id="sub">Su opinión nos ayuda a mejorar. Toma dos minutos.</p></div></div>
+<main>
+  <div class="demo" id="demo" hidden>Demostración: las respuestas no se guardan.</div>
+  <div class="error" id="err-codigo" hidden></div>
+  <form id="f" hidden novalidate>
+    <fieldset>
+      <legend>Sobre usted</legend>
+      <div><p class="p">Usted es…</p><div class="opc" id="rol">
+        <label><input type="radio" name="rol" value="propietario" required> Propietario</label>
+        <label><input type="radio" name="rol" value="inquilino"> Inquilino</label>
+        <label><input type="radio" name="rol" value="junta"> Miembro de la Junta</label>
+        <label><input type="radio" name="rol" value="otro"> Otro</label></div></div>
+      <label class="campo">Nombre<input type="text" name="nombre" autocomplete="name" maxlength="80" required></label>
+      <label class="campo">Apartamento<input type="text" name="apartamento" maxlength="12" placeholder="5D" required></label>
+      <label class="campo">Teléfono <span style="font-weight:500;color:var(--muted)">(opcional, si desea que le contactemos)</span><input type="tel" name="telefono" autocomplete="tel" maxlength="20"></label>
+    </fieldset>
+    <fieldset id="areas">
+      <legend>Califique cada área · 1 = muy mal · 5 = excelente</legend>
+    </fieldset>
+    <fieldset>
+      <legend>Recomendación</legend>
+      <p class="p">¿Qué tan probable es que recomiende a Stili Group a un familiar o amigo?<small>0 = nada probable · 10 = muy probable</small></p>
+      <div class="nps" id="nps"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Comentarios</legend>
+      <label class="campo">¿Qué es lo que más debemos mejorar?<textarea name="mejorar" maxlength="1000"></textarea></label>
+      <label class="campo">¿Qué hacemos bien?<textarea name="bien" maxlength="1000"></textarea></label>
+      <label class="check"><input type="checkbox" name="contactar" value="1"> Deseo que la administración me contacte sobre mi opinión.</label>
+      <p class="priv">Sus datos son para uso interno de Stili Group: sirven para atender su opinión y mejorar el servicio de su torre. No se publican ni se comparten.</p>
+    </fieldset>
+    <div class="error" id="err" hidden></div>
+    <button class="btn" type="submit" id="enviar">Enviar opinión</button>
+  </form>
+  <div class="listo" id="listo" hidden><h2>¡Gracias!</h2><p style="margin:0">Recibimos su opinión. Nos ayuda a mejorar el servicio de su torre.</p></div>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const Q = new URLSearchParams(location.search), CODIGO = (Q.get('c') || '').trim(), DEMO = Q.has('demo') || !(window.STILI && window.STILI.servicio);
+const AREAS_DEMO = [['contabilidad', 'Contabilidad y estados financieros'], ['cobros', 'Cobros y estados de cuenta'], ['operaciones', 'Mantenimiento y operaciones'],
+  ['servicio', 'Servicio al cliente'], ['mensajes', 'Respuesta a mensajes y llamadas'], ['porteria', 'Portería y seguridad'], ['limpieza', 'Limpieza de áreas comunes']];
+async function api(accion, datos) {
+  if (DEMO) return accion === 'opinion_info' ? { torre: 'Torre Niza 7', areas: AREAS_DEMO } : { guardada: true };
+  const r = await fetch(window.STILI.servicio, { method: 'POST', body: JSON.stringify(Object.assign({ accion }, datos)) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error || 'No se pudo enviar.'); return j;
+}
+function pintar(info) {
+  $('#sub').textContent = info.torre + ' · Su opinión nos ayuda a mejorar. Toma dos minutos.';
+  $('#areas').insertAdjacentHTML('beforeend', info.areas.map(([k, n]) => '<div><p class="p" id="p-' + k + '">' + esc(n) + '</p><div class="estrellas" role="radiogroup" aria-labelledby="p-' + k + '">' +
+    [1, 2, 3, 4, 5].map(v => '<label><input type="radio" name="a_' + k + '" value="' + v + '"><span>' + v + '</span></label>').join('') +
+    '<label class="na"><input type="radio" name="a_' + k + '" value="0"><span>No aplica</span></label></div></div>').join(''));
+  $('#nps').innerHTML = Array.from({ length: 11 }, (_, v) => '<label><input type="radio" name="nps" value="' + v + '" aria-label="' + v + '"><span>' + v + '</span></label>').join('');
+  $('#f').hidden = false;
+  $('#f').dataset.areas = info.areas.map(a => a[0]).join(',');
+}
+// Una respuesta por teléfono cada 30 días por torre (el servicio también limita por apartamento)
+const CLAVE = 'stili-opinion-' + CODIGO;
+const yaRespondio = () => { try { return Date.now() - Number(localStorage.getItem(CLAVE) || 0) < 30 * 864e5; } catch (e) { return false; } };
+$('#f').addEventListener('change', () => { $('#err').hidden = true; });
+$('#f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = new FormData(e.target), err = $('#err'); err.hidden = true;
+  const areas = {}; e.target.dataset.areas.split(',').forEach(k => { const v = f.get('a_' + k); if (v !== null) areas[k] = Number(v); });
+  const faltan = [];
+  if (!f.get('rol')) faltan.push('quién responde');
+  if (!String(f.get('nombre') || '').trim()) faltan.push('su nombre');
+  if (!String(f.get('apartamento') || '').trim()) faltan.push('el apartamento');
+  if (Object.keys(areas).length < e.target.dataset.areas.split(',').length) faltan.push('la calificación de cada área');
+  if (f.get('nps') === null) faltan.push('la recomendación de 0 a 10');
+  if (faltan.length) { err.textContent = 'Falta: ' + faltan.join(', ') + '.'; err.hidden = false; return; }
+  $('#enviar').disabled = true;
+  try {
+    await api('opinion_guardar', { codigo: CODIGO, rol: f.get('rol'), nombre: f.get('nombre'), apartamento: f.get('apartamento'), telefono: f.get('telefono'),
+      areas, nps: Number(f.get('nps')), mejorar: f.get('mejorar'), bien: f.get('bien'), contactar: !!f.get('contactar') });
+    try { localStorage.setItem(CLAVE, String(Date.now())); } catch (x) { /* sin almacenamiento */ }
+    $('#f').hidden = true; $('#listo').hidden = false; scrollTo({ top: 0 });
+  } catch (x) { err.textContent = x.message; err.hidden = false; $('#enviar').disabled = false; }
+});
+(async () => {
+  $('#demo').hidden = !DEMO;
+  if (!CODIGO && !DEMO) { $('#err-codigo').textContent = 'Este enlace no trae el código de la torre. Escanee el código QR del lobby.'; $('#err-codigo').hidden = false; return; }
+  if (yaRespondio() && !DEMO) { $('#listo').hidden = false; $('#listo').querySelector('p').textContent = 'Ya recibimos su opinión este mes. ¡Gracias!'; return; }
+  try { pintar(await api('opinion_info', { codigo: CODIGO })); }
+  catch (x) { $('#err-codigo').textContent = x.message; $('#err-codigo').hidden = false; }
+})();
+</script>
+</body>
+</html>

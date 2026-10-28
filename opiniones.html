@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Opinión de clientes · Stili Soft</title>
+<meta name="description" content="Opinión de los clientes por QR en cada torre, índice de recomendación y KPI de las gestoras.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css">
+<script src="config.js"></script>
+<script src="stili-modulos.js"></script>
+<script src="stili-qr.js"></script>
+<style>
+/* v2.8 · Opinión de clientes y KPI de gestoras. Semáforo: verde ≥ 80 · ámbar 60–79 · rojo < 60 */
+:root { --s-pro: #2E7D5B; --s-pas: #A7B3BE; --s-det: #B3261E; --s-barra: #3A5BA8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --s-pro: #4CC08A; --s-pas: #5D6F7E; --s-det: #F07C73; --s-barra: #6E8FD6; } }
+:root[data-theme="dark"] { --s-pro: #4CC08A; --s-pas: #5D6F7E; --s-det: #F07C73; --s-barra: #6E8FD6; }
+.filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filtros select { border-radius: 8px; padding: 7px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); max-width: 100%; }
+.vistas { display: flex; background: rgba(255,255,255,.12); border-radius: 10px; padding: 3px; gap: 3px; flex-wrap: wrap; }
+.vistas button { border: 0; background: transparent; color: #fff; padding: 7px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.vistas button[aria-pressed="true"] { background: #fff; color: #003A75; }
+h2.sec { margin: 0 0 10px; font-size: 15px; color: var(--titulo); }
+.dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.reparto { display: flex; height: 14px; border-radius: 7px; overflow: hidden; gap: 2px; background: var(--panel-2); }
+.reparto i { display: block; height: 100%; }
+.leyenda { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.leyenda b { color: var(--fg); }
+.leyenda i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+.medidas { display: grid; gap: 9px; }
+.fila-b { display: grid; grid-template-columns: minmax(120px, 210px) 1fr 44px; gap: 10px; align-items: center; font-size: 13.5px; }
+.fila-b .pista { height: 10px; background: var(--panel-2); border-radius: 5px; overflow: hidden; }
+.fila-b .pista i { display: block; height: 100%; background: var(--s-barra); border-radius: 5px; }
+.fila-b.baja .pista i { background: var(--crit); }
+.fila-b b { text-align: right; font-variant-numeric: tabular-nums; }
+.fila-b.baja span, .fila-b.baja b { color: var(--crit); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.v { font-weight: 700; } .v.ok { color: var(--ok); } .v.am { color: var(--warn); } .v.ma { color: var(--crit); }
+.ops { display: grid; gap: 10px; }
+.op { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+.op .cab { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
+.op .cab b { color: var(--fg); }
+.op p { margin: 0; font-size: 14px; }
+.op .alerta { color: var(--crit); font-size: 12.5px; font-weight: 600; }
+.op form { display: flex; gap: 8px; flex-wrap: wrap; }
+.op input { flex: 1 1 240px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--panel); }
+.op .hecho { color: var(--ok); font-size: 12.5px; font-weight: 600; }
+.gestoras { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 16px; }
+.ge .top { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+.ge h3 { margin: 0; font-size: 17px; color: var(--titulo); }
+.ge .torres { color: var(--muted); font-size: 12.5px; }
+.indice { margin-left: auto; text-align: right; line-height: 1.05; }
+.indice b { font-size: 34px; font-variant-numeric: tabular-nums; }
+.indice small { display: block; font-size: 12px; color: var(--muted); }
+.datos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+.datos div { background: var(--panel-2); border-radius: 8px; padding: 6px 9px; font-size: 11.5px; color: var(--muted); }
+.datos b { display: block; font-size: 15px; color: var(--fg); }
+.sin { color: var(--muted); font-size: 12px; font-style: italic; }
+.ind-lista { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; } .ind-lista li { margin-bottom: 4px; }
+.carteles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+.cartel { background: #fff; color: #13293D; border: 1px solid var(--line); border-radius: 14px; padding: 22px 20px; text-align: center; display: grid; gap: 8px; justify-items: center; }
+.cartel .marca { color: #003A75; font-weight: 700; letter-spacing: .14em; font-size: 12px; text-transform: uppercase; border-bottom: 3px solid #DCB40C; padding-bottom: 4px; }
+.cartel h3 { margin: 4px 0 0; font-size: 22px; color: #003A75; }
+.cartel .qr svg { width: 190px; height: 190px; display: block; }
+.cartel .t { font-weight: 700; font-size: 15px; }
+.cartel small { color: #5A6B78; font-size: 12px; }
+.cartel .sin-codigo { padding: 40px 0; color: #5A6B78; }
+.acc { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+@media (max-width: 560px) { .fila-b { grid-template-columns: 1fr 44px; } .fila-b .pista { grid-column: 1 / -1; grid-row: 2; } .datos { grid-template-columns: repeat(2, 1fr); } }
+@media print {
+  body * { visibility: hidden; } #imprimir, #imprimir * { visibility: visible; }
+  #imprimir { position: absolute; inset: 0; display: block !important; }
+  #imprimir .cartel { break-after: page; border: 0; min-height: 95vh; align-content: center; gap: 18px; }
+  #imprimir .cartel h3 { font-size: 40px; } #imprimir .cartel .qr svg { width: 11cm; height: 11cm; }
+  #imprimir .cartel .t { font-size: 26px; } #imprimir .cartel p { font-size: 20px; } #imprimir .acc { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Condominios</small><b id="titulo">Opinión de los clientes</b></div>
+  <div class="seg vistas" role="tablist"><button type="button" data-vista="resultados" aria-pressed="true">Resultados</button><button type="button" data-vista="gestoras" aria-pressed="false">KPI de gestoras</button><button type="button" data-vista="qr" aria-pressed="false">Códigos QR</button></div>
+  <div class="filtros"><label class="nota" style="color:#C9D3DF">Período <select id="meses"><option value="1">1 mes</option><option value="3" selected>3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></label>
+  <label class="nota" style="color:#C9D3DF" id="f-torre">Torre <select id="torre"><option value="">Todas</option></select></label></div></div></header>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<div id="imprimir" hidden></div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const api = (a, d) => DEMO ? Promise.resolve(Demo[a](d || {})) : StiliModulos.api(a, d);
+const BASE = location.href.replace(/[^/]*([?#].*)?$/, '');
+const urlOpinion = c => BASE + 'opinion.html?c=' + encodeURIComponent(c);
+const num = (v, d) => v == null ? '—' : Number(v).toLocaleString('es-DO', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
+const claseNps = v => v == null ? '' : v >= 50 ? 'ok' : v >= 0 ? 'am' : 'ma';
+const claseSat = v => v == null ? '' : v >= 4 ? 'ok' : v >= 3 ? 'am' : 'ma';
+const claseInd = v => v == null ? '' : v >= 80 ? 'ok' : v >= 60 ? 'am' : 'ma';
+let datos = null, kpi = null, verOps = 10, soloAtender = false;
+
+// --------------------------------------------------------------- Resultados
+async function cargarResultados() {
+  $('#contenido').innerHTML = '<p class="nota">Cargando…</p>';
+  try { datos = await api('opiniones_datos', { meses: $('#meses').value }); llenarTorres(); pintarResultados(); }
+  catch (err) { fallo(err); }
+}
+function llenarTorres() {
+  const v = $('#torre').value;
+  $('#torre').innerHTML = '<option value="">Todas</option>' + datos.torres.map(t => '<option' + (t.torre === v ? ' selected' : '') + '>' + esc(t.torre) + '</option>').join('');
+}
+function resumen(lista) {   // misma fórmula que el servicio (NPS = % promotores − % detractores)
+  const n = lista.length, pro = lista.filter(o => o.nps >= 9).length, det = lista.filter(o => o.nps <= 6).length, areas = {};
+  datos.areas.forEach(([k]) => { const v = lista.map(o => o.areas[k]).filter(x => x >= 1); areas[k] = v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; });
+  const todas = [].concat(...lista.map(o => Object.values(o.areas)));
+  return { respuestas: n, promotores: pro, pasivos: n - pro - det, detractores: det, nps: n ? Math.round((pro - det) / n * 100) : null,
+    satisfaccion: todas.length ? todas.reduce((a, b) => a + b, 0) / todas.length : null, areas, por_atender: lista.filter(o => o.tarea_id && o.estado !== 'atendida').length };
+}
+function pintarResultados() {
+  const sel = $('#torre').value, ops = datos.opiniones.filter(o => !sel || o.torre === sel), r = sel ? resumen(ops) : datos.global;
+  const areas = datos.areas.map(([k, n]) => [k, n, r.areas[k]]).filter(a => a[2] != null), min = Math.min(...areas.map(a => a[2]));
+  const pct = v => r.respuestas ? (v / r.respuestas * 100) : 0;
+  // Primero las que esperan llamada; luego por fecha
+  const lista = ops.filter(o => !soloAtender || (o.tarea_id && o.estado !== 'atendida')).sort((x, y) => ((y.tarea_id && y.estado !== 'atendida') - (x.tarea_id && x.estado !== 'atendida')) || (x.fecha < y.fecha ? 1 : -1));
+  $('#contenido').innerHTML =
+    '<div class="card"><div class="kpis anchos" style="margin:0">' +
+      '<div class="kpi"><span>Respuestas</span><b>' + r.respuestas + '</b><small>Una por apartamento cada 30 días</small></div>' +
+      '<div class="kpi"><span>Recomendación (NPS)</span><b class="v ' + claseNps(r.nps) + '">' + num(r.nps) + '</b><small>De −100 a 100 · bueno desde 50</small></div>' +
+      '<div class="kpi"><span>Satisfacción</span><b class="v ' + claseSat(r.satisfaccion) + '">' + num(r.satisfaccion, 1) + '<span style="font-size:14px;display:inline;color:var(--muted)"> / 5</span></b><small>Promedio de todas las áreas</small></div>' +
+      '<div class="kpi' + (r.por_atender ? ' rojo' : '') + '"><span>Por atender</span><b class="v ' + (r.por_atender ? 'ma' : '') + '">' + r.por_atender + '</b><small>Clientes que esperan llamada</small></div></div></div>' +
+    '<div class="dos"><section class="card"><h2 class="sec">¿Nos recomendarían?</h2>' +
+      (r.respuestas ? '<div class="reparto" role="img" aria-label="Promotores ' + r.promotores + ', pasivos ' + r.pasivos + ', detractores ' + r.detractores + '">' +
+        '<i style="width:' + pct(r.promotores) + '%;background:var(--s-pro)"></i><i style="width:' + pct(r.pasivos) + '%;background:var(--s-pas)"></i><i style="width:' + pct(r.detractores) + '%;background:var(--s-det)"></i></div>' +
+        '<div class="leyenda"><span><i style="background:var(--s-pro)"></i>Promotores 9–10: <b>' + r.promotores + '</b></span><span><i style="background:var(--s-pas)"></i>Pasivos 7–8: <b>' + r.pasivos + '</b></span><span><i style="background:var(--s-det)"></i>Detractores 0–6: <b>' + r.detractores + '</b></span></div>' +
+        '<p class="nota" style="margin:10px 0 0;font-size:12.5px">NPS = % de promotores − % de detractores.</p>' : '<p class="sin">Sin respuestas en el período.</p>') + '</section>' +
+      '<section class="card"><h2 class="sec">Calificación por área</h2>' + (areas.length ? '<div class="medidas">' + areas.map(([k, n, v]) =>
+        '<div class="fila-b' + (v === min && areas.length > 1 && v < 4 ? ' baja' : '') + '"><span>' + esc(n) + '</span><div class="pista"><i style="width:' + (v / 5 * 100) + '%"></i></div><b>' + num(v, 1) + '</b></div>').join('') + '</div>' +
+        (min < 4 && areas.length > 1 ? '<p class="nota" style="margin:10px 0 0;font-size:12.5px">En rojo, el área peor calificada.</p>' : '') : '<p class="sin">Sin calificaciones.</p>') + '</section></div>' +
+    (!sel ? '<section class="card"><h2 class="sec">Por torre</h2><div class="tabla"><table><thead><tr><th>Torre</th><th>Gestora</th><th class="num">Respuestas</th><th class="num">NPS</th><th class="num">Satisfacción</th><th class="num">Por atender</th><th>QR</th></tr></thead><tbody>' +
+      datos.torres.map(t => '<tr><td><a href="#" data-ver-torre="' + esc(t.torre) + '">' + esc(t.torre) + '</a></td><td>' + esc(t.gestor || '—') + '</td><td class="num">' + t.respuestas + '</td><td class="num v ' + claseNps(t.nps) + '">' + num(t.nps) + '</td><td class="num v ' + claseSat(t.satisfaccion) + '">' + num(t.satisfaccion, 1) + '</td><td class="num' + (t.por_atender ? ' v ma' : '') + '">' + t.por_atender + '</td><td>' + (t.codigo ? '<span class="chip verde">Activo</span>' : '<span class="chip">Sin QR</span>') + '</td></tr>').join('') +
+      '</tbody></table></div></section>' : '') +
+    '<section class="card"><h2 class="sec">Opiniones' + (sel ? ' · ' + esc(sel) : '') + '</h2>' + (datos.profundo ? '' : '<p class="nota" style="margin:0 0 10px;font-size:12.5px">Su usuario ve las opiniones sin nombre ni teléfono.</p>') +
+      '<div class="acc" style="justify-content:flex-start;margin-bottom:10px"><label class="nota" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="solo-atender"' + (soloAtender ? ' checked' : '') + '> Solo las que esperan llamada</label></div>' +
+      (lista.length ? '<div class="ops">' + lista.slice(0, verOps).map(tarjetaOpinion).join('') + '</div>' +
+        (lista.length > verOps ? '<div class="acc" style="margin-top:10px"><button class="btn" type="button" id="ver-mas">Ver ' + Math.min(10, lista.length - verOps) + ' más (' + (lista.length - verOps) + ' restantes)</button></div>' : '')
+        : '<p class="sin">' + (soloAtender ? 'Nadie espera llamada. ' : '') + 'Sin opiniones en el período.</p>') + '</section>';
+}
+function tarjetaOpinion(o) {
+  const bajas = datos.areas.filter(([k]) => o.areas[k] && o.areas[k] <= 2).map(a => a[1]);
+  const npsChip = '<span class="chip ' + (o.nps >= 9 ? 'verde' : o.nps <= 6 ? 'rojo' : '') + '">' + o.nps + ' / 10</span>';
+  return '<article class="op"><div class="cab">' + npsChip + '<b>' + esc(o.torre) + ' · Apto ' + esc(o.apartamento) + '</b><span>' + esc(datos.roles[o.rol] || o.rol) + '</span><span>' + esc(o.fecha) + '</span>' +
+    (o.nombre ? '<span>' + esc(o.nombre) + (o.telefono ? ' · ' + esc(o.telefono) : '') + '</span>' : '') + (o.contactar ? '<span class="chip azul">Pide contacto</span>' : '') + '</div>' +
+    (bajas.length ? '<div class="alerta">Baja en: ' + esc(bajas.join(', ')) + '</div>' : '') +
+    (o.mejorar ? '<p><b>Mejorar:</b> ' + esc(o.mejorar) + '</p>' : '') + (o.bien ? '<p><b>Hacemos bien:</b> ' + esc(o.bien) + '</p>' : '') +
+    (o.tarea_id ? (o.estado === 'atendida' ? '<div class="hecho">✓ Atendida por ' + esc(o.atendida_por) + ' · ' + esc(o.atendida_en) + (o.nota ? ' — ' + esc(o.nota) : '') + '</div>'
+      : '<form data-atender="' + esc(o.id) + '"><input name="nota" placeholder="Qué se hizo: llamada, solución, acuerdo…" required minlength="4" aria-label="Qué se hizo"><button class="btn" type="submit">Marcar atendida</button></form>') : '') + '</article>';
+}
+document.addEventListener('submit', async e => {
+  const f = e.target.closest('[data-atender]'); if (!f) return; e.preventDefault();
+  try { datos = await api('opinion_atender', { id: f.dataset.atender, nota: f.nota.value, meses: $('#meses').value }); pintarResultados(); }
+  catch (err) { f.insertAdjacentHTML('beforeend', '<span class="alerta">' + esc(err.message) + '</span>'); }
+});
+
+// ---------------------------------------------------------- KPI de gestoras
+async function cargarGestoras() {
+  $('#contenido').innerHTML = '<p class="nota">Cargando…</p>';
+  try { kpi = await api('kpi_gestoras', { meses: $('#meses').value }); pintarGestoras(); } catch (err) { fallo(err); }
+}
+function pintarGestoras() {
+  const gs = kpi.gestoras.slice().sort((a, b) => (b.indice == null ? -1 : b.indice) - (a.indice == null ? -1 : a.indice));
+  const flecha = g => g.indice == null || g.indice_anterior == null ? '' : g.indice > g.indice_anterior ? '▲ ' + (g.indice - g.indice_anterior) : g.indice < g.indice_anterior ? '▼ ' + (g.indice_anterior - g.indice) : '= igual';
+  $('#contenido').innerHTML =
+    '<section class="card"><h2 class="sec">Índice de gestión · últimos ' + kpi.meses + ' mes(es)</h2><div class="tabla"><table><thead><tr><th>Gestora</th><th class="num">Índice</th><th class="num">vs. período anterior</th>' +
+      kpi.indicadores.map(i => '<th class="num">' + esc(i.nombre) + '</th>').join('') + '</tr></thead><tbody>' +
+      gs.map(g => '<tr><td>' + esc(g.gestora) + '</td><td class="num v ' + claseInd(g.indice) + '">' + num(g.indice) + '</td><td class="num">' + flecha(g) + '</td>' +
+        kpi.indicadores.map(i => '<td class="num v ' + claseInd(g.componentes[i.k]) + '">' + num(g.componentes[i.k]) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' +
+      '<details style="margin-top:10px"><summary class="nota" style="cursor:pointer;font-weight:600">Cómo se calcula</summary><ul class="ind-lista">' +
+        kpi.indicadores.map(i => '<li><b>' + esc(i.nombre) + '</b> (peso ' + i.peso + ' %): ' + esc(i.como) + '</li>').join('') +
+        '<li>Cada indicador va de 0 a 100. Si uno no tiene datos, su peso se reparte entre los demás. Verde desde 80, ámbar de 60 a 79, rojo bajo 60.</li></ul></details></section>' +
+    '<div class="gestoras">' + gs.map(tarjetaGestora).join('') + '</div>';
+}
+function tarjetaGestora(g) {
+  const d = g.datos;
+  return '<section class="card ge"><div class="top"><div><h3>' + esc(g.gestora) + '</h3><div class="torres">' + esc(g.torres.join(' · ')) + '</div></div>' +
+    '<div class="indice"><b class="v ' + claseInd(g.indice) + '">' + num(g.indice) + '</b><small>de 100' + (g.indice_anterior != null ? ' · antes ' + g.indice_anterior : '') + '</small></div></div>' +
+    '<div class="medidas">' + kpi.indicadores.map(i => { const v = g.componentes[i.k];
+      return '<div class="fila-b' + (v != null && v < 60 ? ' baja' : '') + '"><span>' + esc(i.nombre) + '</span>' + (v == null ? '<span class="sin">Sin datos suficientes</span><b></b>'
+        : '<div class="pista"><i style="width:' + v + '%"></i></div><b>' + v + '</b>') + '</div>'; }).join('') + '</div>' +
+    '<div class="datos"><div>Tareas cerradas<b>' + d.cerradas + '</b></div><div>A tiempo<b>' + d.a_tiempo + '</b></div><div>Días para cerrar<b>' + num(d.dias_promedio, 1) + '</b></div>' +
+      '<div>Abiertas +30 días<b' + (d.abiertas_30 ? ' class="v ma"' : '') + '>' + d.abiertas_30 + '</b></div><div>Opiniones · NPS<b>' + d.opiniones + ' · ' + num(d.nps) + '</b></div>' +
+      '<div>Alertas atendidas ≤ 2 días<b>' + d.alertas_2dias + ' de ' + d.alertas + '</b></div></div>' +
+    (d.opiniones < kpi.minimo_nps ? '<p class="nota" style="margin:10px 0 0;font-size:12.5px">El NPS cuenta en el índice desde ' + kpi.minimo_nps + ' respuestas. Coloque el QR en el lobby de sus torres.</p>' : '') + '</section>';
+}
+
+// -------------------------------------------------------------- Códigos QR
+async function cargarQr() {
+  $('#contenido').innerHTML = '<p class="nota">Cargando…</p>';
+  try { datos = await api('opiniones_datos', { meses: 1 }); llenarTorres(); pintarQr(); } catch (err) { fallo(err); }
+}
+function svgQr(texto) { const q = qrcode(0, 'M'); q.addData(texto); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }
+function cartel(t) {
+  return '<div class="cartel"><div class="marca">Stili Group</div><h3>¿Cómo le atendemos?</h3>' +
+    (t.codigo ? '<div class="qr" role="img" aria-label="Código QR de la encuesta de ' + esc(t.torre) + '">' + svgQr(urlOpinion(t.codigo)) + '</div>' : '<div class="sin-codigo">Esta torre todavía no tiene código.</div>') +
+    '<p style="margin:0">Escanee con la cámara de su teléfono y califique nuestro servicio. Toma dos minutos.</p><div class="t">' + esc(t.torre) + '</div>' +
+    (t.codigo ? '<small>Código ' + esc(t.codigo) + '</small>' : '') +
+    '<div class="acc">' + (t.codigo ? '<button class="btn" type="button" data-imprimir="' + esc(t.torre) + '">Imprimir</button><a class="btn" href="' + esc(urlOpinion(t.codigo)) + (DEMO ? '&demo=1' : '') + '" target="_blank" rel="noopener">Probar</a><button class="btn" type="button" data-qr="' + esc(t.torre) + '" data-nuevo="1">Cambiar código</button>'
+      : '<button class="btn primario" type="button" data-qr="' + esc(t.torre) + '">Crear código</button>') + '</div></div>';
+}
+function pintarQr() {
+  const sel = $('#torre').value, ts = datos.torres.filter(t => !sel || t.torre === sel), con = ts.filter(t => t.codigo);
+  $('#contenido').innerHTML = '<section class="card"><h2 class="sec">Carteles para el lobby</h2><p class="nota" style="margin:0">Un código por torre: cada respuesta queda unida a su torre y a su gestora. Imprima el cartel en tamaño carta y colóquelo junto a la portería. Si un cartel se pierde o se daña, «Cambiar código» desactiva el anterior.</p>' +
+    (con.length > 1 ? '<div class="acc" style="justify-content:flex-start;margin-top:10px"><button class="btn primario" type="button" data-imprimir="">Imprimir los ' + con.length + ' carteles</button></div>' : '') + '</section>' +
+    '<div class="carteles">' + ts.map(cartel).join('') + '</div>';
+}
+document.addEventListener('click', async e => {
+  const q = e.target.closest('[data-qr]');
+  if (q) {
+    if (q.dataset.nuevo && !confirm('El cartel actual de ' + q.dataset.qr + ' dejará de funcionar. ¿Cambiar el código?')) return;
+    q.disabled = true;
+    try { const r = await api('opinion_qr', { torre: q.dataset.qr, nuevo: !!q.dataset.nuevo }); datos.torres.find(t => t.torre === r.torre).codigo = r.codigo; pintarQr(); }
+    catch (err) { alert(err.message); q.disabled = false; }
+    return;
+  }
+  const p = e.target.closest('[data-imprimir]');
+  if (p) { const ts = datos.torres.filter(t => t.codigo && (!p.dataset.imprimir || t.torre === p.dataset.imprimir)); $('#imprimir').innerHTML = ts.map(cartel).join(''); print(); return; }
+  if (e.target.id === 'ver-mas') { verOps += 10; pintarResultados(); return; }
+  const vt = e.target.closest('[data-ver-torre]');
+  if (vt) { e.preventDefault(); $('#torre').value = vt.dataset.verTorre; pintarResultados(); scrollTo({ top: 0 }); }
+});
+
+// ------------------------------------------------------------------ Vistas
+const VISTAS = { resultados: 'Opinión de los clientes', gestoras: 'KPI de gestoras', qr: 'Códigos QR por torre' };
+function vista() { const h = location.hash.slice(1); return VISTAS[h] ? h : 'resultados'; }
+function cambiarVista() {
+  const v = vista();
+  document.querySelectorAll('[data-vista]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vista === v)));
+  $('#titulo').textContent = VISTAS[v]; document.title = VISTAS[v] + ' · Stili';
+  $('#f-torre').hidden = v === 'gestoras'; $('#meses').parentElement.hidden = v === 'qr';
+  if (window.StiliModulos && StiliModulos.marcar) StiliModulos.marcar();
+  ({ gestoras: cargarGestoras, qr: cargarQr }[v] || cargarResultados)();
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-vista]'); if (!b) return; history.replaceState(null, '', location.pathname + location.search + (b.dataset.vista === 'resultados' ? '' : '#' + b.dataset.vista)); cambiarVista(); });
+addEventListener('hashchange', cambiarVista);
+$('#meses').addEventListener('change', cambiarVista);
+document.addEventListener('change', e => { if (e.target.id === 'solo-atender') { soloAtender = e.target.checked; verOps = 10; pintarResultados(); } });
+$('#torre').addEventListener('change', () => verOps = 10);
+$('#torre').addEventListener('change', () => vista() === 'qr' ? pintarQr() : pintarResultados());
+function fallo(err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
+
+// -------------------------------------------------------------------- Demo
+const Demo = (() => {
+  const AREAS = [['contabilidad', 'Contabilidad y estados financieros'], ['cobros', 'Cobros y estados de cuenta'], ['operaciones', 'Mantenimiento y operaciones'],
+    ['servicio', 'Servicio al cliente'], ['mensajes', 'Respuesta a mensajes y llamadas'], ['porteria', 'Portería y seguridad'], ['limpieza', 'Limpieza de áreas comunes']];
+  const ROLES = { propietario: 'Propietario', inquilino: 'Inquilino', junta: 'Miembro de la Junta', otro: 'Otro' };
+  const TORRES = [['Gil Roma XXXII', 'GILR32', 'Mildred Pérez', 3.9, 'GILR32-K7Q2PA'], ['Torre Arpel 07', 'ARP07', 'Mildred Pérez', 3.3, 'ARP07-M3XZ8D'],
+    ['Apex Arroyo Hondo', 'APEX', 'Mildred Pérez', 4.3, ''], ['Los Hernandez VII', 'HER7', 'Reyna Martínez', 4.5, 'HER7-T9WB4C'], ['Torre Niza 7', 'NIZA7', 'Reyna Martínez', 4.1, 'NIZA7-R2LD6F']];
+  const MEJ = ['Los estados de cuenta llegan tarde', 'Que respondan los mensajes de WhatsApp el mismo día', 'La limpieza del parqueo los fines de semana', 'El portero de noche no siempre anuncia las visitas', 'Más detalle en los gastos del mes', ''];
+  const BIEN = ['La gestora siempre da seguimiento', 'El edificio se mantiene limpio', 'Los reportes financieros son claros', 'Atención amable en la portería', ''];
+  let semilla = 7; const azar = () => (semilla = (semilla * 16807) % 2147483647) / 2147483647;
+  const lim = v => Math.max(1, Math.min(5, Math.round(v)));
+  const hoy = new Date(), dia = n => { const d = new Date(hoy); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const ops = []; let id = 1;
+  TORRES.forEach(([torre, , gestor, base, codigo]) => { if (!codigo) return;
+    for (let i = 0; i < 14; i++) {
+      const areas = {}; AREAS.forEach(([k], j) => { if (!(k === 'contabilidad' && azar() < .3)) areas[k] = lim(base + (azar() - .5) * 2.2 - (k === 'mensajes' ? .5 : 0) + (j === 6 ? .2 : 0)); });
+      const prom = Object.values(areas).reduce((a, b) => a + b, 0) / Object.values(areas).length;
+      const nps = Math.max(0, Math.min(10, Math.round(prom * 2 + (azar() - .4) * 3)));
+      const alerta = nps <= 6 || Object.values(areas).some(v => v <= 2) || azar() < .1;
+      const atendida = alerta && azar() < .6;
+      ops.push({ id: 'OP-' + id++, fecha: dia(Math.floor(azar() * 85)), torre, gestor, rol: azar() < .7 ? 'propietario' : azar() < .7 ? 'inquilino' : 'junta',
+        apartamento: (1 + Math.floor(azar() * 14)) + 'ABCD'[Math.floor(azar() * 4)], nombre: ['ANA', 'LUIS', 'CARMEN', 'JOSÉ', 'MARÍA', 'PEDRO'][i % 6] + ' ' + ['ROSARIO', 'DÍAZ', 'PEÑA', 'MEJÍA'][i % 4],
+        telefono: '809-555-' + String(1000 + Math.floor(azar() * 8999)), contactar: alerta && azar() < .5, nps, areas,
+        mejorar: MEJ[Math.floor(azar() * MEJ.length)], bien: BIEN[Math.floor(azar() * BIEN.length)], estado: atendida ? 'atendida' : 'nueva', tarea_id: alerta ? 'TA-' + id : '',
+        atendida_por: atendida ? gestor : '', atendida_en: atendida ? dia(Math.floor(azar() * 5)) : '', nota: atendida ? 'Se llamó; se acordó revisar el caso con la Junta.' : '' });
+    } });
+  ops.sort((a, b) => a.fecha < b.fecha ? 1 : -1);
+  const res = l => { const n = l.length, pro = l.filter(o => o.nps >= 9).length, det = l.filter(o => o.nps <= 6).length, areas = {};
+    AREAS.forEach(([k]) => { const v = l.map(o => o.areas[k]).filter(x => x >= 1); areas[k] = v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; });
+    const t = [].concat(...l.map(o => Object.values(o.areas)));
+    return { respuestas: n, promotores: pro, pasivos: n - pro - det, detractores: det, nps: n ? Math.round((pro - det) / n * 100) : null,
+      satisfaccion: t.length ? t.reduce((a, b) => a + b, 0) / t.length : null, areas, por_atender: l.filter(o => o.tarea_id && o.estado !== 'atendida').length }; };
+  function opiniones_datos(d) {
+    const desde = dia(Number(d.meses || 3) * 30), l = ops.filter(o => o.fecha >= desde);
+    return { meses: d.meses, areas: AREAS, roles: ROLES, profundo: true, global: res(l), opiniones: l,
+      torres: TORRES.map(([torre, clave, gestor, , codigo]) => Object.assign({ torre, clave, gestor, codigo: codigos[torre] || '' }, res(l.filter(o => o.torre === torre)))) };
+  }
+  const codigos = {}; TORRES.forEach(t => { if (t[4]) codigos[t[0]] = t[4]; });
+  const INDICADORES = [['a_tiempo', 'Tareas cerradas a tiempo', 25, 'Cerradas dentro del plazo de su prioridad (alta 3 días, media 7, baja 15).'],
+    ['atrasadas', 'Sin tareas viejas', 15, '100 menos el % de sus tareas abiertas con más de 30 días.'], ['seguimiento', 'Seguimiento a clientes', 10, 'Opiniones con alerta atendidas en 2 días o menos.'],
+    ['satisfaccion', 'Satisfacción de sus torres', 25, 'Promedio de las áreas (1 a 5) llevado a 0–100.'], ['nps', 'Recomendación (NPS)', 20, 'NPS de sus torres (−100 a 100) llevado a 0–100. Requiere 5 respuestas o más.'],
+    ['respuesta', 'Respuesta a mensajes', 5, 'Calificación del área "Respuesta a mensajes y llamadas" llevada a 0–100.']];
+  const indice = c => { let s = 0, p = 0; INDICADORES.forEach(([k, , w]) => { if (c[k] != null) { s += c[k] * w; p += w; } }); return p ? Math.round(s / p) : null; };
+  function kpi_gestoras(d) {
+    const desde = dia(Number(d.meses || 3) * 30);
+    const tareas = { 'Mildred Pérez': { cerradas: 41, a_tiempo: 27, dias: 6.5, abiertas: 12, viejas: 3, ant: 64 }, 'Reyna Martínez': { cerradas: 33, a_tiempo: 28, dias: 4.2, abiertas: 7, viejas: 0, ant: 79 } };
+    return { meses: d.meses, plazos: { alta: 3, media: 7, baja: 15 }, minimo_nps: 5, indicadores: INDICADORES.map(([k, nombre, peso, como]) => ({ k, nombre, peso, como })),
+      gestoras: Object.keys(tareas).map(g => {
+        const t = tareas[g], l = ops.filter(o => o.gestor === g && o.fecha >= desde), r = res(l), al = l.filter(o => o.tarea_id), a2 = al.filter(o => o.estado === 'atendida').length;
+        const c = { a_tiempo: Math.round(t.a_tiempo / t.cerradas * 100), atrasadas: Math.round(100 - t.viejas / t.abiertas * 100), seguimiento: al.length ? Math.round(a2 / al.length * 100) : null,
+          satisfaccion: r.satisfaccion == null ? null : Math.round((r.satisfaccion - 1) / 4 * 100), nps: r.respuestas >= 5 ? Math.round((r.nps + 100) / 2) : null,
+          respuesta: r.areas.mensajes == null ? null : Math.round((r.areas.mensajes - 1) / 4 * 100) };
+        return { gestora: g, torres: TORRES.filter(x => x[2] === g).map(x => x[0]), componentes: c, indice: indice(c), indice_anterior: t.ant,
+          datos: { recibidas: t.cerradas + 6, cerradas: t.cerradas, a_tiempo: t.a_tiempo, dias_promedio: t.dias, abiertas: t.abiertas, abiertas_30: t.viejas, opiniones: r.respuestas, nps: r.nps, satisfaccion: r.satisfaccion, alertas: al.length, alertas_2dias: a2 } };
+      }) };
+  }
+  function opinion_qr(d) { if (!codigos[d.torre] || d.nuevo) codigos[d.torre] = TORRES.find(t => t[0] === d.torre)[1] + '-' + Math.random().toString(36).slice(2, 8).toUpperCase(); return { torre: d.torre, codigo: codigos[d.torre] }; }
+  function opinion_atender(d) { const o = ops.find(x => x.id === d.id); Object.assign(o, { estado: 'atendida', atendida_por: 'Usted (demo)', atendida_en: dia(0), nota: d.nota }); return opiniones_datos(d); }
+  return { opiniones_datos, kpi_gestoras, opinion_qr, opinion_atender };
+})();
+
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'condominios'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Opinión de los clientes</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>'; }
+else { StiliModulos.montar(document.body, 'condominios'); cambiarVista(); }
+</script>
+</body>
+</html>
