@@ -311,6 +311,9 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
   }
 
   // v2.4 · una sola pantalla: la Nómina se abre en la misma ventana (con «← Inicio del Portal» en su menú)
+  // v2.8 · Las rutas internas de la Nómina (/empleados, /nominas…) se activan cuando se verifiquen contra nomina/web.py en la PC.
+  // Mientras tanto, cada tema de Nómina abre la Nómina en su inicio (como en la v2.7.8): nada queda roto.
+  const NOMINA_RUTAS_VERIFICADAS = false;
   async function abrirNomina(ir) {
     try {
       const r = await api('sso_ticket');
@@ -431,7 +434,7 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarMenus(); if (!cajon.hidden) { cajon.hidden = true; mb.setAttribute('aria-expanded', 'false'); } } });
     mb.addEventListener('click', () => { cajon.hidden = !cajon.hidden; mb.setAttribute('aria-expanded', String(!cajon.hidden)); });
     // Los temas de la Nómina se abren en la misma ventana con un boleto de un solo uso
-    cont.addEventListener('click', e => { const a = e.target.closest('a[data-nomina]'); if (!a) return; e.preventDefault(); cerrarMenus(); abrirNomina(a.dataset.nomina); });
+    cont.addEventListener('click', e => { const a = e.target.closest('a[data-nomina]'); if (!a) return; e.preventDefault(); cerrarMenus(); abrirNomina(NOMINA_RUTAS_VERIFICADAS ? a.dataset.nomina : ''); });
     // Al elegir un tema de esta misma página solo cambia el #hash: se cierra el menú y la página cambia de sección sola
     cont.addEventListener('click', e => { const a = e.target.closest('.sm-panel a, .sm-cajon a'); if (a && !a.dataset.nomina) { cerrarMenus(); cajon.hidden = true; mb.setAttribute('aria-expanded', 'false'); } });
     cont._pintar = () => pintar(cont, actual);

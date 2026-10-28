@@ -247,7 +247,7 @@ $('#meses').addEventListener('change', cambiarVista);
 document.addEventListener('change', e => { if (e.target.id === 'solo-atender') { soloAtender = e.target.checked; verOps = 10; pintarResultados(); } });
 $('#torre').addEventListener('change', () => verOps = 10);
 $('#torre').addEventListener('change', () => vista() === 'qr' ? pintarQr() : pintarResultados());
-function fallo(err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
+function fallo(err) { if (/acci[oó]n desconocida/i.test(err.message)) { $('#contenido').innerHTML = '<div class="card"><p>Este módulo se activa cuando se instale el servicio de la v2.8 en Apps Script. Mientras tanto puede verlo en la demostración.</p><a class="btn primario" href="?demo=1' + location.hash + '">Ver la demostración</a></div>'; return; } $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
 
 // -------------------------------------------------------------------- Demo
 const Demo = (() => {

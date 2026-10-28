@@ -64,7 +64,7 @@ let D = null, filtroVac = '', filtroEst = 'activos';
 
 async function cargar() {
   try { D = await api('reclutamiento_datos'); cambiarVista(); }
-  catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
+  catch (err) { if (/acci[oó]n desconocida/i.test(err.message)) { $('#contenido').innerHTML = '<div class="card"><p>Este módulo se activa cuando se instale el servicio de la v2.8 en Apps Script. Mientras tanto puede verlo en la demostración.</p><a class="btn primario" href="?demo=1' + location.hash + '">Ver la demostración</a></div>'; return; } $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
 }
 const canalNombre = k => (D.canales.find(c => c.codigo === k) || {}).nombre || k;
 const vacNombre = k => { const v = D.vacantes.find(x => x.codigo === k); return v ? v.titulo + (v.torre ? ' · ' + v.torre : '') : k; };

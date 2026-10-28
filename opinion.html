@@ -107,7 +107,7 @@ const AREAS_DEMO = [['contabilidad', 'Contabilidad y estados financieros'], ['co
 async function api(accion, datos) {
   if (DEMO) return accion === 'opinion_info' ? { torre: 'Torre Niza 7', areas: AREAS_DEMO } : { guardada: true };
   const r = await fetch(window.STILI.servicio, { method: 'POST', body: JSON.stringify(Object.assign({ accion }, datos)) });
-  const j = await r.json(); if (!j.ok) throw new Error(j.error || 'No se pudo enviar.'); return j;
+  const j = await r.json(); if (!j.ok) throw new Error(/acci[oó]n desconocida/i.test(j.error || '') ? 'La encuesta todavía no está activa. Intente en unos días.' : (j.error || 'No se pudo enviar.')); return j;
 }
 function pintar(info) {
   $('#sub').textContent = info.torre + ' · Su opinión nos ayuda a mejorar. Toma dos minutos.';

@@ -133,7 +133,7 @@ const VAC_DEMO = [
 async function api(accion, datos) {
   if (DEMO) return accion === 'empleo_vacantes' ? { vacantes: datos.v ? VAC_DEMO.filter(v => v.codigo === datos.v) : VAC_DEMO, zonas: ZONAS } : { recibida: true };
   const r = await fetch(window.STILI.servicio, { method: 'POST', body: JSON.stringify(Object.assign({ accion }, datos)) });
-  const j = await r.json(); if (!j.ok) throw new Error(j.error || 'No se pudo enviar.'); return j;
+  const j = await r.json(); if (!j.ok) throw new Error(/acci[oó]n desconocida/i.test(j.error || '') ? 'La página de empleos todavía no está activa. Síganos en el canal de Telegram para ver las vacantes.' : (j.error || 'No se pudo enviar.')); return j;
 }
 const dinero = n => 'RD$ ' + Number(n).toLocaleString('es-DO');
 let vacantes = [], elegida = null;
