@@ -53,9 +53,10 @@
       { t: 'Ingresos · por cobrar', items: [
         { t: 'Cuentas por cobrar', d: 'Cargar el listado semanal y ver saldos', href: 'cobros.html', ve: 'cobros' },
         { t: 'Por cobrar de la torre', d: 'Detalle por apartamento', href: 'torres.html?m=finanzas#/cxc', ve: 'cobros' }] },
-      { t: 'Egresos · por pagar', items: [
-        { t: 'Armar la relación de pagos', d: 'Facturas, balance del banco y aprobación', href: 'torres.html?m=finanzas#/cxp/relaciones', ve: 'cuentas', viejo: 'torres' },
-        { t: 'Pagos del mes', href: 'torres.html?m=finanzas#/cxp/pagos', ve: 'cuentas', viejo: 'torres' },
+      { t: 'Egresos · por pagar (3 pasos)', items: [
+        { t: '1 · Bandeja', d: 'Facturas, nómina y Vigía de pagos', href: 'torres.html?m=finanzas#/cxp/bandeja', ve: 'cuentas', viejo: 'torres' },
+        { t: '2 · Armar y aprobar', d: 'Balance del banco y relación', href: 'torres.html?m=finanzas#/cxp/armar', ve: 'cuentas', viejo: 'torres' },
+        { t: '3 · Pagar y confirmar', d: 'Forma de pago y confirmación con el banco', href: 'torres.html?m=finanzas#/cxp/pagar', ve: 'cuentas', viejo: 'torres' },
         { t: 'Pagos recurrentes', href: 'torres.html?m=finanzas#/cxp/recurrentes', ve: 'cuentas', viejo: 'torres' },
         { t: 'Historial de pagos', d: 'Por mes y por suplidor', href: 'torres.html?m=finanzas#/cxp/historial', ve: 'cuentas', viejo: 'torres' }] },
       { t: 'Bancos', items: [

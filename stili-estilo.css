@@ -320,3 +320,20 @@ ul.docs-rel li a { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
 .verde-t { color: var(--ok); }
 .avance-info { color: var(--banda); font-weight: 600; }
 details.levantamiento summary { cursor: pointer; list-style-position: inside; }
+
+/* v2.8 · Cuentas por pagar en 3 pasos y Vigía de pagos */
+.pasos-cxp { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; counter-reset: none; }
+.pasos-cxp button { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 9px 12px; cursor: pointer; color: var(--fg); }
+.pasos-cxp button b { display: block; font-size: 14px; }
+.pasos-cxp button small { display: block; font-size: 12px; color: var(--muted); }
+.pasos-cxp button small.hay { color: var(--crit); font-weight: 600; }
+.pasos-cxp .num-paso { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--panel-2); color: var(--titulo); font-weight: 700; font-size: 13px; }
+.pasos-cxp button[aria-selected="true"] { border-color: var(--navy); box-shadow: inset 0 -3px 0 var(--oro); }
+.pasos-cxp button[aria-selected="true"] .num-paso { background: var(--navy); color: #fff; }
+.mas-cxp { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.enlace { background: none; border: 0; padding: 0; color: var(--titulo); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.enlace[aria-selected="true"] { text-decoration: none; color: var(--fg); }
+.alertas-plegadas summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--crit); margin-top: 8px; }
+.card.vigia { border-left: 3px solid var(--navy); }
+.card.vigia .alertas-cxp li { font-size: 12.5px; }
+@media (max-width: 700px) { .pasos-cxp { grid-template-columns: 1fr; } }
