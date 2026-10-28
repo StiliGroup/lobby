@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Avisar un pago · Stili Group</title>
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+<script src="config.js"></script>
+<style>
+/* v3.0 · El residente avisa que pagó su mantenimiento y sube el comprobante (con el código QR de su torre). */
+:root { --bg: #F3F5F9; --panel: #FFFFFF; --fg: #13293D; --muted: #5A6B78; --line: #DCE3EC; --azul: #003A75; --oro: #DCB40C; --ok: #1E7D4F; --ok-s: #E3F3EA; --crit: #B3261E; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0C1822; --panel: #13222F; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A; --azul: #6E9BD6; --ok: #4CC08A; --ok-s: #143024; --crit: #F07C73; } }
+* { box-sizing: border-box; } [hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Montserrat, "Segoe UI", system-ui, sans-serif; }
+input, select, button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--oro); outline-offset: 2px; }
+.top { background: #003A75; color: #fff; border-bottom: 3px solid var(--oro); }
+.top .in, main { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.top .in { padding-block: 18px; }
+.top small { color: var(--oro); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.top h1 { margin: 2px 0; font-size: 21px; } .top p { margin: 0; font-size: 13.5px; color: #DCE6F2; }
+main { padding-block: 16px 56px; }
+form { display: grid; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+label { display: grid; gap: 4px; font-size: 13.5px; font-weight: 600; }
+input, select { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 12px; font-size: 16px; width: 100%; }
+.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } @media (max-width: 420px) { .dos { grid-template-columns: 1fr; } }
+.priv { font-size: 12.5px; color: var(--muted); }
+.btn { border: 0; background: var(--azul); color: #fff; border-radius: 10px; padding: 13px 18px; font-weight: 700; font-size: 16px; cursor: pointer; }
+.btn:disabled { opacity: .6; }
+.error { color: var(--crit); font-size: 13px; font-weight: 600; border-left: 2px solid var(--crit); padding-left: 9px; }
+.listo { background: var(--ok-s); color: var(--ok); border-radius: 12px; padding: 22px; text-align: center; }
+.listo h2 { margin: 0 0 4px; font-size: 19px; }
+.demo { color: #8A5300; font-size: 12px; font-weight: 600; border-left: 2px solid #C98A00; padding-left: 9px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<header class="top"><div class="in"><small>Stili Group · Administración</small><h1>Avisar un pago</h1><p id="sub">Cargando…</p></div></header>
+<main>
+  <p class="demo" id="demo" hidden>Demostración: nada se envía.</p>
+  <p class="error" id="sin-codigo" hidden>Este enlace no trae el código de su torre. Escanee el código QR del lobby.</p>
+  <form id="f" hidden novalidate>
+    <div class="dos"><label>Apartamento<input name="apartamento" autocomplete="off" required placeholder="Ej.: 4B" maxlength="12"></label>
+    <label>Su nombre<input name="nombre" autocomplete="name" required maxlength="80"></label></div>
+    <div class="dos"><label>Monto pagado (RD$)<input name="monto" inputmode="decimal" required placeholder="0.00"></label>
+    <label>Fecha del pago<input name="fecha" type="date" required></label></div>
+    <div class="dos"><label>Banco desde donde pagó<select name="banco"><option value="">Elegir…</option><option>Popular</option><option>BHD</option><option>Banreservas</option><option>BDI</option><option>Scotiabank</option><option>Santa Cruz</option><option>Promerica</option><option>Otro</option></select></label>
+    <label>Número de referencia<input name="referencia" maxlength="80" placeholder="Opcional"></label></div>
+    <label>Comprobante (foto o PDF, máximo 5 MB)<input name="archivo" type="file" accept="image/*,application/pdf"></label>
+    <p class="priv">La administración compara su aviso con el estado del banco y le confirma. Sus datos se usan solo para registrar este pago.</p>
+    <p class="error" id="err" hidden></p>
+    <button class="btn" type="submit">Enviar el aviso</button>
+  </form>
+  <div class="listo" id="ok" hidden><h2>Aviso recibido</h2><p id="ok-txt">La administración lo revisa y le confirma.</p></div>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const Q = new URLSearchParams(location.search), CODIGO = (Q.get('c') || '').trim(), DEMO = Q.has('demo') || !(window.STILI && window.STILI.servicio);
+async function api(accion, datos) {
+  if (DEMO) return accion === 'ctb_pago_info' ? { torre: 'Torre Demo Prime' } : { ok: true, mensaje: 'Recibimos su aviso de pago. La administración lo revisa y le confirma.' };
+  const r = await fetch(window.STILI.servicio, { method: 'POST', body: JSON.stringify(Object.assign({ accion }, datos)) });
+  const j = await r.json(); if (!j.ok) throw new Error(/acci[oó]n desconocida/i.test(j.error || '') ? 'Este servicio todavía no está activo. Intente en unos días.' : (j.error || 'No se pudo enviar.')); return j;
+}
+const b64 = f => new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => mal(new Error('No se pudo leer el comprobante.')); r.readAsDataURL(f); });
+(async () => {
+  if (DEMO) $('#demo').hidden = false;
+  if (!CODIGO && !DEMO) { $('#sin-codigo').hidden = false; $('#sub').textContent = ''; return; }
+  try {
+    const info = await api('ctb_pago_info', { codigo: CODIGO });
+    $('#sub').textContent = info.torre + ' · Avise su pago de mantenimiento y suba el comprobante.';
+    $('#f').fecha.value = new Date().toLocaleDateString('en-CA'); $('#f').hidden = false;
+  } catch (err) { $('#sub').textContent = ''; $('#sin-codigo').textContent = err.message; $('#sin-codigo').hidden = false; }
+})();
+$('#f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target, fd = new FormData(f), err = $('#err'); err.hidden = true;
+  const monto = Number(String(fd.get('monto') || '').replace(/,/g, ''));
+  const falta = !String(fd.get('apartamento')).trim() ? 'Escriba el apartamento.' : String(fd.get('nombre')).trim().length < 3 ? 'Escriba su nombre.' : !(monto > 0) ? 'Escriba el monto que pagó.' : !fd.get('fecha') ? 'Escriba la fecha del pago.' : '';
+  if (falta) { err.textContent = falta; err.hidden = false; return; }
+  const a = fd.get('archivo'); if (a && a.size > 5 * 1024 * 1024) { err.textContent = 'El comprobante pesa más de 5 MB. Tome una foto más liviana.'; err.hidden = false; return; }
+  const boton = f.querySelector('button'); boton.disabled = true; boton.textContent = 'Enviando…';
+  try {
+    const archivo = a && a.size ? { nombre: a.name, mime: a.type || 'image/jpeg', base64: await b64(a) } : null;
+    const r = await api('ctb_pago_notificar', { codigo: CODIGO, apartamento: fd.get('apartamento'), nombre: fd.get('nombre'), monto, fecha: fd.get('fecha'), banco: fd.get('banco'), referencia: fd.get('referencia'), canal: Q.get('canal') || 'qr', archivo });
+    f.hidden = true; $('#ok-txt').textContent = r.mensaje || 'La administración lo revisa y le confirma.'; $('#ok').hidden = false; window.scrollTo(0, 0);
+  } catch (er) { err.textContent = er.message; err.hidden = false; boton.disabled = false; boton.textContent = 'Enviar el aviso'; }
+});
+</script>
+</body>
+</html>

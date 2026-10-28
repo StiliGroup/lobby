@@ -1,0 +1,1085 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contabilidad · Stili Soft</title>
+<meta name="description" content="Contabilidad de cada torre: cuotas y recibos, cobros, cobranza, bancos, conciliación y cierre, reportes y contabilidad formal.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css?v=3.0">
+<script src="config.js"></script>
+<script src="stili-modulos.js?v=3.0"></script>
+<script src="stili-contabilidad.js?v=3.0"></script>
+<style>
+.ctb-cab { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ctb-cab select, .ctb-cab input { font: inherit; padding: 8px 10px; border-radius: 9px; border: 0; background: #fff; color: #13293D; max-width: 100%; }
+.ctb-cab label { display: flex; flex-direction: column; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #DCE6F2; gap: 3px; }
+.secciones nav { overflow-x: auto; scrollbar-width: thin; }
+.sub { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.sub button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 12px; font-weight: 600; cursor: pointer; font-size: 13px; }
+.sub button[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+.sub .n { background: var(--crit); color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; margin-left: 4px; }
+td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rojo-t { color: var(--crit); } .verde-t { color: var(--ok); } .ambar-t { color: var(--warn); }
+.dos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .dos { grid-template-columns: 1fr; } }
+.alertas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.alertas li { padding: 8px 12px; border-radius: 9px; background: var(--panel-2); font-size: 14px; border-left: 4px solid var(--line); }
+.alertas li.rojo { border-left-color: var(--crit); background: var(--crit-suave); } .alertas li.ambar { border-left-color: var(--warn); background: var(--warn-suave); }
+.formula { background: var(--panel-2); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; font-size: 14px; }
+.formula b.tot { border-top: 2px solid var(--line); padding-top: 4px; }
+.formula .tot { border-top: 2px solid var(--line); padding-top: 4px; font-weight: 700; }
+.mini { font-size: 12px; color: var(--muted); }
+.grid-aptos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.grid-aptos label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.grid-aptos input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); font: inherit; }
+.chk { display: flex; gap: 6px; align-items: center; font-weight: 600; }
+tr.sel td { background: var(--azul-suave); }
+.pegar { cursor: pointer; } .pegar:hover td { background: var(--panel-2); }
+.kpi small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.kpi.rojo b { color: var(--crit); } .kpi.ambar b { color: var(--warn); }
+.cerrado { background: var(--ok-suave); color: var(--ok); }
+.tabla table td .btn { padding: 5px 9px; font-size: 13px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+#progreso { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 95; pointer-events: none; }
+#progreso i { display: block; height: 100%; width: 0; background: #DCB40C; transition: width .3s; }
+#progreso.indet i { width: 40%; animation: ctbbar 1.1s infinite linear; }
+@keyframes ctbbar { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+@media (max-width: 640px) { .formula { font-size: 13px; } .ctb-cab { width: 100%; } .ctb-cab label { flex: 1 1 140px; } }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter">
+  <div class="titulo"><small>Stili Group · Finanzas</small><b>Contabilidad</b></div>
+  <div class="ctb-cab" id="cab"></div>
+</div></header>
+<div class="secciones"><nav class="gutter" id="nav" role="tablist" aria-label="Contabilidad"></nav></div>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<dialog id="dlg"><div class="cuerpo" id="dlg-cuerpo"></div></dialog>
+<script>
+'use strict';
+const K = StiliContab;
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const dinero = v => v === null || v === undefined || v === '' || isNaN(v) ? '—' : (Number(v) < 0 ? '−' : '') + 'RD$ ' + Math.abs(Number(v)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const din0 = v => v === null || v === undefined || isNaN(v) ? '—' : (Number(v) < 0 ? '−' : '') + 'RD$ ' + Math.abs(Math.round(Number(v))).toLocaleString('en-US');
+const fecha = f => { const s = String(f || ''); const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] + '/' + m[1] : esc(s); };
+const mesTxt = per => per ? K.nombreMes(per) : '';
+const plural = (n, uno, varios) => n + ' ' + (n === 1 ? uno : varios);
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const libreria = (url, global) => window[global] ? Promise.resolve() : new Promise((ok, mal) => { const s = document.createElement('script'); s.src = url; s.onload = ok; s.onerror = () => mal(new Error('No se pudo cargar el lector de Excel. Revise la conexión.')); document.head.appendChild(s); });
+const toast = (msg, error) => { let el = $('#aviso'); if (!el) { el = document.createElement('div'); el.id = 'aviso'; el.setAttribute('role', 'status');
+  el.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);color:#fff;padding:10px 16px;border-radius:10px;z-index:90;max-width:calc(100% - 32px);font-weight:600'; document.body.appendChild(el); }
+  el.style.background = error ? '#B3261E' : '#13293D'; el.textContent = msg; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, error ? 7000 : 3500); };
+const Progreso = { indet(si) { let b = $('#progreso'); if (!b) { b = document.createElement('div'); b.id = 'progreso'; b.innerHTML = '<i></i>'; document.body.appendChild(b); } b.className = si ? 'indet' : ''; } };
+async function api(accion, datos) {
+  Progreso.indet(true);
+  try { return DEMO ? await Demo.llamar(accion, JSON.parse(JSON.stringify(datos || {}))) : await StiliModulos.api(accion, datos); }
+  finally { Progreso.indet(false); }
+}
+const hoy = () => K.hoyISO();
+
+// ------------------------------------------------------------------ estado
+const SECCIONES = [['inicio', 'Inicio'], ['cuotas', 'Cuotas y recibos'], ['cobros', 'Cobros'], ['cobranza', 'Cobranza'], ['bancos', 'Pagos y bancos'], ['conciliacion', 'Conciliación y cierre'],
+  ['reportes', 'Reportes'], ['formal', 'Contabilidad formal'], ['config', 'Configuración'], ['control', 'Control'], ['global', 'Todas las torres']];
+const S = { torres: [], torre: '', D: null, sec: 'inicio', sub: {}, periodo: hoy().slice(0, 7), apto: '', cobro: null, conc: { cuenta: '', periodo: '', parejas: [], saldo: '', marcaB: '', marcaL: '' } };
+const guardarPref = () => { try { localStorage.setItem('ctb_torre', S.torre); } catch (e) { /* sin almacenamiento */ } };
+const leerPref = () => { try { return localStorage.getItem('ctb_torre') || ''; } catch (e) { return ''; } };
+const puede = () => S.D && S.D.puede_editar;
+const cfg = () => K.reglas(S.D ? S.D.config : {});
+const rubros = () => (S.D && S.D.rubros && S.D.rubros.length ? S.D.rubros : K.rubrosBase());
+const datos = () => Object.assign({}, S.D, { rubros: rubros() });
+const cuentasAct = () => (S.D.cuentas || []).filter(c => c.activa !== 'no');
+const nomCuenta = id => { const c = (S.D.cuentas || []).find(x => x.id === id); return c ? c.nombre : '—'; };
+const nomRubro = cod => K.nombreRubro(rubros(), cod);
+
+function opcRubros(tipo, sel) {
+  const rs = rubros().filter(r => r.tipo === tipo && r.activo !== 'no');
+  return '<option value="">Elegir rubro…</option>' + rs.filter(r => !r.padre).map(g => '<optgroup label="' + esc(g.codigo + ' · ' + g.nombre) + '">' +
+    rs.filter(r => r.padre === g.codigo).map(r => '<option value="' + esc(r.codigo) + '"' + (r.codigo === sel ? ' selected' : '') + '>' + esc(r.codigo + ' · ' + r.nombre) + '</option>').join('') + '</optgroup>').join('');
+}
+const opcCuentas = (sel, tipo) => '<option value="">Elegir cuenta…</option>' + cuentasAct().filter(c => !tipo || c.tipo === tipo).map(c => '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nombre) + '</option>').join('');
+const opcAptos = sel => '<option value="">Elegir apartamento…</option>' + (S.D.aptos || []).map(a => '<option' + (a === sel ? ' selected' : '') + '>' + esc(a) + '</option>').join('');
+const tabla = (cab, filas, vacio, pie) => filas.length ? '<div class="tabla"><table><thead><tr>' + cab.map(c => '<th' + (/^\$/.test(c) ? ' class="num"' : '') + '>' + esc(c.replace(/^\$/, '')) + '</th>').join('') + '</tr></thead><tbody>' + filas.join('') + '</tbody>' + (pie || '') + '</table></div>' : '<div class="vacio">' + esc(vacio) + '</div>';
+const subtabs = (sec, lista) => { const act = S.sub[sec] || lista[0][0]; return '<div class="sub" role="tablist">' + lista.map(([k, t, n]) => '<button type="button" data-sub="' + sec + ':' + k + '" aria-pressed="' + (act === k) + '">' + esc(t) + (n ? '<span class="n">' + n + '</span>' : '') + '</button>').join('') + '</div>'; };
+const subAct = (sec, def) => S.sub[sec] || def;
+
+// ------------------------------------------------------------------ carga
+async function iniciar() {
+  try {
+    const g = await api('ctb_global');
+    S.torres = g.torres.map(t => t.torre); S.global = g;
+    if (!S.torres.length) { $('#contenido').innerHTML = '<div class="vacio">Su usuario no tiene torres asignadas.</div>'; return; }
+    const pref = leerPref();
+    S.torre = S.torres.indexOf(pref) >= 0 ? pref : S.torres[0];
+    leerHash(); pintarCab();
+    await cargarTorre();
+  } catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
+}
+async function cargarTorre() {
+  try { S.D = await api('ctb_datos', { torre: S.torre }); pintar(); }
+  catch (err) { toast(err.message, true); $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p></div>'; }
+}
+async function enviar(accion, datosEnvio, aviso) {
+  try { const r = await api(accion, Object.assign({ torre: S.torre }, datosEnvio)); if (r && r.torre !== undefined && r.recibos) S.D = r; pintar(); if (aviso || (r && r.aviso)) toast((r && r.aviso) || aviso); return r; }
+  catch (err) { toast(err.message, true); return null; }
+}
+function leerHash() { const h = location.hash.replace('#', ''); if (SECCIONES.some(([k]) => k === h)) S.sec = h; }
+window.addEventListener('hashchange', () => { leerHash(); pintar(); });
+function pintarCab() {
+  $('#cab').innerHTML = '<label>Torre<select id="sel-torre" aria-label="Torre">' + S.torres.map(t => '<option' + (t === S.torre ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></label>' +
+    '<label>Mes<input type="month" id="sel-mes" value="' + esc(S.periodo) + '" aria-label="Mes"></label>';
+}
+function pintar() {
+  $('#nav').innerHTML = SECCIONES.map(([k, t]) => {
+    const n = k === 'cobros' && S.D ? (S.D.notificados || []).filter(x => x.estado === 'pendiente').length : 0;
+    return '<button type="button" role="tab" data-sec="' + k + '" aria-selected="' + (S.sec === k) + '">' + esc(t) + (n ? '<span class="n">' + n + '</span>' : '') + '</button>';
+  }).join('');
+  if (!S.D && S.sec !== 'global') return;
+  if (!S.D) { $('#contenido').innerHTML = vGlobal(); return; }
+  const f = { inicio: vInicio, cuotas: vCuotas, cobros: vCobros, cobranza: vCobranza, bancos: vBancos, conciliacion: vConciliacion, reportes: vReportes, formal: vFormal, config: vConfig, control: vControl, global: vGlobal }[S.sec];
+  const cerrado = K.mesCerrado(S.periodo + '-01', S.D.cierres);
+  $('#contenido').innerHTML = (DEMO ? '<div class="aviso-edicion">Demostración con datos de ejemplo. Nada de lo que haga aquí se guarda.</div>' : '') +
+    (cerrado && ['cuotas', 'cobros', 'bancos'].indexOf(S.sec) >= 0 ? '<div class="aviso-edicion">El mes de ' + esc(mesTxt(S.periodo)) + ' está cerrado: se puede consultar, pero no registrar movimientos con fecha de ese mes.</div>' : '') +
+    (!puede() && S.sec !== 'global' ? '<div class="aviso-edicion">Su usuario puede consultar. Para registrar, pida el nivel «Editar» de «Finanzas · Contabilidad» al Gerente General.</div>' : '') + f();
+}
+document.addEventListener('change', e => {
+  if (e.target.id === 'sel-torre') { S.torre = e.target.value; guardarPref(); S.apto = ''; S.cobro = null; S.conc = { cuenta: '', periodo: '', parejas: [], saldo: '' }; cargarTorre(); }
+  if (e.target.id === 'sel-mes') { S.periodo = e.target.value || hoy().slice(0, 7); pintar(); }
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-sec]'); if (b) { S.sec = b.dataset.sec; history.replaceState(null, '', '#' + S.sec); pintar(); window.scrollTo(0, 0); return; }
+  const s = e.target.closest('[data-sub]'); if (s) { const [sec, k] = s.dataset.sub.split(':'); S.sub[sec] = k; pintar(); return; }
+});
+
+// ------------------------------------------------------------------ diálogos
+function dialogo(html) { $('#dlg-cuerpo').innerHTML = html + '<div class="acciones-fila"><button type="button" class="btn" data-cerrar>Cerrar</button></div>'; $('#dlg').showModal(); }
+document.addEventListener('click', e => { if (e.target.closest('[data-cerrar]')) $('#dlg').close(); });
+function pedirMotivo(titulo) {
+  return new Promise(ok => {
+    $('#dlg-cuerpo').innerHTML = '<h2>' + esc(titulo) + '</h2><form id="f-motivo" class="form"><label class="ancho">Motivo (queda en el control de anulaciones)<textarea name="m" required minlength="4"></textarea></label></form>' +
+      '<div class="acciones-fila"><button class="btn primario" type="submit" form="f-motivo">Confirmar</button><button type="button" class="btn" data-cerrar>Cancelar</button></div>';
+    const d = $('#dlg'); d.showModal();
+    const f = $('#f-motivo');
+    f.onsubmit = ev => { ev.preventDefault(); const m = new FormData(f).get('m').trim(); d.close(); ok(m); };
+    d.onclose = () => ok(null);
+  });
+}
+async function anular(tabla, id, titulo) {
+  const m = await pedirMotivo(titulo || 'Anular');
+  if (!m) return;
+  await enviar('ctb_guardar', { tabla, operacion: 'anular', id, motivo: m }, 'Anulado. Quedó en el control de anulaciones.');
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-anular]'); if (b) { const [t, id] = b.dataset.anular.split('|'); anular(t, id, b.dataset.titulo); } });
+
+// ------------------------------------------------------------------ impresión (recibos, constancias, informes)
+function imprimir(titulo, cuerpo) {
+  const w = window.open('', '_blank');
+  if (!w) return toast('Permita las ventanas emergentes para imprimir.', true);
+  w.document.write('<!doctype html><html lang="es-DO"><head><meta charset="utf-8"><title>' + esc(titulo) + '</title><style>' + CSS_IMPRESION + '</style></head><body>' + cuerpo +
+    '<p class="pie">Generado por Stili Soft · ' + esc(fecha(hoy())) + '</p><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>');
+  w.document.close();
+}
+const CSS_IMPRESION = 'body{font-family:Montserrat,Segoe UI,Arial,sans-serif;color:#13293D;margin:28px;font-size:13px}h1{font-size:20px;margin:0 0 4px;color:#003A75}h2{font-size:14px;margin:18px 0 6px;color:#003A75;text-transform:uppercase;letter-spacing:.06em}' +
+  'table{width:100%;border-collapse:collapse;margin:6px 0}th,td{padding:6px 8px;border-bottom:1px solid #d6dde4;text-align:left}th{font-size:11px;text-transform:uppercase;color:#5A6B78}.num{text-align:right;white-space:nowrap}' +
+  '.cab{display:flex;justify-content:space-between;border-bottom:3px solid #DCB40C;padding-bottom:10px;margin-bottom:14px}.tot td{font-weight:700;border-top:2px solid #13293D}.pie{color:#5A6B78;font-size:11px;margin-top:24px}.salto{page-break-after:always}.caja{border:1px solid #d6dde4;border-radius:8px;padding:10px 12px;margin-top:10px}';
+function htmlRecibo(r) {
+  const c = cfg(), ec = K.estadoCuenta(r.apartamento, S.D.recibos, S.D.cobros);
+  const otros = ec.pendientes.filter(x => x.id !== r.id), deudaPrev = otros.reduce((s, x) => s + K.c(x.saldo), 0);
+  const link = K.enlacePago(c, Object.assign({}, r, { saldo: (ec.pendientes.find(x => x.id === r.id) || r).saldo }), S.torre);
+  return '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Recibo de mantenimiento · ' + esc(mesTxt(r.periodo)) + '</div></div><div style="text-align:right"><b>' + esc(r.numero) + '</b><br>Apartamento <b>' + esc(r.apartamento) + '</b>' + (r.ncf ? '<br>NCF ' + esc(r.ncf) : '') + '</div></div>' +
+    '<table><tr><td>Emisión</td><td>' + fecha(r.emision) + '</td><td>Vence</td><td><b>' + fecha(r.vence) + '</b></td></tr></table>' +
+    '<table><thead><tr><th>Concepto</th><th>Rubro</th><th class="num">Monto</th></tr></thead><tbody>' + (r.lineas || []).map(l => '<tr><td>' + esc(l.concepto) + '</td><td>' + esc(nomRubro(l.rubro)) + '</td><td class="num">' + dinero(l.monto) + '</td></tr>').join('') +
+    '<tr class="tot"><td colspan="2">Total del recibo</td><td class="num">' + dinero(r.total) + '</td></tr>' + (deudaPrev ? '<tr><td colspan="2">Saldo pendiente de meses anteriores</td><td class="num">' + dinero(K.p(deudaPrev)) + '</td></tr>' : '') +
+    (ec.a_favor ? '<tr><td colspan="2">Saldo a favor</td><td class="num">−' + dinero(ec.a_favor) + '</td></tr>' : '') + '</tbody></table>' +
+    (Number(c.pp_porcentaje) > 0 && r.tipo === 'ordinaria' ? '<div class="caja">Pagando el total a más tardar el ' + fecha(K.conDia(r.periodo, c.pp_dia)) + ' recibe ' + esc(c.pp_porcentaje) + ' % de descuento: paga ' + dinero(K.montoProntoPago(r, c)) + '.</div>' : '') +
+    (link ? '<div class="caja">Pague en línea: ' + esc(link) + '</div>' : '') +
+    (S.D.codigo_qr ? '<div class="caja">¿Ya pagó por transferencia? Avise y suba el comprobante en ' + esc(location.origin + location.pathname.replace(/[^/]*$/, '') + 'pago.html?c=' + S.D.codigo_qr) + '</div>' : '');
+}
+function htmlConstancia(k) {
+  return '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Constancia de pago</div></div><div style="text-align:right">Apartamento <b>' + esc(k.apartamento) + '</b><br>' + fecha(k.fecha) + '</div></div>' +
+    '<table><tr><td>Monto recibido</td><td class="num"><b>' + dinero(k.monto) + '</b></td></tr><tr><td>Forma de pago</td><td class="num">' + esc(k.forma || '') + (k.referencia ? ' · ref. ' + esc(k.referencia) : '') + '</td></tr>' +
+    '<tr><td>Cuenta</td><td class="num">' + esc(nomCuenta(k.cuenta_id)) + '</td></tr></table><h2>Aplicado a</h2><table><thead><tr><th>Recibo</th><th class="num">Pagado</th><th class="num">Descuento</th></tr></thead><tbody>' +
+    (k.aplicaciones || []).map(x => '<tr><td>' + esc(x.numero || x.recibo_id) + '</td><td class="num">' + dinero(x.monto) + '</td><td class="num">' + (x.descuento ? dinero(x.descuento) : '') + '</td></tr>').join('') + '</tbody></table>' +
+    (Number(k.a_favor) > 0 ? '<div class="caja">Queda a su favor ' + dinero(k.a_favor) + ', que se aplicará a su próximo recibo.</div>' : '');
+}
+document.addEventListener('click', e => {
+  const r = e.target.closest('[data-recibo]'); if (r) { const x = S.D.recibos.find(y => y.id === r.dataset.recibo); if (x) imprimir('Recibo ' + x.numero, htmlRecibo(x)); }
+  const c = e.target.closest('[data-constancia]'); if (c) { const x = S.D.cobros.find(y => y.id === c.dataset.constancia); if (x) imprimir('Constancia ' + x.apartamento, htmlConstancia(x)); }
+});
+
+// ================================================================== INICIO
+function vInicio() {
+  const d = datos(), h = hoy();
+  const saldo = cuentasAct().reduce((s, c) => s + K.c(K.saldoCuenta(c.id, d, h)), 0);
+  const ant = K.antiguedad(d.recibos, d.cobros, h), per = h.slice(0, 7);
+  const emitido = d.recibos.filter(r => K.activo(r) && r.periodo === per).reduce((s, r) => s + K.c(r.total), 0);
+  const cobrado = d.cobros.filter(k => K.activo(k) && k.origen !== 'cruce' && k.fecha.slice(0, 7) === per).reduce((s, k) => s + K.c(k.monto), 0);
+  const porPagar = d.pagos.filter(p => p.estado !== 'pagada' && K.activo(p)).reduce((s, p) => s + K.c(p.monto), 0);
+  const py = K.proyeccion(d, h), alertas = K.vigiaCobros(d, h);
+  const notif = d.notificados.filter(n => n.estado === 'pendiente').length, sinId = d.sin_identificar.filter(x => x.estado === 'pendiente').length;
+  const incumplidos = d.acuerdos.filter(a => a.estado === 'vigente' && K.estadoAcuerdo(a, d.cobros, h).estado === 'incumplido').length;
+  const junta = d.pagos.filter(p => p.estado !== 'pagada' && K.requiereJunta(p.monto, d.config) && p.junta !== 'aprobada').length;
+  const cerrados = d.cierres.filter(k => k.estado === 'cerrado').map(k => k.periodo).sort(), ult = cerrados.pop();
+  const pend = [];
+  if (notif) pend.push('<li class="ambar"><a href="#cobros" data-sec="cobros">' + plural(notif, 'aviso de pago', 'avisos de pago') + ' por revisar</a></li>');
+  if (sinId) pend.push('<li class="ambar"><a href="#cobros" data-sec="cobros">' + plural(sinId, 'depósito sin identificar', 'depósitos sin identificar') + '</a></li>');
+  if (incumplidos) pend.push('<li class="rojo"><a href="#cobranza" data-sec="cobranza">' + plural(incumplidos, 'acuerdo de pago incumplido', 'acuerdos de pago incumplidos') + '</a></li>');
+  if (junta) pend.push('<li class="ambar"><a href="#bancos" data-sec="bancos">' + plural(junta, 'pago espera', 'pagos esperan') + ' la aprobación de la Junta</a></li>');
+  pend.push('<li>' + (ult ? 'Último mes cerrado: <b>' + esc(mesTxt(ult)) + '</b>' : 'Todavía no se ha cerrado ningún mes.') + ' <a href="#conciliacion" data-sec="conciliacion">Conciliación y cierre</a></li>');
+  return '<div class="card resumen"><div><h1>' + esc(S.torre) + '</h1><p class="nota" style="margin:0">' + plural((d.aptos || []).length, 'apartamento', 'apartamentos') + ' · ' + plural(cuentasAct().length, 'cuenta', 'cuentas') + ' · hoy ' + fecha(h) + '</p></div></div>' +
+    (!(S.D.rubros || []).length || !cuentasAct().length ? '<div class="card"><h2>Para empezar</h2><ol>' + (!(S.D.rubros || []).length ? '<li>Cargue el catálogo de rubros y las reglas de la torre en <a href="#config" data-sec="config">Configuración</a>.</li>' : '') +
+      (!cuentasAct().length ? '<li>Registre las cuentas de banco y la caja chica en <a href="#bancos" data-sec="bancos">Pagos y bancos</a>.</li>' : '') + '<li>Arme la cuota del mes en <a href="#cuotas" data-sec="cuotas">Cuotas y recibos</a>.</li></ol></div>' : '') +
+    '<div class="card"><div class="kpis" style="margin:0"><div class="kpi"><span>Saldo en bancos y caja</span><b>' + din0(K.p(saldo)) + '</b><small>según los libros</small></div>' +
+    '<div class="kpi' + (ant.vencido > 0 ? ' rojo' : '') + '"><span>Cartera vencida</span><b>' + din0(ant.vencido) + '</b><small>' + plural(ant.filas.filter(f => f.total - f.corriente > 0).length, 'apartamento', 'apartamentos') + '</small></div>' +
+    '<div class="kpi"><span>Cobrado en ' + esc(K.MESES[Number(per.slice(5)) - 1]) + '</span><b>' + din0(K.p(cobrado)) + '</b><small>de ' + din0(K.p(emitido)) + ' emitido' + (emitido ? ' · ' + Math.round(cobrado * 100 / emitido) + ' %' : '') + '</small></div>' +
+    '<div class="kpi"><span>Por pagar</span><b>' + din0(K.p(porPagar)) + '</b><small>facturas pendientes</small></div></div></div>' +
+    '<div class="dos"><div class="card"><h2>Pendientes</h2><ul class="alertas">' + pend.join('') + '</ul></div>' +
+    '<div class="card"><h2>Vigía de cobros</h2>' + (alertas.length ? '<ul class="alertas">' + alertas.slice(0, 8).map(a => '<li class="' + a.nivel + '">' + esc(a.texto) + '</li>').join('') + '</ul>' : '<p class="nota" style="margin:0">Sin alertas: no hay cobros repetidos, apartamentos que dejaron de pagar ni recibos por debajo del mes anterior.</p>') + '</div></div>' +
+    '<div class="card"><div class="cab"><h2>Proyección de caja · 90 días</h2>' + (py.alerta ? '<span class="chip rojo">Falta dinero en ' + esc(mesTxt(py.alerta.periodo)) + '</span>' : '<span class="chip verde">Alcanza los 3 meses</span>') + '</div>' +
+    tabla(['Mes', '$Empieza con', '$Entra (esperado)', '$Sale (esperado)', '$Termina con'], py.meses.map(m => '<tr><td>' + esc(mesTxt(m.periodo)) + '</td><td class="num">' + din0(m.inicio) + '</td><td class="num">' + din0(m.entra) + '</td><td class="num">' + din0(m.sale) + '</td><td class="num ' + (m.alerta ? 'rojo-t' : '') + '"><b>' + din0(m.fin) + '</b></td></tr>'), '') +
+    '<p class="mini">Entra = lo que se emite en promedio (' + din0(py.promedio_emitido) + ') × la cobranza real de los últimos 3 meses (' + py.tasa_cobranza + ' %), más las cuotas de acuerdos de pago. Sale = lo pagado en promedio (' + din0(py.promedio_pagado) + '); el primer mes suma las facturas pendientes (' + din0(py.pendientes_cxp) + ').' + (Number(cfg().colchon_caja) ? ' Avisa si baja de ' + din0(cfg().colchon_caja) + '.' : '') + '</p></div>' +
+    '<div class="card"><div class="cab"><h2>Cartera por antigüedad</h2><a href="#cobranza" data-sec="cobranza" class="btn">Ver cobranza</a></div>' +
+    '<div class="kpis" style="margin:0">' + K.TRAMOS.map(([k, t]) => '<div class="kpi' + (k === 'mas' && ant.total[k] ? ' rojo' : k !== 'corriente' && ant.total[k] ? ' ambar' : '') + '"><span>' + esc(t) + '</span><b>' + din0(ant.total[k]) + '</b></div>').join('') + '</div></div>';
+}
+
+// ================================================================== CUOTAS Y RECIBOS
+function vCuotas() {
+  const sub = subAct('cuotas', 'armar');
+  return subtabs('cuotas', [['armar', '1 · Conceptos del mes'], ['revisar', '2 · Revisar y generar'], ['recibos', '3 · Recibos'], ['otros', 'Cuota individual y mora']]) +
+    ({ armar: cuotasArmar, revisar: cuotasRevisar, recibos: cuotasRecibos, otros: cuotasOtros }[sub])();
+}
+const conceptosMes = per => (S.D.conceptos || []).filter(k => k.periodo === per && K.activo(k));
+function describirReparto(k) {
+  if (k.reparto === 'igual') return din0(k.monto) + ' cada apartamento';
+  if (k.reparto === 'parametro') { const p = (S.D.parametros || []).find(x => x.id === k.parametro); return din0(k.monto) + ' repartido por ' + esc(p ? p.nombre : 'parámetro'); }
+  if (k.reparto === 'medidor') return 'Lectura × ' + dinero(k.precio);
+  return 'Monto por apartamento';
+}
+function cuotasArmar() {
+  const per = S.periodo, ks = conceptosMes(per), ant = conceptosMes(K.sumarMeses(per, -1));
+  const emitidos = S.D.recibos.some(r => r.periodo === per && K.activo(r) && r.tipo === 'ordinaria');
+  const params = (S.D.parametros || []).filter(p => K.activo(p));
+  return '<div class="card"><div class="cab"><h2>Conceptos de ' + esc(mesTxt(per)) + '</h2>' + (puede() && !ks.length && ant.length ? '<button class="btn" data-copiar-mes>Copiar el mes anterior (' + ant.length + ')</button>' : '') + '</div>' +
+    tabla(['Concepto', 'Rubro', 'Tipo', 'Reparto', '$Total del mes', ''], ks.map(k => {
+      const rep = K.repartir(k, S.D.aptos, valoresParam()), tot = Object.values(rep).reduce((s, v) => s + K.c(v), 0);
+      return '<tr><td><b>' + esc(k.nombre) + '</b></td><td>' + esc(nomRubro(k.rubro)) + '</td><td>' + (k.tipo === 'extraordinaria' ? '<span class="chip ambar">Extraordinaria</span>' : 'Ordinaria') + '</td><td>' + describirReparto(k) + '</td><td class="num">' + din0(K.p(tot)) + '</td><td>' +
+        (puede() && !emitidos ? (k.reparto === 'unidad' || k.reparto === 'medidor' ? '<button class="btn" data-montos="' + esc(k.id) + '">' + (k.reparto === 'medidor' ? 'Lecturas' : 'Montos') + '</button> ' : '') + '<button class="btn" data-anular="conceptos|' + esc(k.id) + '" data-titulo="Quitar el concepto ' + esc(k.nombre) + '">Quitar</button>' : '') + '</td></tr>';
+    }), 'Todavía no hay conceptos para este mes.') +
+    (emitidos ? '<p class="nota">Los recibos ordinarios de este mes ya se generaron. Para cambiar un concepto, anule primero los recibos del mes.</p>' : '') + '</div>' +
+    (puede() && !emitidos ? '<form class="card" id="f-concepto"><h2>Agregar concepto</h2><div class="form">' +
+      '<label>Nombre<input name="nombre" required placeholder="Mantenimiento, Gas, Cuota de pintura…"></label><label>Rubro<select name="rubro" required>' + opcRubros('ingreso') + '</select></label>' +
+      '<label>Tipo<select name="tipo"><option value="ordinaria">Ordinaria (todos los meses)</option><option value="extraordinaria">Extraordinaria (aprobada por la Junta)</option></select></label>' +
+      '<label>Reparto<select name="reparto" id="sel-reparto"><option value="igual">Igual para todos</option><option value="parametro">Un total por m² o porcentaje</option><option value="unidad">Un monto distinto por apartamento</option><option value="medidor">Por medidor (lectura × precio)</option></select></label>' +
+      '<label data-ver="igual parametro">Monto (RD$)<input name="monto" inputmode="decimal" placeholder="0.00"></label>' +
+      '<label data-ver="parametro" hidden>Repartir según<select name="parametro">' + (params.length ? params.map(p => '<option value="' + esc(p.id) + '">' + esc(p.nombre) + '</option>').join('') : '<option value="">Cree el parámetro en Configuración</option>') + '</select></label>' +
+      '<label data-ver="medidor" hidden>Precio por unidad de consumo (RD$)<input name="precio" inputmode="decimal" placeholder="0.00"></label>' +
+      '<label data-ver="extra" hidden>Dividir en meses<input name="meses" type="number" min="1" max="24" value="1"></label></div>' +
+      '<p class="mini">El monto «Igual para todos» es por apartamento. «Un total por m²» es el total del mes que se reparte. Una extraordinaria dividida en meses reparte el monto entre esos meses (el último lleva el ajuste de centavos).</p>' +
+      '<div class="acciones-fila"><button class="btn primario" type="submit">Agregar</button></div></form>' : '');
+}
+function valoresParam() { const v = {}; (S.D.parametros || []).forEach(p => { v[p.id] = p.valores || {}; }); return v; }
+document.addEventListener('change', e => {
+  if (e.target.id === 'sel-reparto' || (e.target.name === 'tipo' && e.target.form && e.target.form.id === 'f-concepto')) {
+    const f = $('#f-concepto'), r = f.reparto.value, extra = f.tipo.value === 'extraordinaria';
+    f.querySelectorAll('[data-ver]').forEach(l => { const v = l.dataset.ver.split(' '); l.hidden = !(v.indexOf(r) >= 0 || (v.indexOf('extra') >= 0 && extra)); });
+  }
+});
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-concepto') return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target)), meses = Math.max(1, Math.min(24, Number(f.meses) || 1));
+  const monto = Number(String(f.monto || '').replace(/,/g, '')) || 0, precio = Number(String(f.precio || '').replace(/,/g, '')) || 0;
+  if ((f.reparto === 'igual' || f.reparto === 'parametro') && !(monto > 0)) return toast('Escriba el monto.', true);
+  if (f.reparto === 'parametro' && !f.parametro) return toast('Cree primero el parámetro (m² o porcentaje) en Configuración.', true);
+  if (f.reparto === 'medidor' && !(precio > 0)) return toast('Escriba el precio por unidad.', true);
+  const n = f.tipo === 'extraordinaria' ? meses : 1;
+  const partes = n > 1 && (f.reparto === 'parametro' || f.reparto === 'igual') ? K.planCuotas(monto, n, S.periodo + '-01').map(q => q.monto) : null;
+  for (let i = 0; i < n; i++) {
+    const per = K.sumarMeses(S.periodo, i);
+    const ok = await enviar('ctb_guardar', { tabla: 'conceptos', operacion: 'crear', datos: { periodo: per, nombre: f.nombre.trim() + (n > 1 ? ' (' + (i + 1) + ' de ' + n + ')' : ''), rubro: f.rubro, tipo: f.tipo, reparto: f.reparto,
+      monto: partes ? partes[i] : monto, parametro: f.parametro || '', precio, montos: {}, lecturas: {} } });
+    if (!ok) return;
+  }
+  toast(n > 1 ? 'Concepto creado en ' + n + ' meses.' : 'Concepto agregado.');
+});
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-copiar-mes]')) {
+    const ant = conceptosMes(K.sumarMeses(S.periodo, -1)).filter(k => k.tipo !== 'extraordinaria');
+    for (const k of ant) await enviar('ctb_guardar', { tabla: 'conceptos', operacion: 'crear', datos: { periodo: S.periodo, nombre: k.nombre, rubro: k.rubro, tipo: k.tipo, reparto: k.reparto, monto: k.monto, parametro: k.parametro, precio: k.precio, montos: k.montos, lecturas: k.reparto === 'medidor' ? Object.fromEntries(Object.entries(k.lecturas || {}).map(([a, l]) => [a, { anterior: l.actual, actual: '' }])) : {} } });
+    toast('Se copiaron ' + ant.length + ' conceptos. Las lecturas de medidor empiezan desde la lectura anterior.');
+  }
+  const m = e.target.closest('[data-montos]');
+  if (m) {
+    const k = S.D.conceptos.find(x => x.id === m.dataset.montos), med = k.reparto === 'medidor';
+    dialogo('<h2>' + esc(k.nombre) + ' · ' + (med ? 'lecturas del medidor' : 'monto por apartamento') + '</h2><form id="f-montos" data-id="' + esc(k.id) + '"><div class="grid-aptos">' +
+      S.D.aptos.map(a => med ? '<label>' + esc(a) + '<input name="ant_' + esc(a) + '" inputmode="decimal" placeholder="Anterior" value="' + esc(((k.lecturas || {})[a] || {}).anterior || '') + '"><input name="act_' + esc(a) + '" inputmode="decimal" placeholder="Actual" value="' + esc(((k.lecturas || {})[a] || {}).actual || '') + '"></label>'
+        : '<label>' + esc(a) + '<input name="m_' + esc(a) + '" inputmode="decimal" value="' + esc((k.montos || {})[a] || '') + '"></label>').join('') +
+      '</div><div class="acciones-fila"><button class="btn primario" type="submit">Guardar</button></div></form>');
+  }
+});
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-montos') return; e.preventDefault();
+  const k = S.D.conceptos.find(x => x.id === e.target.dataset.id), fd = new FormData(e.target), num = v => Number(String(v || '').replace(/,/g, '')) || 0;
+  const datosK = k.reparto === 'medidor' ? { lecturas: Object.fromEntries(S.D.aptos.map(a => [a, { anterior: num(fd.get('ant_' + a)), actual: num(fd.get('act_' + a)) }])) } : { montos: Object.fromEntries(S.D.aptos.map(a => [a, num(fd.get('m_' + a))])) };
+  if (k.reparto === 'medidor' && S.D.aptos.some(a => datosK.lecturas[a].actual && datosK.lecturas[a].actual < datosK.lecturas[a].anterior)) return toast('Hay una lectura actual menor que la anterior. Revísela.', true);
+  $('#dlg').close();
+  await enviar('ctb_guardar', { tabla: 'conceptos', operacion: 'editar', id: k.id, datos: datosK }, 'Guardado.');
+});
+function vistaPrevia() {
+  const per = S.periodo, c = cfg();
+  const yaOrd = new Set(S.D.recibos.filter(r => r.periodo === per && K.activo(r) && r.tipo === 'ordinaria').map(r => r.apartamento));
+  const prev = K.armarRecibos({ periodo: per, conceptos: S.D.conceptos, aptos: S.D.aptos.filter(a => !yaOrd.has(a)), valores: valoresParam(), config: c, emision: hoy() <= K.finDe(per) && hoy() >= K.inicioDe(per) ? hoy() : K.inicioDe(per) });
+  const favor = K.aFavor(S.D.cobros), sald = K.conSaldo(S.D.recibos, S.D.cobros);
+  return prev.map(r => Object.assign(r, { deuda: K.p(sald.filter(x => x.apartamento === r.apartamento).reduce((s, x) => s + K.c(x.saldo), 0)), favor: favor[r.apartamento] || 0 }));
+}
+function cuotasRevisar() {
+  const prev = vistaPrevia(), tot = prev.reduce((s, r) => s + K.c(r.total), 0), cruces = prev.filter(r => r.favor > 0);
+  const vig = prev.filter(r => { const ant = S.D.recibos.find(x => x.apartamento === r.apartamento && x.periodo === K.sumarMeses(S.periodo, -1) && x.tipo === 'ordinaria' && K.activo(x)); return ant && K.c(r.total) < K.c(ant.total) * 0.95; });
+  return '<div class="card"><div class="cab"><h2>Recibos de ' + esc(mesTxt(S.periodo)) + ' · vista previa</h2><span class="nota">Vencen el ' + fecha(K.conDia(S.periodo, cfg().vence_dia)) + '</span></div>' +
+    (vig.length ? '<ul class="alertas"><li class="ambar">Vigía: ' + plural(vig.length, 'recibo baja', 'recibos bajan') + ' más de 5 % frente al mes anterior (' + vig.map(r => esc(r.apartamento)).join(', ') + '). Confirme que la Junta lo aprobó.</li></ul>' : '') +
+    tabla(['Apto.', 'Conceptos', '$Este recibo', '$Deuda anterior', '$A favor (se cruza)'], prev.map(r => '<tr><td><b>' + esc(r.apartamento) + '</b></td><td>' + r.lineas.map(l => esc(l.concepto) + ' ' + din0(l.monto)).join(' · ') + '</td><td class="num"><b>' + dinero(r.total) + '</b></td><td class="num ' + (r.deuda ? 'rojo-t' : '') + '">' + (r.deuda ? dinero(r.deuda) : '') + '</td><td class="num verde-t">' + (r.favor ? dinero(Math.min(r.favor, r.total)) : '') + '</td></tr>'),
+      conceptosMes(S.periodo).length ? 'Todos los apartamentos ya tienen su recibo ordinario de este mes.' : 'Agregue primero los conceptos del mes (paso 1).',
+      prev.length ? '<tfoot><tr><td colspan="2"><b>' + plural(prev.length, 'recibo', 'recibos') + '</b></td><td class="num"><b>' + dinero(K.p(tot)) + '</b></td><td></td><td></td></tr></tfoot>' : '') +
+    (prev.length && puede() ? '<div class="acciones-fila"><button class="btn primario" data-generar>Generar ' + plural(prev.length, 'recibo', 'recibos') + '</button>' + (cruces.length ? '<span class="nota">Se cruzará el saldo a favor de ' + plural(cruces.length, 'apartamento', 'apartamentos') + '.</span>' : '') + '</div>' : '') + '</div>';
+}
+document.addEventListener('click', async e => {
+  if (!e.target.closest('[data-generar]')) return;
+  const prev = vistaPrevia(); if (!prev.length) return;
+  e.target.closest('button').disabled = true;
+  const cruces = prev.filter(r => r.favor > 0).map(r => ({ apartamento: r.apartamento, fecha: r.emision, aplicaciones: [{ tipo: r.tipo, monto: Math.min(r.favor, r.total) }] }));
+  const ok = await enviar('ctb_recibos', { periodo: S.periodo, recibos: prev.map(r => ({ apartamento: r.apartamento, emision: r.emision, vence: r.vence, tipo: r.tipo, lineas: r.lineas, total: r.total })), cruces }, plural(prev.length, 'recibo generado', 'recibos generados') + '.');
+  if (ok) { S.sub.cuotas = 'recibos'; pintar(); }
+});
+function cuotasRecibos() {
+  const rs = K.conSaldo(S.D.recibos.filter(r => r.periodo === S.periodo), S.D.cobros).sort((a, b) => a.numero.localeCompare(b.numero));
+  const tot = rs.reduce((s, r) => s + K.c(r.total), 0), pag = rs.reduce((s, r) => s + K.c(r.pagado), 0);
+  return '<div class="card"><div class="cab"><h2>Recibos de ' + esc(mesTxt(S.periodo)) + '</h2>' + (rs.length ? '<button class="btn" data-imprimir-todos>Imprimir todos</button>' : '') + '</div>' +
+    (rs.length ? '<div class="kpis"><div class="kpi"><span>Emitido</span><b>' + din0(K.p(tot)) + '</b></div><div class="kpi"><span>Cobrado</span><b>' + din0(K.p(pag)) + '</b><small>' + (tot ? Math.round(pag * 100 / tot) : 0) + ' %</small></div><div class="kpi"><span>Pendiente</span><b>' + din0(K.p(tot - pag)) + '</b></div></div>' : '') +
+    tabla(['Número', 'Apto.', 'Tipo', 'Vence', '$Total', '$Pagado', '$Saldo', ''], rs.map(r => '<tr><td>' + esc(r.numero) + '</td><td><b>' + esc(r.apartamento) + '</b></td><td>' + esc(r.tipo) + '</td><td>' + fecha(r.vence) + '</td><td class="num">' + dinero(r.total) + '</td><td class="num">' + (r.pagado ? dinero(r.pagado) : '') + '</td><td class="num ' + (r.saldo && r.vence < hoy() ? 'rojo-t' : '') + '">' + (r.saldo ? dinero(r.saldo) : '<span class="chip verde">Pagado</span>') + '</td><td>' +
+      '<button class="btn" data-recibo="' + esc(r.id) + '">Ver</button>' + (puede() && !r.pagado ? ' <button class="btn" data-anular="recibos|' + esc(r.id) + '" data-titulo="Anular el recibo ' + esc(r.numero) + '">Anular</button>' : '') + '</td></tr>'), 'No hay recibos de este mes.') +
+    '<p class="mini">El envío automático por correo y por el bot se conecta en la siguiente parte. Mientras tanto, «Imprimir todos» da un PDF con un recibo por página.</p></div>';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-imprimir-todos]')) return;
+  const rs = S.D.recibos.filter(r => r.periodo === S.periodo && K.activo(r)).sort((a, b) => a.numero.localeCompare(b.numero));
+  imprimir('Recibos ' + S.periodo, rs.map(r => '<div class="salto">' + htmlRecibo(r) + '</div>').join(''));
+});
+function cuotasOtros() {
+  const mora = K.calcularMora({ recibos: S.D.recibos, cobros: S.D.cobros, config: cfg(), periodo: S.periodo, fecha: hoy() });
+  const c = cfg();
+  return '<div class="dos">' + (puede() ? '<form class="card" id="f-individual"><h2>Cuota individual</h2><p class="nota">Un cargo a un solo apartamento: una reparación que causó, una multa aprobada, una tarjeta de acceso.</p><div class="form">' +
+    '<label>Apartamento<select name="apto" required>' + opcAptos('') + '</select></label><label>Rubro<select name="rubro" required>' + opcRubros('ingreso') + '</select></label>' +
+    '<label class="ancho">Concepto<input name="concepto" required></label><label>Monto (RD$)<input name="monto" inputmode="decimal" required></label><label>Vence<input type="date" name="vence" required value="' + K.conDia(S.periodo, c.vence_dia) + '"></label></div>' +
+    '<div class="acciones-fila"><button class="btn primario" type="submit">Crear el recibo</button></div></form>' : '') +
+    '<div class="card"><h2>Mora de ' + esc(mesTxt(S.periodo)) + '</h2>' + (c.mora_tipo === 'ninguna' ? '<p class="nota">Esta torre no cobra mora. Si la Junta la aprobó, configúrela en <a href="#config" data-sec="config">Configuración</a>.</p>' :
+      '<p class="nota">Regla: ' + (c.mora_tipo === 'porcentaje' ? esc(c.mora_valor) + ' % sobre lo vencido' : din0(c.mora_valor) + ' fijo por apartamento') + ', después de ' + plural(Number(c.mora_dias_gracia) || 0, 'día', 'días') + ' de gracia. Nunca se cobra mora sobre mora.</p>' +
+      tabla(['Apto.', '$Vencido', '$Mora'], mora.map(m => '<tr><td>' + esc(m.apartamento) + '</td><td class="num">' + dinero(m.base) + '</td><td class="num"><b>' + dinero(m.total) + '</b></td></tr>'), 'Nadie debe mora este mes (o ya se generó).') +
+      (mora.length && puede() ? '<div class="acciones-fila"><button class="btn primario" data-mora>Generar ' + plural(mora.length, 'cargo', 'cargos') + ' de mora</button></div>' : '')) + '</div></div>';
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-individual') return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target)), monto = K.r2(String(f.monto).replace(/,/g, ''));
+  if (!(monto > 0)) return toast('Escriba el monto.', true);
+  await enviar('ctb_recibos', { periodo: S.periodo, recibos: [{ apartamento: f.apto, emision: hoy() > K.finDe(S.periodo) ? K.finDe(S.periodo) : hoy() < K.inicioDe(S.periodo) ? K.inicioDe(S.periodo) : hoy(), vence: f.vence, tipo: 'individual', lineas: [{ concepto: f.concepto, rubro: f.rubro, tipo: 'individual', monto }], total: monto }] }, 'Recibo creado.');
+});
+document.addEventListener('click', async e => {
+  if (!e.target.closest('[data-mora]')) return;
+  const mora = K.calcularMora({ recibos: S.D.recibos, cobros: S.D.cobros, config: cfg(), periodo: S.periodo, fecha: hoy() });
+  await enviar('ctb_recibos', { periodo: S.periodo, recibos: mora.map(m => ({ apartamento: m.apartamento, emision: m.emision > K.finDe(S.periodo) ? K.finDe(S.periodo) : m.emision, vence: m.vence, tipo: 'mora', lineas: m.lineas, total: m.total })) }, 'Cargos de mora generados.');
+});
+
+// ================================================================== COBROS
+function vCobros() {
+  const n = S.D.notificados.filter(x => x.estado === 'pendiente').length, s = S.D.sin_identificar.filter(x => x.estado === 'pendiente').length;
+  const sub = subAct('cobros', 'cobrar');
+  return subtabs('cobros', [['cobrar', 'Cobrar'], ['avisos', 'Avisos de pago', n], ['sin', 'Depósitos sin identificar', s], ['otros', 'Otros ingresos'], ['historial', 'Historial']]) +
+    ({ cobrar: cobrosCobrar, avisos: cobrosAvisos, sin: cobrosSin, otros: cobrosOtros, historial: cobrosHistorial }[sub])();
+}
+function cobrosCobrar() {
+  const k = S.cobro || { apartamento: S.apto, fecha: hoy(), monto: '', forma: 'transferencia', cuenta_id: (cuentasAct().find(c => c.tipo === 'banco') || {}).id || '', referencia: '', origen: 'directo', origen_id: '', marcados: null };
+  S.cobro = k;
+  const apto = k.apartamento, ec = apto ? K.estadoCuenta(apto, S.D.recibos, S.D.cobros) : null;
+  const monto = Number(String(k.monto || '').replace(/,/g, '')) || 0;
+  const pend = ec ? ec.pendientes : [], marcados = k.marcados || pend.map(r => r.id);
+  const ap = monto > 0 && ec ? K.aplicarCobro({ monto, fecha: k.fecha, pendientes: pend, config: cfg(), orden: marcados }) : null;
+  const origenTxt = k.origen === 'notificado' ? 'Aprobando un aviso de pago del residente.' : k.origen === 'sin_identificar' ? 'Identificando un depósito: el dinero ya está en la cuenta.' : '';
+  return '<form class="card" id="f-cobro"><h2>Registrar un cobro</h2>' + (origenTxt ? '<div class="aviso-edicion" style="margin-bottom:10px">' + origenTxt + ' <button type="button" class="btn" data-cobro-limpiar>Cancelar</button></div>' : '') +
+    '<div class="form"><label>Apartamento<select name="apartamento" required>' + opcAptos(apto) + '</select></label><label>Fecha del pago<input type="date" name="fecha" required value="' + esc(k.fecha) + '"></label>' +
+    '<label>Monto recibido (RD$)<input name="monto" inputmode="decimal" required value="' + esc(k.monto) + '"' + (k.origen === 'sin_identificar' ? ' readonly' : '') + '></label>' +
+    '<label>Forma<select name="forma">' + ['transferencia', 'depósito', 'cheque', 'efectivo', 'tarjeta'].map(x => '<option' + (x === k.forma ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label>' +
+    (k.origen === 'sin_identificar' ? '' : '<label>Cuenta donde entró<select name="cuenta_id" required>' + opcCuentas(k.cuenta_id) + '</select></label>') + '<label>Referencia<input name="referencia" value="' + esc(k.referencia) + '"></label></div>' +
+    (ec ? '<h2 style="margin-top:16px">Recibos pendientes del apto. ' + esc(apto) + '</h2>' + tabla(['', 'Recibo', 'Mes', 'Vence', '$Saldo', '$Se aplica', '$Descuento'], pend.map(r => {
+      const x = ap && ap.aplicaciones.find(y => y.recibo_id === r.id);
+      return '<tr><td><input type="checkbox" data-marcar="' + esc(r.id) + '"' + (marcados.indexOf(r.id) >= 0 ? ' checked' : '') + ' aria-label="Aplicar a ' + esc(r.numero) + '"></td><td>' + esc(r.numero) + '</td><td>' + esc(mesTxt(r.periodo)) + (r.tipo !== 'ordinaria' ? ' · ' + esc(r.tipo) : '') + '</td><td class="' + (r.vence < hoy() ? 'rojo-t' : '') + '">' + fecha(r.vence) + '</td><td class="num">' + dinero(r.saldo) + '</td><td class="num"><b>' + (x ? dinero(x.monto) : '') + '</b></td><td class="num verde-t">' + (x && x.descuento ? dinero(x.descuento) : '') + '</td></tr>';
+    }), 'Este apartamento no tiene recibos pendientes. Lo que pague quedará a su favor.') +
+      '<div class="formula" style="margin-top:10px"><span>Deuda pendiente</span><b>' + dinero(ec.deuda) + '</b><span>Saldo a favor actual</span><b>' + dinero(ec.a_favor) + '</b>' +
+      (ap ? '<span>Se aplica a recibos</span><b>' + dinero(K.p(ap.aplicaciones.reduce((s, x) => s + K.c(x.monto), 0))) + '</b>' + (ap.descuento ? '<span>Descuento por pronto pago</span><b class="verde-t">' + dinero(ap.descuento) + '</b>' : '') + '<span class="tot">Queda a favor</span><b class="tot">' + dinero(ap.a_favor) + '</b>' : '') + '</div>' : '') +
+    (puede() ? '<div class="acciones-fila"><button class="btn primario" type="submit"' + (ap ? '' : ' disabled') + '>Registrar el cobro</button></div>' : '') + '</form>';
+}
+document.addEventListener('input', e => {
+  const f = e.target.form; if (!f || f.id !== 'f-cobro') return;
+  Object.assign(S.cobro, { [e.target.name]: e.target.value });
+  if (e.target.name === 'monto' || e.target.name === 'fecha') { clearTimeout(S.tCobro); S.tCobro = setTimeout(() => { const pos = e.target.selectionStart, nom = e.target.name; pintar(); const el = $('#f-cobro [name="' + nom + '"]'); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (er) { /* fecha */ } } }, 350); }
+});
+document.addEventListener('change', e => {
+  const f = e.target.form;
+  if (f && f.id === 'f-cobro') {
+    if (e.target.dataset.marcar) { const id = e.target.dataset.marcar; const ec = K.estadoCuenta(S.cobro.apartamento, S.D.recibos, S.D.cobros); const m = S.cobro.marcados || ec.pendientes.map(r => r.id); S.cobro.marcados = e.target.checked ? m.concat([id]) : m.filter(x => x !== id); pintar(); return; }
+    S.cobro[e.target.name] = e.target.value; if (e.target.name === 'apartamento') { S.cobro.marcados = null; S.apto = e.target.value; } pintar();
+  }
+});
+document.addEventListener('click', e => { if (e.target.closest('[data-cobro-limpiar]')) { S.cobro = null; pintar(); } });
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-cobro') return; e.preventDefault();
+  const k = S.cobro, ec = K.estadoCuenta(k.apartamento, S.D.recibos, S.D.cobros), monto = Number(String(k.monto).replace(/,/g, ''));
+  const ap = K.aplicarCobro({ monto, fecha: k.fecha, pendientes: ec.pendientes, config: cfg(), orden: k.marcados || ec.pendientes.map(r => r.id) });
+  const vig = K.vigiaCobros(Object.assign({}, S.D, { cobros: S.D.cobros.concat([{ id: 'nuevo', apartamento: k.apartamento, fecha: k.fecha, monto, referencia: k.referencia, origen: k.origen }]) }), hoy()).filter(a => a.regla === 'C1' && (a.ids || []).indexOf('nuevo') >= 0);
+  if (vig.length && !confirm(vig[0].texto + '\n\n¿Registrarlo de todos modos?')) return;
+  {
+    const ok = await enviar('ctb_cobrar', { cobro: { apartamento: k.apartamento, fecha: k.fecha, monto, forma: k.forma, cuenta_id: k.cuenta_id, referencia: k.referencia, origen: k.origen, origen_id: k.origen_id, aplicaciones: ap.aplicaciones } }, 'Cobro registrado.');
+    if (!ok) return;
+    const nuevo = S.D.cobros.filter(x => x.apartamento === k.apartamento).slice(-1)[0];
+    S.cobro = null; pintar();
+    if (nuevo) dialogo('<h2>Cobro registrado</h2><p>' + dinero(nuevo.monto) + ' del apto. ' + esc(nuevo.apartamento) + '.' + (Number(nuevo.a_favor) ? ' Queda a favor ' + dinero(nuevo.a_favor) + '.' : '') + '</p><button class="btn primario" data-constancia="' + esc(nuevo.id) + '">Imprimir la constancia</button>');
+  }
+});
+function cobrosAvisos() {
+  const pend = S.D.notificados.filter(x => x.estado === 'pendiente'), otros = S.D.notificados.filter(x => x.estado !== 'pendiente').slice(-30).reverse();
+  const enlace = S.D.codigo_qr ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'pago.html?c=' + S.D.codigo_qr : '';
+  return '<div class="card"><h2>Avisos de pago por revisar</h2><p class="nota">El residente avisa que pagó y sube el comprobante. Compárelo con el banco: «Aprobar» lo registra como cobro; «Rechazar» le explica el motivo.</p>' +
+    tabla(['Recibido', 'Apto.', 'Fecha del pago', '$Monto', 'Banco · ref.', 'Comprobante', ''], pend.map(n => '<tr><td>' + fecha(n.fecha_aviso) + '</td><td><b>' + esc(n.apartamento) + '</b>' + (n.nombre ? '<br><small>' + esc(n.nombre) + '</small>' : '') + '</td><td>' + fecha(n.fecha) + '</td><td class="num">' + dinero(n.monto) + '</td><td>' + esc(n.banco) + (n.referencia ? ' · ' + esc(n.referencia) : '') + '</td><td>' +
+      (n.comprobante_url ? '<a href="' + esc(n.comprobante_url) + '" target="_blank" rel="noopener">Ver</a>' : '<span class="nota">Sin archivo</span>') + '</td><td>' + (puede() ? '<button class="btn primario" data-aprobar-aviso="' + esc(n.id) + '">Aprobar</button> <button class="btn" data-rechazar-aviso="' + esc(n.id) + '">Rechazar</button>' : '') + '</td></tr>'), 'No hay avisos pendientes.') + '</div>' +
+    '<div class="card"><h2>Para los residentes</h2>' + (enlace ? '<p>Enlace para avisar un pago (el mismo código QR del lobby de la torre): <a href="' + esc(enlace) + '" target="_blank" rel="noopener">' + esc(enlace) + '</a></p>' : '<p class="nota">La torre todavía no tiene código QR. Créelo en Condominios › Códigos QR del lobby; sirve para la encuesta y para avisar pagos.</p>') + '</div>' +
+    (otros.length ? '<div class="card"><h2>Revisados</h2>' + tabla(['Apto.', 'Fecha', '$Monto', 'Estado', 'Revisó'], otros.map(n => '<tr><td>' + esc(n.apartamento) + '</td><td>' + fecha(n.fecha) + '</td><td class="num">' + dinero(n.monto) + '</td><td><span class="chip ' + (n.estado === 'aprobado' ? 'verde' : 'rojo') + '">' + esc(n.estado) + '</span>' + (n.motivo ? '<br><small>' + esc(n.motivo) + '</small>' : '') + '</td><td>' + esc(n.revisado_por) + '</td></tr>'), '') + '</div>' : '');
+}
+document.addEventListener('click', async e => {
+  const a = e.target.closest('[data-aprobar-aviso]');
+  if (a) { const n = S.D.notificados.find(x => x.id === a.dataset.aprobarAviso); S.cobro = { apartamento: n.apartamento, fecha: n.fecha, monto: String(n.monto), forma: 'transferencia', cuenta_id: (cuentasAct().find(c => c.tipo === 'banco') || {}).id || '', referencia: n.referencia, origen: 'notificado', origen_id: n.id, marcados: null }; S.sub.cobros = 'cobrar'; pintar(); }
+  const r = e.target.closest('[data-rechazar-aviso]');
+  if (r) { const m = await pedirMotivo('Rechazar el aviso de pago'); if (m) await enviar('ctb_notificado_rechazar', { id: r.dataset.rechazarAviso, motivo: m }, 'Aviso rechazado.'); }
+});
+function cobrosSin() {
+  const pend = S.D.sin_identificar.filter(x => x.estado === 'pendiente'), id = S.D.sin_identificar.filter(x => x.estado === 'identificado').slice(-20).reverse();
+  return (puede() ? '<form class="card" id="f-sin"><h2>Registrar un depósito sin identificar</h2><p class="nota">Un crédito del banco que no se sabe de quién es. Queda en espera hasta identificarlo; el dinero ya cuenta en el banco.</p><div class="form">' +
+    '<label>Fecha<input type="date" name="fecha" required value="' + hoy() + '"></label><label>Monto (RD$)<input name="monto" inputmode="decimal" required></label><label>Cuenta<select name="cuenta_id" required>' + opcCuentas('', 'banco') + '</select></label>' +
+    '<label>Referencia<input name="referencia"></label><label class="ancho">Descripción del banco<input name="descripcion"></label></div><div class="acciones-fila"><button class="btn primario" type="submit">Registrar</button></div></form>' : '') +
+    '<div class="card"><h2>Por identificar</h2>' + tabla(['Fecha', '$Monto', 'Cuenta', 'Referencia', 'Días', ''], pend.map(x => '<tr><td>' + fecha(x.fecha) + '</td><td class="num"><b>' + dinero(x.monto) + '</b></td><td>' + esc(nomCuenta(x.cuenta_id)) + '</td><td>' + esc(x.referencia) + (x.descripcion ? '<br><small>' + esc(x.descripcion) + '</small>' : '') + '</td><td class="' + (K.dias(x.fecha, hoy()) > 15 ? 'rojo-t' : '') + '">' + K.dias(x.fecha, hoy()) + '</td><td>' +
+      (puede() ? '<button class="btn primario" data-identificar="' + esc(x.id) + '">Identificar</button> <button class="btn" data-anular="sin_identificar|' + esc(x.id) + '" data-titulo="Anular el depósito">Anular</button>' : '') + '</td></tr>'), 'No hay depósitos por identificar.') + '</div>' +
+    (id.length ? '<div class="card"><h2>Identificados</h2>' + tabla(['Fecha', '$Monto', 'Referencia', 'Cobro'], id.map(x => { const k = S.D.cobros.find(c => c.id === x.cobro_id); return '<tr><td>' + fecha(x.fecha) + '</td><td class="num">' + dinero(x.monto) + '</td><td>' + esc(x.referencia) + '</td><td>' + (k ? 'Apto. ' + esc(k.apartamento) : '') + '</td></tr>'; }), '') + '</div>' : '');
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-sin') return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target)); f.monto = K.r2(String(f.monto).replace(/,/g, ''));
+  await enviar('ctb_guardar', { tabla: 'sin_identificar', operacion: 'crear', datos: f }, 'Depósito registrado.');
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-identificar]'); if (!b) return;
+  const x = S.D.sin_identificar.find(y => y.id === b.dataset.identificar);
+  S.cobro = { apartamento: '', fecha: x.fecha, monto: String(x.monto), forma: 'depósito', cuenta_id: x.cuenta_id, referencia: x.referencia, origen: 'sin_identificar', origen_id: x.id, marcados: null };
+  S.sub.cobros = 'cobrar'; pintar(); toast('Elija el apartamento al que pertenece el depósito.');
+});
+function cobrosOtros() {
+  const ls = S.D.ingresos.filter(K.activo).slice().reverse();
+  return (puede() ? '<form class="card" id="f-ingreso"><h2>Registrar otro ingreso</h2><p class="nota">Ingresos que no son cuotas: intereses del banco, alquiler de un espacio, venta de tarjetas de acceso.</p><div class="form">' +
+    '<label>Fecha<input type="date" name="fecha" required value="' + hoy() + '"></label><label>Rubro<select name="rubro" required>' + opcRubros('ingreso') + '</select></label><label>Monto (RD$)<input name="monto" inputmode="decimal" required></label>' +
+    '<label>Cuenta<select name="cuenta_id" required>' + opcCuentas('') + '</select></label><label class="ancho">Detalle<input name="detalle" required></label></div><div class="acciones-fila"><button class="btn primario" type="submit">Registrar</button></div></form>' : '') +
+    '<div class="card"><h2>Otros ingresos</h2>' + tabla(['Fecha', 'Rubro', 'Detalle', 'Cuenta', '$Monto', ''], ls.map(x => '<tr><td>' + fecha(x.fecha) + '</td><td>' + esc(nomRubro(x.rubro)) + '</td><td>' + esc(x.detalle) + '</td><td>' + esc(nomCuenta(x.cuenta_id)) + '</td><td class="num">' + dinero(x.monto) + '</td><td>' + (puede() ? '<button class="btn" data-anular="ingresos|' + esc(x.id) + '">Anular</button>' : '') + '</td></tr>'), 'No hay otros ingresos.') + '</div>';
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-ingreso') return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target)); f.monto = K.r2(String(f.monto).replace(/,/g, ''));
+  await enviar('ctb_guardar', { tabla: 'ingresos', operacion: 'crear', datos: f }, 'Ingreso registrado.');
+});
+function cobrosHistorial() {
+  const ini = K.inicioDe(S.periodo), fin = K.finDe(S.periodo);
+  const ls = S.D.cobros.filter(k => k.fecha >= ini && k.fecha <= fin).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const ORIG = { directo: 'Directo', notificado: 'Aviso del residente', sin_identificar: 'Depósito identificado', en_linea: 'Pago en línea', cruce: 'Saldo a favor aplicado' };
+  return '<div class="card"><h2>Cobros de ' + esc(mesTxt(S.periodo)) + '</h2>' + tabla(['Fecha', 'Apto.', 'Origen', 'Forma · ref.', 'Cuenta', '$Monto', '$A favor', ''], ls.map(k => '<tr' + (k.estado === 'anulado' ? ' style="opacity:.5"' : '') + '><td>' + fecha(k.fecha) + '</td><td><b>' + esc(k.apartamento) + '</b></td><td>' + esc(ORIG[k.origen] || k.origen) + '</td><td>' + esc(k.forma) + (k.referencia ? ' · ' + esc(k.referencia) : '') + '</td><td>' + esc(k.cuenta_id ? nomCuenta(k.cuenta_id) : '') + '</td><td class="num">' + dinero(k.monto) + '</td><td class="num">' + (Number(k.a_favor) ? dinero(k.a_favor) : '') + '</td><td>' +
+    (k.estado === 'anulado' ? '<span class="chip rojo">Anulado</span>' : (k.origen !== 'cruce' ? '<button class="btn" data-constancia="' + esc(k.id) + '">Constancia</button> ' : '') + (puede() ? '<button class="btn" data-anular="cobros|' + esc(k.id) + '" data-titulo="Anular el cobro del apto. ' + esc(k.apartamento) + '">Anular</button>' : '')) + '</td></tr>'), 'No hay cobros en este mes.') + '</div>';
+}
+
+// ================================================================== COBRANZA
+function vCobranza() {
+  if (S.apto && S.sub.cobranza === 'apto') return cobranzaApto();
+  const ant = K.antiguedad(S.D.recibos, S.D.cobros, hoy());
+  const gest = {}; S.D.gestiones.forEach(g => { (gest[g.apartamento] = gest[g.apartamento] || []).push(g); });
+  const acu = {}; S.D.acuerdos.filter(a => a.estado === 'vigente').forEach(a => { acu[a.apartamento] = K.estadoAcuerdo(a, S.D.cobros, hoy()); });
+  return '<div class="card"><div class="cab"><h2>Cartera por antigüedad</h2><span class="nota">al ' + fecha(hoy()) + '</span></div>' +
+    tabla(['Apto.'].concat(K.TRAMOS.map(([, t]) => '$' + t), ['$Total', 'Seguimiento', '']), ant.filas.map(f => {
+      const g = (gest[f.apartamento] || []).slice(-1)[0], a = acu[f.apartamento];
+      return '<tr class="pegar" data-ver-apto="' + esc(f.apartamento) + '"><td><b>' + esc(f.apartamento) + '</b></td>' + K.TRAMOS.map(([k]) => '<td class="num ' + (k === 'mas' && f[k] ? 'rojo-t' : '') + '">' + (f[k] ? din0(f[k]) : '') + '</td>').join('') + '<td class="num"><b>' + din0(f.total) + '</b></td><td>' +
+        (a ? '<span class="chip ' + (a.estado === 'incumplido' ? 'rojo' : 'verde') + '">Acuerdo ' + esc(a.estado) + '</span> ' : '') + (g ? '<small>' + esc(g.tipo) + ' · ' + fecha(g.fecha) + '</small>' : '<small class="nota">Sin gestiones</small>') + '</td><td><button class="btn" data-ver-apto="' + esc(f.apartamento) + '">Abrir</button></td></tr>';
+    }), 'Ningún apartamento tiene deuda.', ant.filas.length ? '<tfoot><tr><td><b>Total</b></td>' + K.TRAMOS.map(([k]) => '<td class="num"><b>' + din0(ant.total[k]) + '</b></td>').join('') + '<td class="num"><b>' + din0(ant.total.total) + '</b></td><td></td><td></td></tr></tfoot>' : '') +
+    '<p class="mini">Días contados desde el vencimiento de cada recibo. La lista muestra el apartamento, no el nombre del residente.</p></div>';
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-ver-apto]'); if (b) { S.apto = b.dataset.verApto; S.sub.cobranza = 'apto'; pintar(); window.scrollTo(0, 0); } if (e.target.closest('[data-volver-cartera]')) { S.sub.cobranza = 'lista'; pintar(); } });
+function cobranzaApto() {
+  const a = S.apto, ec = K.estadoCuenta(a, S.D.recibos, S.D.cobros);
+  const gs = S.D.gestiones.filter(g => g.apartamento === a).slice().reverse(), acs = S.D.acuerdos.filter(x => x.apartamento === a).slice().reverse();
+  return '<div class="card resumen"><div><h1>Apto. ' + esc(a) + '</h1><p class="nota" style="margin:0">Debe ' + dinero(ec.deuda) + (ec.a_favor ? ' · a favor ' + dinero(ec.a_favor) : '') + '</p></div><div class="acciones"><button class="btn" data-volver-cartera>← Cartera</button><button class="btn" data-imprimir-ec>Imprimir estado de cuenta</button>' +
+    (puede() ? '<button class="btn primario" data-cobrar-apto>Cobrar</button>' : '') + '</div></div>' +
+    '<div class="dos"><div class="card"><h2>Gestiones de cobro</h2>' + (puede() ? '<form id="f-gestion" class="form"><label>Tipo<select name="tipo"><option>llamada</option><option>mensaje</option><option>correo</option><option>visita</option><option>carta</option></select></label><label>Próxima gestión<input type="date" name="proxima"></label><label class="ancho">Nota<textarea name="nota" required placeholder="Qué se habló o se acordó"></textarea></label><div class="ancho"><button class="btn primario" type="submit">Anotar</button></div></form>' : '') +
+    (gs.length ? '<ul class="alertas" style="margin-top:12px">' + gs.map(g => '<li><b>' + esc(g.tipo) + '</b> · ' + fecha(g.fecha) + ' · ' + esc(g.creado_por) + '<br>' + esc(g.nota) + (g.proxima ? '<br><small>Próxima: ' + fecha(g.proxima) + '</small>' : '') + '</li>').join('') + '</ul>' : '<p class="nota">Sin gestiones todavía.</p>') + '</div>' +
+    '<div class="card"><h2>Acuerdos de pago</h2>' + acs.map(x => { const st = K.estadoAcuerdo(x, S.D.cobros, hoy()); return '<div class="caja" style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px"><b>' + dinero(x.total) + ' en ' + plural((x.cuotas || []).length, 'cuota', 'cuotas') + '</b> desde ' + fecha(x.fecha) + ' <span class="chip ' + (st.estado === 'incumplido' ? 'rojo' : st.estado === 'cumplido' ? 'verde' : st.estado === 'anulado' ? '' : 'azul') + '">' + esc(st.estado) + '</span>' +
+      (st.estado === 'incumplido' ? '<br><small class="rojo-t">Atraso de ' + dinero(st.atraso) + ' desde el ' + fecha(st.desde) + '</small>' : st.pagado !== undefined ? '<br><small>Pagado ' + dinero(st.pagado) + ' de ' + dinero(st.total) + (st.proxima ? ' · próxima cuota ' + fecha(st.proxima) : '') + '</small>' : '') +
+      '<table style="margin-top:6px"><tbody>' + (x.cuotas || []).map(q => '<tr><td>' + fecha(q.vence) + '</td><td class="num">' + dinero(q.monto) + '</td></tr>').join('') + '</tbody></table>' + (puede() && x.estado === 'vigente' ? '<button class="btn" data-anular="acuerdos|' + esc(x.id) + '" data-titulo="Anular el acuerdo">Anular</button>' : '') + '</div>'; }).join('') +
+    (puede() && ec.deuda > 0 && !acs.some(x => x.estado === 'vigente') ? '<form id="f-acuerdo" class="form"><label>Monto del acuerdo<input name="total" inputmode="decimal" value="' + esc(ec.deuda) + '"></label><label>Cuotas<input type="number" name="n" min="1" max="24" value="3"></label><label>Primera cuota<input type="date" name="primera" required value="' + K.conDia(K.sumarMeses(hoy().slice(0, 7), 1), 15) + '"></label><label class="ancho">Nota<input name="nota" placeholder="Condiciones acordadas"></label><div class="ancho"><button class="btn primario" type="submit">Crear el acuerdo</button></div></form>' : (acs.length ? '' : '<p class="nota">Sin acuerdos.</p>')) + '</div></div>' +
+    '<div class="card"><h2>Estado de cuenta</h2>' + tabla(['Fecha', 'Detalle', '$Cargo', '$Abono', '$Saldo'], ec.movimientos.map(m => '<tr><td>' + fecha(m.fecha) + '</td><td>' + esc(m.detalle) + '</td><td class="num">' + (m.cargo ? dinero(m.cargo) : '') + '</td><td class="num">' + (m.abono ? dinero(m.abono) : '') + '</td><td class="num">' + dinero(m.saldo) + '</td></tr>'), 'Sin movimientos.') + '</div>';
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id === 'f-gestion') { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); await enviar('ctb_guardar', { tabla: 'gestiones', operacion: 'crear', datos: Object.assign(f, { apartamento: S.apto, fecha: hoy() }) }, 'Gestión anotada.'); }
+  if (e.target.id === 'f-acuerdo') { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), total = K.r2(String(f.total).replace(/,/g, ''));
+    if (!(total > 0)) return toast('Escriba el monto.', true);
+    const recibosAcuerdo = K.estadoCuenta(S.apto, S.D.recibos, S.D.cobros).pendientes.map(r => r.id);
+    await enviar('ctb_guardar', { tabla: 'acuerdos', operacion: 'crear', datos: { apartamento: S.apto, fecha: hoy(), total, cuotas: K.planCuotas(total, Number(f.n) || 1, f.primera), recibos: recibosAcuerdo, nota: f.nota } }, 'Acuerdo creado.'); }
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-cobrar-apto]')) { S.cobro = null; S.sec = 'cobros'; S.sub.cobros = 'cobrar'; history.replaceState(null, '', '#cobros'); pintar(); S.cobro.apartamento = S.apto; pintar(); }
+  if (e.target.closest('[data-imprimir-ec]')) {
+    const ec = K.estadoCuenta(S.apto, S.D.recibos, S.D.cobros);
+    imprimir('Estado de cuenta ' + S.apto, '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Estado de cuenta</div></div><div style="text-align:right">Apartamento <b>' + esc(S.apto) + '</b><br>al ' + fecha(hoy()) + '</div></div>' +
+      '<table><thead><tr><th>Fecha</th><th>Detalle</th><th class="num">Cargo</th><th class="num">Abono</th><th class="num">Saldo</th></tr></thead><tbody>' + ec.movimientos.map(m => '<tr><td>' + fecha(m.fecha) + '</td><td>' + esc(m.detalle) + '</td><td class="num">' + (m.cargo ? dinero(m.cargo) : '') + '</td><td class="num">' + (m.abono ? dinero(m.abono) : '') + '</td><td class="num">' + dinero(m.saldo) + '</td></tr>').join('') +
+      '</tbody></table><div class="caja">Deuda pendiente <b>' + dinero(ec.deuda) + '</b>' + (ec.a_favor ? ' · saldo a favor ' + dinero(ec.a_favor) : '') + '</div>');
+  }
+});
+
+// ================================================================== PAGOS Y BANCOS
+function vBancos() {
+  const junta = S.D.pagos.filter(p => p.estado !== 'pagada' && K.requiereJunta(p.monto, S.D.config) && p.junta !== 'aprobada').length;
+  const sub = subAct('bancos', 'cuentas');
+  return subtabs('bancos', [['cuentas', 'Cuentas y movimientos'], ['pagos', 'Pagos (rubro y Junta)', junta], ['caja', 'Caja chica y gastos'], ['transferencias', 'Transferencias']]) +
+    ({ cuentas: bancosCuentas, pagos: bancosPagos, caja: bancosCaja, transferencias: bancosTransf }[sub])();
+}
+function bancosCuentas() {
+  const d = datos(), sel = S.sub.cuenta || (cuentasAct()[0] || {}).id;
+  const lib = sel ? K.libro(sel, d) : null, ini = K.inicioDe(S.periodo), fin = K.finDe(S.periodo);
+  const movs = lib ? lib.movimientos.filter(m => m.fecha >= ini && m.fecha <= fin) : [];
+  return '<div class="card"><h2>Cuentas de la torre</h2>' + tabla(['Cuenta', 'Banco · número', 'Tipo', '$Saldo inicial', '$Saldo en libros', ''], (S.D.cuentas || []).map(c => '<tr' + (c.id === sel ? ' class="sel"' : '') + '><td><b>' + esc(c.nombre) + '</b>' + (c.activa === 'no' ? ' <span class="chip">inactiva</span>' : '') + '</td><td>' + esc(c.banco) + ' ' + esc(c.numero ? '·' + String(c.numero).slice(-4) : '') + '</td><td>' + (c.tipo === 'caja_chica' ? 'Caja chica' + (c.tope ? ' · tope ' + din0(c.tope) : '') : 'Banco') + '</td><td class="num">' + dinero(c.saldo_inicial) + '<br><small>al ' + fecha(c.fecha_inicial) + '</small></td><td class="num"><b>' + dinero(K.saldoCuenta(c.id, d)) + '</b></td><td><button class="btn" data-ver-cuenta="' + esc(c.id) + '">Movimientos</button></td></tr>'), 'Todavía no hay cuentas. Agregue la cuenta del banco y la caja chica.') + '</div>' +
+    (lib ? '<div class="card"><div class="cab"><h2>' + esc(lib.cuenta.nombre) + ' · ' + esc(mesTxt(S.periodo)) + '</h2><span class="nota">Saldo al cierre del mes ' + dinero(K.saldoCuenta(sel, d, fin)) + '</span></div>' +
+      tabla(['Fecha', 'Detalle', '$Entrada', '$Salida', '$Saldo'], movs.map(m => '<tr><td>' + fecha(m.fecha) + '</td><td>' + esc(m.detalle) + '</td><td class="num">' + (m.monto > 0 ? dinero(m.monto) : '') + '</td><td class="num">' + (m.monto < 0 ? dinero(-m.monto) : '') + '</td><td class="num">' + dinero(m.saldo) + '</td></tr>'), 'Sin movimientos en este mes.') + '</div>' : '') +
+    (puede() ? '<form class="card" id="f-cuenta"><h2>Agregar cuenta</h2><div class="form"><label>Nombre<input name="nombre" required placeholder="BDI corriente, Caja chica…"></label><label>Tipo<select name="tipo"><option value="banco">Banco</option><option value="caja_chica">Caja chica</option></select></label>' +
+      '<label>Banco<input name="banco" placeholder="BDI, Popular, BHD, Banreservas"></label><label>Número (se muestran los últimos 4)<input name="numero" inputmode="numeric"></label><label>Saldo inicial (RD$)<input name="saldo_inicial" inputmode="decimal" value="0"></label><label>Saldo al<input type="date" name="fecha_inicial" required value="' + K.inicioDe(hoy().slice(0, 7)) + '"></label>' +
+      '<label>Tope (solo caja chica)<input name="tope" inputmode="decimal"></label></div><div class="acciones-fila"><button class="btn primario" type="submit">Agregar</button></div></form>' : '');
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-ver-cuenta]'); if (b) { S.sub.cuenta = b.dataset.verCuenta; pintar(); } });
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-cuenta') return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target)); f.saldo_inicial = K.r2(String(f.saldo_inicial || 0).replace(/,/g, '')); f.tope = f.tope ? K.r2(String(f.tope).replace(/,/g, '')) : ''; f.activa = 'si';
+  await enviar('ctb_guardar', { tabla: 'cuentas', operacion: 'crear', datos: f }, 'Cuenta agregada.');
+});
+function bancosPagos() {
+  const ps = S.D.pagos.slice().sort((a, b) => (a.estado === 'pagada') - (b.estado === 'pagada') || String(b.fecha).localeCompare(String(a.fecha))).slice(0, 200), c = cfg();
+  const hon = K.honorario(c, S.periodo, S.torre);
+  return '<div class="card"><div class="cab"><h2>Cuentas por pagar de la torre</h2><a class="btn" href="torres.html?m=finanzas' + (DEMO ? '&demo=1' : '') + '#/cxp/bandeja">Abrir los 3 pasos</a></div>' +
+    '<p class="nota">Las facturas se registran, aprueban y pagan en Cuentas por pagar (3 pasos, con el Vigía). Aquí se les pone el rubro y la cuenta para los reportes, y se pide la aprobación de la Junta cuando pasan de ' + (Number(c.umbral_junta) ? din0(c.umbral_junta) : '— (sin umbral configurado)') + '.</p>' +
+    tabla(['Fecha', 'Suplidor', '$Monto', 'Estado', 'Rubro', 'Cuenta', 'Junta'], ps.map(p => {
+      const nec = K.requiereJunta(p.monto, c);
+      return '<tr><td>' + fecha(p.fecha || p.pagado_en) + '</td><td><b>' + esc(p.suplidor) + '</b>' + (p.concepto ? '<br><small>' + esc(p.concepto) + '</small>' : '') + '</td><td class="num">' + dinero(p.monto) + '</td><td><span class="chip ' + (p.estado === 'pagada' ? 'verde' : '') + '">' + esc(p.estado) + '</span>' + (p.pagado_en ? '<br><small>' + fecha(p.pagado_en) + '</small>' : '') + '</td>' +
+        '<td>' + (puede() ? '<select data-cxp-rubro="' + esc(p.id) + '" aria-label="Rubro">' + opcRubros('egreso', p.rubro) + '</select>' : esc(nomRubro(p.rubro))) + '</td><td>' + (puede() ? '<select data-cxp-cuenta="' + esc(p.id) + '" aria-label="Cuenta">' + opcCuentas(p.cuenta_id) + '</select>' : esc(nomCuenta(p.cuenta_id))) + '</td>' +
+        '<td>' + (!nec ? '<span class="nota">No hace falta</span>' : p.junta === 'aprobada' ? '<span class="chip verde">Aprobada</span>' : p.junta === 'rechazada' ? '<span class="chip rojo">Rechazada</span>' : p.junta === 'pendiente' ? '<span class="chip ambar">Esperando</span> <button class="btn" data-junta="' + esc(p.id) + '">Enlace</button>' : p.estado === 'pagada' ? '' : (puede() ? '<button class="btn primario" data-junta="' + esc(p.id) + '">Pedir aprobación</button>' : '')) + '</td></tr>';
+    }), 'No hay cuentas por pagar registradas para esta torre.') + '</div>' +
+    '<div class="card"><h2>Honorarios de Stili</h2>' + (hon ? '<p>Monto mensual: <b>' + dinero(hon.monto) + '</b> (rubro ' + esc(nomRubro('E4.1')) + ').</p>' + (puede() ? '<button class="btn primario" data-honorario>Generar los honorarios de ' + esc(mesTxt(S.periodo)) + '</button>' : '') : '<p class="nota">Escriba el monto de los honorarios en <a href="#config" data-sec="config">Configuración</a> para generarlos cada mes como cuenta por pagar.</p>') + '</div>';
+}
+document.addEventListener('change', async e => {
+  const r = e.target.closest('[data-cxp-rubro]'), c = e.target.closest('[data-cxp-cuenta]');
+  if (!r && !c) return;
+  const id = (r || c).dataset.cxpRubro || (r || c).dataset.cxpCuenta, p = S.D.pagos.find(x => x.id === id);
+  await enviar('ctb_guardar', { tabla: 'cxp_rubro', operacion: 'crear', datos: { cxp_id: id, rubro: r ? r.value : p.rubro, cuenta_id: c ? c.value : p.cuenta_id } }, 'Guardado.');
+});
+document.addEventListener('click', async e => {
+  const j = e.target.closest('[data-junta]');
+  if (j) {
+    try {
+      const r = await api('ctb_aprobacion_pedir', { torre: S.torre, cxp_id: j.dataset.junta }); S.D = r; pintar();
+      const p = S.D.pagos.find(x => x.id === j.dataset.junta), c = cfg();
+      const texto = 'Saludos' + (c.junta_nombre ? ' ' + c.junta_nombre : '') + '. Necesitamos su aprobación para pagar ' + dinero(p.monto) + ' a ' + p.suplidor + ' (' + S.torre + '). Puede aprobar o rechazar aquí: ' + r.enlace_junta;
+      dialogo('<h2>Aprobación de la Junta</h2><p>Envíe este enlace al presidente de la Junta' + (c.junta_contacto ? ' (' + esc(c.junta_contacto) + ')' : '') + '. El pago no se puede aprobar ni pagar en Cuentas por pagar hasta que lo apruebe.</p>' +
+        '<textarea style="width:100%;min-height:110px" readonly>' + esc(texto) + '</textarea><div class="acciones-fila"><a class="btn primario" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(texto) + '">Enviar por WhatsApp</a><button class="btn" data-copiar="' + esc(texto) + '">Copiar</button></div>');
+    } catch (err) { toast(err.message, true); }
+  }
+  const cp = e.target.closest('[data-copiar]'); if (cp) { try { await navigator.clipboard.writeText(cp.dataset.copiar); toast('Copiado.'); } catch (err) { toast('No se pudo copiar; selecciónelo a mano.', true); } }
+  if (e.target.closest('[data-honorario]')) await enviar('ctb_honorario', { periodo: S.periodo }, 'Honorarios creados en Cuentas por pagar.');
+});
+function bancosCaja() {
+  const d = datos(), cajas = cuentasAct().filter(c => c.tipo === 'caja_chica');
+  const gs = S.D.gastos.filter(g => K.activo(g) && g.tipo !== 'transferencia').slice().reverse().slice(0, 100);
+  return '<div class="dos"><div class="card"><h2>Cajas chicas</h2>' + (cajas.length ? cajas.map(c => {
+    const saldo = K.saldoCuenta(c.id, d), falta = c.tope ? K.r2(Number(c.tope) - saldo) : 0;
+    return '<div class="kpis"><div class="kpi"><span>' + esc(c.nombre) + '</span><b>' + din0(saldo) + '</b><small>' + (c.tope ? 'tope ' + din0(c.tope) : 'sin tope') + '</small></div>' + (falta > 0 ? '<div class="kpi ambar"><span>Para reponer</span><b>' + din0(falta) + '</b>' + (puede() ? '<small><button class="btn" data-reponer="' + esc(c.id) + '|' + falta + '">Reponer</button></small>' : '') + '</div>' : '') + '</div>';
+  }).join('') : '<p class="nota">No hay caja chica. Agréguela en «Cuentas y movimientos» con el tipo Caja chica.</p>') + '</div>' +
+    (puede() ? '<form class="card" id="f-gasto"><h2>Registrar un gasto</h2><p class="nota">Gastos de caja chica o pagos directos sin factura en Cuentas por pagar (comisiones del banco, por ejemplo).</p><div class="form"><label>Fecha<input type="date" name="fecha" required value="' + hoy() + '"></label>' +
+      '<label>Cuenta<select name="cuenta_id" required>' + opcCuentas((cajas[0] || {}).id) + '</select></label><label>Rubro<select name="rubro" required>' + opcRubros('egreso') + '</select></label><label>Monto (RD$)<input name="monto" inputmode="decimal" required></label>' +
+      '<label class="ancho">Detalle<input name="detalle" required></label><label>Cheque núm. (si aplica)<input name="cheque"></label></div><div class="acciones-fila"><button class="btn primario" type="submit">Registrar</button></div></form>' : '') + '</div>' +
+    '<div class="card"><h2>Gastos registrados</h2>' + tabla(['Fecha', 'Cuenta', 'Rubro', 'Detalle', '$Monto', ''], gs.map(g => '<tr><td>' + fecha(g.fecha) + '</td><td>' + esc(nomCuenta(g.cuenta_id)) + '</td><td>' + esc(nomRubro(g.rubro)) + '</td><td>' + esc(g.detalle) + (g.cheque ? ' · cheque ' + esc(g.cheque) : '') + '</td><td class="num">' + dinero(g.monto) + '</td><td>' + (puede() ? '<button class="btn" data-anular="gastos|' + esc(g.id) + '">Anular</button>' : '') + '</td></tr>'), 'Sin gastos.') + '</div>';
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id === 'f-gasto') { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); f.monto = K.r2(String(f.monto).replace(/,/g, '')); f.tipo = 'gasto';
+    const c = (S.D.cuentas || []).find(x => x.id === f.cuenta_id); if (c && f.monto > K.saldoCuenta(c.id, datos()) && !confirm('El gasto pasa del saldo de ' + c.nombre + '. ¿Registrarlo de todos modos?')) return;
+    await enviar('ctb_guardar', { tabla: 'gastos', operacion: 'crear', datos: f }, 'Gasto registrado.'); }
+  if (e.target.id === 'f-transf') { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); f.monto = K.r2(String(f.monto).replace(/,/g, '')); f.tipo = 'transferencia';
+    await enviar('ctb_guardar', { tabla: 'gastos', operacion: 'crear', datos: f }, 'Transferencia registrada.'); }
+});
+document.addEventListener('click', e => {
+  const r = e.target.closest('[data-reponer]'); if (!r) return;
+  const [id, monto] = r.dataset.reponer.split('|'); S.sub.bancos = 'transferencias'; S.prefTransf = { destino_id: id, monto, detalle: 'Reposición de caja chica' }; pintar();
+});
+function bancosTransf() {
+  const p = S.prefTransf || {}; S.prefTransf = null;
+  const ts = S.D.gastos.filter(g => K.activo(g) && g.tipo === 'transferencia').slice().reverse();
+  return (puede() ? '<form class="card" id="f-transf"><h2>Transferencia entre cuentas</h2><p class="nota">Entre cuentas de la misma torre (también apertura y reposición de caja chica). No cuenta como ingreso ni como gasto.</p><div class="form">' +
+    '<label>Fecha<input type="date" name="fecha" required value="' + hoy() + '"></label><label>Desde<select name="cuenta_id" required>' + opcCuentas('', 'banco') + '</select></label><label>Hacia<select name="destino_id" required>' + opcCuentas(p.destino_id) + '</select></label>' +
+    '<label>Monto (RD$)<input name="monto" inputmode="decimal" required value="' + esc(p.monto || '') + '"></label><label class="ancho">Detalle<input name="detalle" value="' + esc(p.detalle || '') + '"></label></div><div class="acciones-fila"><button class="btn primario" type="submit">Registrar</button></div></form>' : '') +
+    '<div class="card"><h2>Transferencias</h2>' + tabla(['Fecha', 'Desde', 'Hacia', 'Detalle', '$Monto', ''], ts.map(t => '<tr><td>' + fecha(t.fecha) + '</td><td>' + esc(nomCuenta(t.cuenta_id)) + '</td><td>' + esc(nomCuenta(t.destino_id)) + '</td><td>' + esc(t.detalle) + '</td><td class="num">' + dinero(t.monto) + '</td><td>' + (puede() ? '<button class="btn" data-anular="gastos|' + esc(t.id) + '">Anular</button>' : '') + '</td></tr>'), 'Sin transferencias.') + '</div>';
+}
+
+// ================================================================== CONCILIACIÓN Y CIERRE
+function vConciliacion() {
+  const sub = subAct('conciliacion', 'conciliar');
+  return subtabs('conciliacion', [['conciliar', 'Conciliar una cuenta'], ['cierre', 'Cierre de mes']]) + (sub === 'conciliar' ? concConciliar() : concCierre());
+}
+function estadoConc() {
+  const C = S.conc; C.cuenta = C.cuenta || (cuentasAct().find(c => c.tipo === 'banco') || cuentasAct()[0] || {}).id || ''; C.periodo = S.periodo;
+  if (!C.cuenta) return null;
+  const hechos = S.D.conciliaciones.filter(k => K.activo(k) && k.cuenta_id === C.cuenta).reduce((a, k) => a.concat(k.claves || []), []);
+  const ext = S.D.extracto.filter(x => x.cuenta_id === C.cuenta && x.estado !== 'conciliado');
+  return K.conciliar({ cuentaId: C.cuenta, d: datos(), periodo: C.periodo, extracto: ext, saldoBanco: C.saldo === '' ? null : Number(String(C.saldo).replace(/,/g, '')), parejas: C.parejas, yaConciliados: hechos });
+}
+function concConciliar() {
+  const C = S.conc;
+  if (!cuentasAct().length) return '<div class="vacio">Registre primero las cuentas en Pagos y bancos.</div>';
+  const ya = S.D.conciliaciones.find(k => K.activo(k) && k.cuenta_id === (C.cuenta || (cuentasAct().find(c => c.tipo === 'banco') || cuentasAct()[0]).id) && k.periodo === S.periodo);
+  const r = estadoConc(), arq = r && r.arqueo;
+  const fila = (x, lado) => { const id = lado === 'b' ? x.id : x.clave, m = (lado === 'b' ? C.marcaB : C.marcaL) === id; return '<tr class="pegar' + (m ? ' sel' : '') + '" data-marca="' + lado + '|' + esc(id) + '"><td>' + fecha(x.fecha) + '</td><td>' + esc(x.descripcion || x.detalle || '') + (x.referencia ? ' · ' + esc(x.referencia) : '') + '</td><td class="num">' + dinero(x.monto) + '</td>' + (lado === 'b' && puede() ? '<td><button class="btn" data-registrar-banco="' + esc(x.id) + '">Registrar</button></td>' : '<td></td>') + '</tr>'; };
+  return '<div class="card"><div class="form"><label>Cuenta<select id="conc-cuenta">' + opcCuentas(C.cuenta) + '</select></label><label>Saldo final del estado del banco al ' + fecha(K.finDe(S.periodo)) + '<input id="conc-saldo" inputmode="decimal" value="' + esc(ya ? ya.saldo_banco : C.saldo) + '"' + (ya ? ' readonly' : '') + '></label>' +
+    (puede() && !ya && !arq ? '<label>Estado del banco (Excel o CSV)<input type="file" id="conc-archivo" accept=".xlsx,.xls,.csv"></label>' : '') + '</div>' +
+    (ya ? '<p class="nota"><span class="chip verde">Conciliada</span> por ' + esc(ya.creado_por) + '. Saldo del banco ' + dinero(ya.saldo_banco) + '.' + (puede() ? ' <button class="btn" data-anular="conciliaciones|' + esc(ya.id) + '" data-titulo="Anular la conciliación">Anular para rehacer</button>' : '') + '</p>' : '') + '</div>' +
+    (r && !ya && arq ? '<div class="card"><h2>Arqueo de caja chica</h2><div class="formula"><span>Saldo en libros al ' + fecha(K.finDe(S.periodo)) + '</span><b>' + dinero(r.saldo_libros) + '</b><span>Efectivo contado</span><b>' + dinero(r.saldo_banco) + '</b>' +
+      '<span class="tot">Diferencia</span><b class="tot ' + (r.diferencia ? 'rojo-t' : 'verde-t') + '">' + dinero(r.diferencia) + '</b></div><p class="mini">Si falta o sobra efectivo, registre el gasto que faltó (o anule el que sobró) antes de conciliar.</p>' +
+      (puede() ? '<div class="acciones-fila"><button class="btn primario" data-conciliar' + (r.lista ? '' : ' disabled') + '>Conciliar ' + esc(mesTxt(S.periodo)) + '</button></div>' : '') + '</div>' : '') +
+    (r && !ya && !arq ? '<div class="card"><h2>Resumen</h2><div class="formula"><span>Saldo en libros al ' + fecha(K.finDe(S.periodo)) + '</span><b>' + dinero(r.saldo_libros) + '</b><span>− Depósitos en tránsito (' + r.transito.length + ')</span><b>' + dinero(r.total_transito) + '</b>' +
+      '<span>+ Cheques y pagos no cobrados (' + r.no_cobrados.length + ')</span><b>' + dinero(r.total_no_cobrados) + '</b><span>+ En el banco y no en libros (' + (r.banco_creditos.length + r.banco_debitos.length) + ')</span><b>' + dinero(r.total_banco_solo) + '</b>' +
+      '<span class="tot">= Saldo calculado del banco</span><b class="tot">' + dinero(r.saldo_calculado) + '</b><span>Saldo según el estado</span><b>' + dinero(r.saldo_banco) + '</b><span class="tot">Diferencia</span><b class="tot ' + (r.diferencia ? 'rojo-t' : 'verde-t') + '">' + dinero(r.diferencia) + '</b></div>' +
+      '<p class="mini">' + plural(r.emparejados.length, 'movimiento emparejado', 'movimientos emparejados') + ' (por referencia, o por monto y fecha a ±5 días). Lo que el banco tiene y los libros no hay que registrarlo antes de conciliar. Para emparejar a mano, toque un movimiento de cada lado.</p>' +
+      (puede() ? '<div class="acciones-fila"><button class="btn primario" data-conciliar' + (r.lista ? '' : ' disabled') + '>Conciliar ' + esc(mesTxt(S.periodo)) + '</button>' + (C.parejas.length ? '<button class="btn" data-parejas-limpiar>Deshacer ' + plural(C.parejas.length, 'pareja manual', 'parejas manuales') + '</button>' : '') + '</div>' : '') + '</div>' +
+      '<div class="dos"><div class="card"><h2>En el banco y no en libros</h2>' + tabla(['Fecha', 'Descripción', '$Monto', ''], r.banco_creditos.concat(r.banco_debitos).map(x => fila(x, 'b')), 'Nada pendiente del lado del banco.') + '</div>' +
+      '<div class="card"><h2>En libros y no en el banco</h2>' + tabla(['Fecha', 'Detalle', '$Monto', ''], r.transito.concat(r.no_cobrados).map(x => fila(x, 'l')), 'Nada pendiente del lado de los libros.') + '<p class="mini">Los depósitos en tránsito y los cheques no cobrados pueden quedar para el mes siguiente.</p></div></div>' : '');
+}
+document.addEventListener('change', async e => {
+  if (e.target.id === 'conc-cuenta') { S.conc = { cuenta: e.target.value, periodo: S.periodo, parejas: [], saldo: '' }; pintar(); }
+  if (e.target.id === 'conc-saldo') { S.conc.saldo = e.target.value; pintar(); }
+  if (e.target.id === 'conc-archivo' && e.target.files[0]) {
+    const f = e.target.files[0];
+    try {
+      let filas;
+      if (/\.csv$/i.test(f.name)) filas = K.leerCSV(await f.text());
+      else { await libreria(XLSX_URL, 'XLSX'); const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true }); filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' }); }
+      const r = K.leerExtracto(filas);
+      if (r.error) return toast(r.error, true);
+      if (!r.movimientos.length) return toast('No encontré movimientos en el archivo.', true);
+      await enviar('ctb_extracto', { cuenta_id: S.conc.cuenta, movimientos: r.movimientos });
+    } catch (err) { toast(err.message, true); }
+  }
+});
+document.addEventListener('click', async e => {
+  const m = e.target.closest('[data-marca]');
+  if (m && !e.target.closest('button')) {
+    const [lado, id] = m.dataset.marca.split('|'); const C = S.conc;
+    if (lado === 'b') C.marcaB = C.marcaB === id ? '' : id; else C.marcaL = C.marcaL === id ? '' : id;
+    if (C.marcaB && C.marcaL) { C.parejas.push([C.marcaB, C.marcaL]); C.marcaB = C.marcaL = ''; toast('Pareja manual agregada.'); }
+    pintar();
+  }
+  if (e.target.closest('[data-parejas-limpiar]')) { S.conc.parejas = []; pintar(); }
+  const rb = e.target.closest('[data-registrar-banco]');
+  if (rb) {
+    const x = S.D.extracto.find(y => y.id === rb.dataset.registrarBanco);
+    if (x.monto > 0) dialogo('<h2>Crédito del banco · ' + dinero(x.monto) + '</h2><p>' + esc(x.descripcion) + ' ' + esc(x.referencia) + ' · ' + fecha(x.fecha) + '</p><div class="acciones-fila"><button class="btn primario" data-reg-tipo="sin|' + esc(x.id) + '">Depósito sin identificar</button><button class="btn" data-reg-tipo="ingreso|' + esc(x.id) + '">Otro ingreso (intereses)</button></div>');
+    else dialogo('<h2>Débito del banco · ' + dinero(-x.monto) + '</h2><p>' + esc(x.descripcion) + ' ' + esc(x.referencia) + ' · ' + fecha(x.fecha) + '</p><form id="f-reg-gasto" data-id="' + esc(x.id) + '" class="form"><label>Rubro<select name="rubro" required>' + opcRubros('egreso', 'E7.1') + '</select></label><label class="ancho">Detalle<input name="detalle" value="' + esc(x.descripcion || 'Cargo del banco') + '"></label><div class="ancho"><button class="btn primario" type="submit">Registrar como gasto</button></div></form><p class="mini">Si es el pago de una factura, regístrelo en Cuentas por pagar (paso 3) con esta fecha; el Vigía lo empareja.</p>');
+  }
+  const rt = e.target.closest('[data-reg-tipo]');
+  if (rt) {
+    const [tipo, id] = rt.dataset.regTipo.split('|'), x = S.D.extracto.find(y => y.id === id); $('#dlg').close();
+    if (tipo === 'sin') await enviar('ctb_guardar', { tabla: 'sin_identificar', operacion: 'crear', datos: { fecha: x.fecha, monto: x.monto, cuenta_id: x.cuenta_id, referencia: x.referencia, descripcion: x.descripcion } }, 'Registrado como depósito sin identificar.');
+    else await enviar('ctb_guardar', { tabla: 'ingresos', operacion: 'crear', datos: { fecha: x.fecha, monto: x.monto, cuenta_id: x.cuenta_id, rubro: 'I2.5', detalle: x.descripcion || 'Intereses', referencia: x.referencia } }, 'Registrado como otro ingreso.');
+  }
+  if (e.target.closest('[data-conciliar]')) {
+    const r = estadoConc(); if (!r.lista) return;
+    // el servicio vuelve a calcular la conciliación con los mismos datos; solo se envían el saldo y las parejas manuales
+    await enviar('ctb_conciliar', { cuenta_id: S.conc.cuenta, periodo: S.periodo, saldo_banco: r.saldo_banco, parejas: S.conc.parejas }, 'Cuenta conciliada.');
+    S.conc.parejas = [];
+  }
+});
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-reg-gasto') return; e.preventDefault();
+  const x = S.D.extracto.find(y => y.id === e.target.dataset.id), f = Object.fromEntries(new FormData(e.target)); $('#dlg').close();
+  await enviar('ctb_guardar', { tabla: 'gastos', operacion: 'crear', datos: { tipo: 'gasto', fecha: x.fecha, monto: -x.monto, cuenta_id: x.cuenta_id, rubro: f.rubro, detalle: f.detalle } }, 'Registrado como gasto.');
+});
+function concCierre() {
+  const anio = S.periodo.slice(0, 4), meses = Array.from({ length: 12 }, (_, i) => anio + '-' + String(i + 1).padStart(2, '0')).filter(m => m <= hoy().slice(0, 7));
+  const cts = cuentasAct();
+  return '<div class="card"><h2>Cierre de mes · ' + anio + '</h2><p class="nota">Un mes se cierra cuando todas sus cuentas están conciliadas. Al cerrar se guardan en PDF la liquidación y las conciliaciones, y el mes queda bloqueado. Solo el Gerente General lo reabre, con motivo.</p>' +
+    tabla(['Mes'].concat(cts.map(c => c.nombre), ['Estado', '']), meses.reverse().map(m => {
+      const cie = S.D.cierres.find(k => k.periodo === m), cerrado = cie && cie.estado === 'cerrado';
+      const conc = cts.map(c => !!S.D.conciliaciones.find(k => K.activo(k) && k.cuenta_id === c.id && k.periodo === m));
+      return '<tr><td><b>' + esc(mesTxt(m)) + '</b></td>' + conc.map(x => '<td>' + (x ? '<span class="chip verde">Conciliada</span>' : '<span class="chip">Pendiente</span>') + '</td>').join('') +
+        '<td>' + (cerrado ? '<span class="chip cerrado">Cerrado</span><br><small>' + esc(cie.por) + '</small>' + ((cie.archivos || []).filter(a => a.url).map(a => ' · <a href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.nombre) + '</a>').join('')) : cie && cie.estado === 'reabierto' ? '<span class="chip ambar">Reabierto</span><br><small>' + esc(cie.motivo) + '</small>' : 'Abierto') + '</td><td>' +
+        (!cerrado && S.D.puede_cerrar && conc.every(Boolean) && conc.length ? '<button class="btn primario" data-cerrar-mes="' + m + '">Cerrar</button>' : '') + (cerrado && S.D.gerente ? '<button class="btn" data-reabrir="' + m + '">Reabrir</button>' : '') + '</td></tr>';
+    }), 'Sin meses.') + '</div>';
+}
+document.addEventListener('click', async e => {
+  const c = e.target.closest('[data-cerrar-mes]');
+  if (c) {
+    const per = c.dataset.cerrarMes;
+    if (!confirm('¿Cerrar ' + mesTxt(per) + '? Ya no se podrán registrar movimientos de ese mes.')) return;
+    const docs = [{ nombre: 'Liquidación mensual', html: '<html><head><meta charset="utf-8"><style>' + CSS_IMPRESION + '</style></head><body>' + htmlLiquidacion(per) + '</body></html>' },
+      { nombre: 'Conciliaciones', html: '<html><head><meta charset="utf-8"><style>' + CSS_IMPRESION + '</style></head><body>' + htmlConciliaciones(per) + '</body></html>' }];
+    await enviar('ctb_cerrar', { periodo: per, documentos: docs }, 'Mes cerrado.');
+  }
+  const r = e.target.closest('[data-reabrir]');
+  if (r) { const m = await pedirMotivo('Reabrir ' + mesTxt(r.dataset.reabrir)); if (m) await enviar('ctb_reabrir', { periodo: r.dataset.reabrir, motivo: m }, 'Mes reabierto.'); }
+});
+function htmlConciliaciones(per) {
+  return '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Conciliaciones bancarias · ' + esc(mesTxt(per)) + '</div></div></div>' + S.D.conciliaciones.filter(k => K.activo(k) && k.periodo === per).map(k =>
+    '<h2>' + esc(nomCuenta(k.cuenta_id)) + '</h2><table><tr><td>Saldo en libros</td><td class="num">' + dinero(k.saldo_libros) + '</td></tr><tr><td>− Depósitos en tránsito</td><td class="num">' + dinero(k.transito) + '</td></tr><tr><td>+ Cheques y pagos no cobrados</td><td class="num">' + dinero(k.no_cobrados) + '</td></tr>' +
+    '<tr class="tot"><td>Saldo según el banco</td><td class="num">' + dinero(k.saldo_banco) + '</td></tr></table><p>Conciliada por ' + esc(k.creado_por) + '.</p>').join('');
+}
+
+// ================================================================== REPORTES
+function vReportes() {
+  const sub = subAct('reportes', 'liquidacion');
+  return subtabs('reportes', [['liquidacion', 'Liquidación mensual'], ['junta', 'Informe a la Junta'], ['rubros', 'Ingresos y egresos'], ['presupuesto', 'Presupuesto vs. real'], ['cuotas', 'Cuotas vs. cobros'], ['proveedores', 'Estado por proveedor'], ['registro', 'Registro de ventas y compras']]) +
+    ({ liquidacion: repLiquidacion, junta: repJunta, rubros: repRubros, presupuesto: repPresupuesto, cuotas: repCuotas, proveedores: repProveedores, registro: repRegistro }[sub])();
+}
+function htmlLiquidacion(per) {
+  const L = K.liquidacion(datos(), per), c = cfg();
+  const reserva = Number(c.fondo_reserva_pct) > 0 ? K.r2(L.ingresos_mes * Number(c.fondo_reserva_pct) / 100) : 0;
+  return '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Liquidación mensual · ' + esc(mesTxt(per)) + '</div></div></div><!--/cab-->' +
+    '<table><thead><tr><th>Cuenta</th><th class="num">Según el banco</th><th class="num">Cheques pendientes</th><th class="num">Disponible</th></tr></thead><tbody>' + L.cuentas.map(x => '<tr><td>' + esc(x.nombre) + (x.conciliada ? '' : ' <small>(sin conciliar: saldo en libros)</small>') + '</td><td class="num">' + dinero(x.banco) + '</td><td class="num">' + dinero(x.cheques) + '</td><td class="num">' + dinero(K.r2(x.banco - x.cheques)) + '</td></tr>').join('') + '</tbody></table>' +
+    '<table><tbody><tr><td>A. Saldo en bancos y caja</td><td class="num">' + dinero(L.A) + '</td></tr><tr><td>B. Cheques pendientes de cobro</td><td class="num">−' + dinero(L.B) + '</td></tr><tr class="tot"><td>C. Disponible (A − B)</td><td class="num">' + dinero(L.C) + '</td></tr>' +
+    '<tr><td>D. Cuentas por pagar</td><td class="num">−' + dinero(L.D) + '</td></tr><tr class="tot"><td>E. Liquidez (C − D)</td><td class="num">' + dinero(L.E) + '</td></tr><tr><td>F. Cuentas por cobrar</td><td class="num">' + dinero(L.F) + '</td></tr><tr><td>G. Cuotas adelantadas</td><td class="num">−' + dinero(L.G) + '</td></tr>' +
+    '<tr class="tot"><td>Saldo financiero (E + F − G)</td><td class="num">' + dinero(L.saldo_financiero) + '</td></tr></tbody></table>' +
+    '<h2>Resultado del mes</h2><table><tbody><tr><td>Ingresos cobrados</td><td class="num">' + dinero(L.ingresos_mes) + '</td></tr><tr><td>Egresos pagados</td><td class="num">−' + dinero(L.egresos_mes) + '</td></tr><tr class="tot"><td>Resultado</td><td class="num">' + dinero(L.resultado_mes) + '</td></tr>' +
+    (reserva ? '<tr><td>Aporte al fondo de reserva según el reglamento (' + esc(c.fondo_reserva_pct) + ' % de lo cobrado)</td><td class="num">' + dinero(reserva) + '</td></tr>' : '') + '</tbody></table>' +
+    (L.cxp_pendientes.length ? '<h2>Cuentas por pagar pendientes</h2><table><tbody>' + L.cxp_pendientes.map(p => '<tr><td>' + esc(p.suplidor) + '</td><td>' + esc(p.concepto || '') + '</td><td class="num">' + dinero(p.monto) + '</td></tr>').join('') + '</tbody></table>' : '');
+}
+function repLiquidacion() {
+  return '<div class="card"><div class="cab"><h2>Liquidación de ' + esc(mesTxt(S.periodo)) + '</h2><button class="btn" data-print="liquidacion">Imprimir</button></div>' + htmlLiquidacion(S.periodo).replace(/<div class="cab">[\s\S]*?<!--\/cab-->/, '').replace(/<table>/g, '<div class="tabla"><table>').replace(/<\/table>/g, '</table></div>') +
+    '<p class="mini">Si la cuenta está conciliada, A usa el saldo del estado del banco y B los cheques no cobrados de la conciliación; si no, el saldo en libros.</p></div>';
+}
+function cifrasJunta(per) {
+  const d = datos(), L = K.liquidacion(d, per), R = K.porRubro(d, K.inicioDe(per), K.finDe(per)), A = K.antiguedad(d.recibos, d.cobros, K.finDe(per)), P = K.presupuestoVsReal(d, per.slice(0, 4));
+  return { liquidacion: { disponible: L.C, por_pagar: L.D, liquidez: L.E, por_cobrar: L.F, saldo_financiero: L.saldo_financiero, ingresos_mes: L.ingresos_mes, egresos_mes: L.egresos_mes, resultado_mes: L.resultado_mes },
+    egresos_por_rubro: R.filas.filter(x => x.tipo === 'egreso').map(x => [x.nombre, x.monto]), cartera: { vencida: A.vencido, mas_de_90_dias: K.r2(A.total.d120 + A.total.mas), apartamentos_con_deuda: A.filas.length },
+    presupuesto_anual: P.filter(x => x.presupuesto).map(x => [x.nombre, x.presupuesto, x.real, x.usado]) };
+}
+function repJunta() {
+  const txt = S.informe && S.informe.periodo === S.periodo && S.informe.torre === S.torre ? S.informe.texto : '';
+  return '<div class="card"><div class="cab"><h2>Informe a la Junta · ' + esc(mesTxt(S.periodo)) + '</h2><button class="btn" data-print="junta">Imprimir</button></div>' +
+    '<p class="nota">La liquidación, los gastos por rubro, el presupuesto y la cartera, con un resumen redactado por la IA a partir de esas cifras. Revise y corrija el resumen antes de imprimirlo.</p>' +
+    '<label class="form" style="display:block"><span class="mini">Resumen para la Junta</span><textarea id="txt-informe" style="width:100%;min-height:180px;font:inherit;padding:10px;border:1px solid var(--line);border-radius:9px">' + esc(txt) + '</textarea></label>' +
+    '<div class="acciones-fila">' + (puede() ? '<button class="btn primario" data-informe-ia' + (S.D.ia === false ? ' disabled title="Falta la clave de la IA en el servicio"' : '') + '>Redactar con IA</button>' : '') + '</div></div>';
+}
+function htmlJunta(per) {
+  const d = datos(), R = K.porRubro(d, K.inicioDe(per), K.finDe(per)), A = K.antiguedad(d.recibos, d.cobros, K.finDe(per)), P = K.presupuestoVsReal(d, per.slice(0, 4)).filter(x => x.presupuesto);
+  const txt = ($('#txt-informe') || {}).value || '';
+  return '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Informe mensual a la Junta · ' + esc(mesTxt(per)) + '</div></div></div><!--/cab-->' + (txt ? '<div>' + txt.split(/\n{2,}/).map(p => '<p>' + esc(p) + '</p>').join('') + '</div>' : '') +
+    htmlLiquidacion(per).replace(/<div class="cab">[\s\S]*?<!--\/cab-->/, '') +
+    '<h2>Egresos por rubro</h2><table><tbody>' + R.filas.filter(x => x.tipo === 'egreso').map(x => '<tr><td>' + esc(x.nombre) + '</td><td class="num">' + dinero(x.monto) + '</td></tr>').join('') + '</tbody></table>' +
+    (P.length ? '<h2>Presupuesto ' + per.slice(0, 4) + ' contra lo real</h2><table><thead><tr><th>Rubro</th><th class="num">Presupuesto</th><th class="num">Real</th><th class="num">Usado</th></tr></thead><tbody>' + P.map(x => '<tr><td>' + esc(x.nombre) + '</td><td class="num">' + dinero(x.presupuesto) + '</td><td class="num">' + dinero(x.real) + '</td><td class="num">' + (x.usado === null ? '' : x.usado + ' %') + '</td></tr>').join('') + '</tbody></table>' : '') +
+    '<h2>Cartera por antigüedad</h2><table><thead><tr>' + K.TRAMOS.map(([, t]) => '<th class="num">' + esc(t) + '</th>').join('') + '<th class="num">Total</th></tr></thead><tbody><tr>' + K.TRAMOS.map(([k]) => '<td class="num">' + dinero(A.total[k]) + '</td>').join('') + '<td class="num">' + dinero(A.total.total) + '</td></tr></tbody></table>';
+}
+document.addEventListener('click', async e => {
+  const p = e.target.closest('[data-print]');
+  if (p) { const t = p.dataset.print; if (t === 'liquidacion') imprimir('Liquidación ' + S.periodo, htmlLiquidacion(S.periodo)); if (t === 'junta') imprimir('Informe a la Junta ' + S.periodo, htmlJunta(S.periodo)); if (t === 'balance') imprimir('Estados financieros ' + S.periodo, htmlEstados()); }
+  if (e.target.closest('[data-informe-ia]')) {
+    try { const r = await api('ctb_informe_ia', { torre: S.torre, periodo: S.periodo, cifras: cifrasJunta(S.periodo) }); S.informe = { torre: S.torre, periodo: S.periodo, texto: r.texto }; pintar(); toast('Resumen listo. Revíselo antes de imprimir.'); }
+    catch (err) { toast(err.message, true); }
+  }
+});
+function repRubros() {
+  const anio = S.periodo.slice(0, 4), R = K.porRubro(datos(), K.inicioDe(S.periodo), K.finDe(S.periodo)), Y = K.porRubro(datos(), anio + '-01-01', K.finDe(S.periodo));
+  const cods = Array.from(new Set(R.filas.concat(Y.filas).map(x => x.rubro))).sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+  const fila = cod => { const m = R.filas.find(x => x.rubro === cod) || {}, y = Y.filas.find(x => x.rubro === cod) || {}; return '<tr><td>' + esc(y.nombre || m.nombre || cod) + '</td><td class="num">' + (m.monto ? dinero(m.monto) : '') + '</td><td class="num">' + (y.monto ? dinero(y.monto) : '') + '</td></tr>'; };
+  return '<div class="card"><h2>Ingresos y egresos por rubro · ' + esc(mesTxt(S.periodo)) + ' y acumulado ' + anio + '</h2><h2 style="margin-top:12px">Ingresos</h2>' +
+    tabla(['Rubro', '$Mes', '$Año'], cods.filter(c => (Y.filas.find(x => x.rubro === c) || R.filas.find(x => x.rubro === c)).tipo === 'ingreso').map(fila), 'Sin ingresos.', '<tfoot><tr><td><b>Total</b></td><td class="num"><b>' + dinero(R.ingresos) + '</b></td><td class="num"><b>' + dinero(Y.ingresos) + '</b></td></tr></tfoot>') +
+    '<h2 style="margin-top:12px">Egresos</h2>' + tabla(['Rubro', '$Mes', '$Año'], cods.filter(c => (Y.filas.find(x => x.rubro === c) || R.filas.find(x => x.rubro === c)).tipo === 'egreso').map(fila), 'Sin egresos.', '<tfoot><tr><td><b>Total</b></td><td class="num"><b>' + dinero(R.egresos) + '</b></td><td class="num"><b>' + dinero(Y.egresos) + '</b></td></tr></tfoot>') +
+    '<div class="formula" style="margin-top:10px"><span class="tot">Resultado del mes</span><b class="tot">' + dinero(R.resultado) + '</b><span>Resultado del año</span><b>' + dinero(Y.resultado) + '</b></div><p class="mini">Ingresos según lo cobrado (cada cobro toma el rubro de las líneas del recibo). Egresos según lo pagado. Las facturas sin rubro aparecen como «E?»: póngales rubro en Pagos y bancos.</p></div>';
+}
+function repPresupuesto() {
+  const anio = S.periodo.slice(0, 4), P = K.presupuestoVsReal(datos(), anio), mes = Number(S.periodo.slice(5));
+  return '<div class="card"><h2>Presupuesto ' + anio + ' contra lo pagado</h2>' + tabla(['Rubro', '$Presupuesto anual', '$Proporción a ' + K.MESES[mes - 1], '$Pagado', 'Usado'], P.map(x => {
+    const prop = K.r2(x.presupuesto * mes / 12), alto = x.presupuesto && x.real > prop * 1.1;
+    return '<tr><td>' + esc(x.nombre) + '</td><td class="num">' + (x.presupuesto ? dinero(x.presupuesto) : '<span class="nota">sin presupuesto</span>') + '</td><td class="num">' + (x.presupuesto ? dinero(prop) : '') + '</td><td class="num ' + (alto ? 'rojo-t' : '') + '">' + dinero(x.real) + '</td><td>' + (x.usado === null ? '' : x.usado + ' %') + '</td></tr>';
+  }), 'Cargue el presupuesto en Configuración.') + '<p class="mini">En rojo, lo que va más de 10 % por encima de la proporción del año transcurrido.</p></div>';
+}
+function repCuotas() {
+  const anio = S.periodo.slice(0, 4), Q = K.cuotasVsCobros(datos(), anio), ms = Q.meses.filter(m => m <= S.periodo);
+  return '<div class="card"><h2>Cuotas vs. cobros · ' + anio + '</h2>' + tabla(['Apto.'].concat(ms.map(m => '$' + K.MESES[Number(m.slice(5)) - 1].slice(0, 3))), Q.filas.map(f => '<tr><td><b>' + esc(f.apartamento) + '</b></td>' + f.meses.filter(m => m.periodo <= S.periodo).map(m => '<td class="num">' + (m.cuota || m.cobro ? '<span class="mini">' + din0(m.cuota) + '</span><br><b class="' + (m.cobro < m.cuota ? 'rojo-t' : 'verde-t') + '">' + din0(m.cobro) + '</b>' : '') + '</td>').join('') + '</tr>'), 'Sin recibos este año.') +
+    '<p class="mini">Arriba lo emitido, abajo lo cobrado en ese mes (en rojo si se cobró menos).</p></div>';
+}
+function repProveedores() {
+  const ps = {}; S.D.pagos.forEach(p => { const k = p.suplidor || '—'; const x = ps[k] = ps[k] || { suplidor: k, facturado: 0, pagado: 0, pendiente: 0, n: 0 }; x.n++; x.facturado += K.c(p.monto); if (p.estado === 'pagada') x.pagado += K.c(p.monto); else x.pendiente += K.c(p.monto); });
+  return '<div class="card"><h2>Estado por proveedor</h2>' + tabla(['Proveedor', 'Facturas', '$Facturado', '$Pagado', '$Pendiente'], Object.values(ps).sort((a, b) => b.facturado - a.facturado).map(x => '<tr><td><b>' + esc(x.suplidor) + '</b></td><td>' + x.n + '</td><td class="num">' + dinero(K.p(x.facturado)) + '</td><td class="num">' + dinero(K.p(x.pagado)) + '</td><td class="num ' + (x.pendiente ? 'ambar-t' : '') + '">' + dinero(K.p(x.pendiente)) + '</td></tr>'), 'Sin cuentas por pagar.') + '</div>';
+}
+function repRegistro() {
+  const ini = K.inicioDe(S.periodo), fin = K.finDe(S.periodo);
+  const v = S.D.cobros.filter(k => K.activo(k) && k.origen !== 'cruce' && k.fecha >= ini && k.fecha <= fin).map(k => [k.fecha, 'Apto. ' + k.apartamento, 'Cobro ' + (k.forma || ''), k.referencia, k.monto]).concat(S.D.ingresos.filter(x => K.activo(x) && x.fecha >= ini && x.fecha <= fin).map(x => [x.fecha, '—', x.detalle, x.referencia, x.monto]));
+  const c = S.D.pagos.filter(p => p.estado === 'pagada' && p.pagado_en >= ini && p.pagado_en <= fin).map(p => [p.pagado_en, p.suplidor, p.concepto, p.cheque, p.monto]).concat(S.D.gastos.filter(g => K.activo(g) && g.tipo !== 'transferencia' && g.fecha >= ini && g.fecha <= fin).map(g => [g.fecha, '—', g.detalle, g.cheque, g.monto]));
+  const t = l => l.sort((a, b) => a[0].localeCompare(b[0])).map(x => '<tr><td>' + fecha(x[0]) + '</td><td>' + esc(x[1]) + '</td><td>' + esc(x[2] || '') + '</td><td>' + esc(x[3] || '') + '</td><td class="num">' + dinero(x[4]) + '</td></tr>');
+  return '<div class="card"><h2>Registro de ventas (cobros) · ' + esc(mesTxt(S.periodo)) + '</h2>' + tabla(['Fecha', 'Cliente', 'Detalle', 'Documento', '$Monto'], t(v), 'Sin cobros.') + '</div><div class="card"><h2>Registro de compras (pagos)</h2>' + tabla(['Fecha', 'Proveedor', 'Detalle', 'Documento', '$Monto'], t(c), 'Sin pagos.') + '</div>';
+}
+
+// ================================================================== CONTABILIDAD FORMAL
+function htmlEstados() {
+  const fin = K.finDe(S.periodo), anio = S.periodo.slice(0, 4), B = K.balances(datos(), fin, anio + '-01-01');
+  const linea = x => '<tr><td>' + esc(x.cuenta) + ' · ' + esc(x.nombre) + '</td><td class="num">' + dinero(Math.abs(x.saldo)) + '</td></tr>';
+  return '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Estados financieros al ' + fecha(fin) + '</div></div></div><!--/cab-->' +
+    '<h2>Balance general</h2><table><tbody><tr><th colspan="2">Activos</th></tr>' + B.filas.filter(x => x.tipo === 'activo').map(linea).join('') + '<tr class="tot"><td>Total de activos</td><td class="num">' + dinero(B.activo) + '</td></tr>' +
+    '<tr><th colspan="2">Pasivos</th></tr>' + B.filas.filter(x => x.tipo === 'pasivo').map(linea).join('') + '<tr class="tot"><td>Total de pasivos</td><td class="num">' + dinero(B.pasivo) + '</td></tr>' +
+    '<tr><th colspan="2">Patrimonio</th></tr>' + B.filas.filter(x => x.tipo === 'patrimonio').map(linea).join('') + '<tr><td>Resultado acumulado</td><td class="num">' + dinero(B.resultado_acumulado) + '</td></tr><tr class="tot"><td>Total pasivo y patrimonio</td><td class="num">' + dinero(K.r2(B.pasivo + B.patrimonio + B.resultado_acumulado)) + '</td></tr></tbody></table>' +
+    '<h2>Estado de resultados · enero a ' + esc(K.MESES[Number(S.periodo.slice(5)) - 1]) + ' ' + anio + '</h2><table><tbody>' + B.resultados.filas.filter(x => x.tipo === 'ingreso').map(x => '<tr><td>' + esc(x.nombre) + '</td><td class="num">' + dinero(x.monto) + '</td></tr>').join('') + '<tr class="tot"><td>Ingresos</td><td class="num">' + dinero(B.resultados.ingresos) + '</td></tr>' +
+    B.resultados.filas.filter(x => x.tipo === 'gasto').map(x => '<tr><td>' + esc(x.nombre) + '</td><td class="num">' + dinero(x.monto) + '</td></tr>').join('') + '<tr class="tot"><td>Gastos</td><td class="num">' + dinero(B.resultados.gastos) + '</td></tr><tr class="tot"><td>Resultado</td><td class="num">' + dinero(B.resultados.resultado) + '</td></tr></tbody></table>';
+}
+function vFormal() {
+  const sub = subAct('formal', 'estados'), ini = K.inicioDe(S.periodo), fin = K.finDe(S.periodo);
+  if (sub === 'diario') {
+    const as = K.asientos(datos(), ini, fin);
+    return subtabs('formal', [['estados', 'Balance y resultados'], ['diario', 'Libro diario'], ['catalogo', 'Catálogo de cuentas']]) + '<div class="card"><div class="cab"><h2>Libro diario · ' + esc(mesTxt(S.periodo)) + '</h2><button class="btn" data-csv-diario>Descargar CSV para el contador</button></div>' +
+      tabla(['Fecha', 'Asiento', 'Cuenta', '$Debe', '$Haber'], [].concat(...as.map(a => a.lineas.map((l, i) => '<tr><td>' + (i ? '' : fecha(a.fecha)) + '</td><td>' + (i ? '' : esc(a.detalle)) + '</td><td>' + esc(l.cuenta + ' · ' + K.nombreCuenta(datos(), l.cuenta)) + '</td><td class="num">' + (Number(l.debe) ? dinero(l.debe) : '') + '</td><td class="num">' + (Number(l.haber) ? dinero(l.haber) : '') + '</td></tr>'))), 'Sin asientos en este mes.') + '</div>';
+  }
+  if (sub === 'catalogo') return subtabs('formal', [['estados', 'Balance y resultados'], ['diario', 'Libro diario'], ['catalogo', 'Catálogo de cuentas']]) + '<div class="card"><h2>Catálogo de cuentas</h2>' +
+    tabla(['Cuenta', 'Nombre', 'Tipo'], K.CATALOGO.map(x => '<tr><td>' + x[0] + '</td><td>' + esc(x[1]) + '</td><td>' + x[2] + '</td></tr>').concat(rubros().filter(r => r.padre).map(r => '<tr><td>' + esc(K.cuentaDeRubro(r.codigo, r.tipo)) + '</td><td>' + esc(r.nombre) + '</td><td>' + (r.tipo === 'egreso' ? 'gasto' : r.codigo === 'I3.1' ? 'patrimonio' : 'ingreso') + '</td></tr>')), '') +
+    '<p class="mini">Cada rubro es una cuenta de ingreso (4-) o de gasto (5-). Los asientos se generan solos con cada recibo, cobro, depósito, gasto, transferencia y factura.</p></div>';
+  const B = K.balances(datos(), fin, S.periodo.slice(0, 4) + '-01-01');
+  return subtabs('formal', [['estados', 'Balance y resultados'], ['diario', 'Libro diario'], ['catalogo', 'Catálogo de cuentas']]) + '<div class="card"><div class="cab"><h2>Estados financieros</h2><span>' + (B.cuadra ? '<span class="chip verde">Débitos = créditos</span>' : '<span class="chip rojo">No cuadra: avise a soporte</span>') + ' <button class="btn" data-print="balance">Imprimir</button></span></div>' +
+    htmlEstados().replace(/<div class="cab">[\s\S]*?<!--\/cab-->/, '').replace(/<table>/g, '<div class="tabla"><table>').replace(/<\/table>/g, '</table></div>') + '<p class="mini">Base devengada: los recibos son ingreso al emitirse y las facturas son gasto al registrarse; los cobros y pagos mueven bancos, cuentas por cobrar y por pagar.</p></div>';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-csv-diario]')) return;
+  const as = K.asientos(datos(), K.inicioDe(S.periodo), K.finDe(S.periodo)), q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const csv = ['Fecha,Asiento,Cuenta,Nombre,Debe,Haber'].concat(...as.map((a, i) => a.lineas.map(l => [a.fecha, q((i + 1) + ' · ' + a.detalle), l.cuenta, q(K.nombreCuenta(datos(), l.cuenta)), Number(l.debe || 0).toFixed(2), Number(l.haber || 0).toFixed(2)].join(',')))).join('\n');
+  const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })), a = document.createElement('a'); a.href = url; a.download = 'Diario ' + S.torre + ' ' + S.periodo + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+// ================================================================== CONFIGURACIÓN
+function vConfig() {
+  const sub = subAct('config', 'reglas');
+  return subtabs('config', [['reglas', 'Reglas de la torre'], ['rubros', 'Rubros'], ['parametros', 'Parámetros de reparto'], ['presupuesto', 'Presupuesto']]) +
+    ({ reglas: cfgReglas, rubros: cfgRubros, parametros: cfgParametros, presupuesto: cfgPresupuesto }[sub])();
+}
+function cfgReglas() {
+  const c = cfg(), dis = puede() ? '' : ' disabled', campo = (k, t, extra) => '<label>' + t + '<input name="' + k + '" value="' + esc(c[k] === undefined ? '' : c[k]) + '"' + (extra || '') + dis + '></label>';
+  return '<form class="card" id="f-config"><h2>Recibos</h2><div class="form">' + campo('vence_dia', 'Día de vencimiento', ' type="number" min="1" max="31"') + campo('serie_prefijo', 'Prefijo de la serie') + campo('serie_siguiente', 'Próximo número', ' type="number" min="1"') + '</div>' +
+    '<h2 style="margin-top:16px">Pronto pago y mora (según lo aprobado por la Junta)</h2><div class="form">' + campo('pp_porcentaje', 'Descuento por pronto pago (%)', ' inputmode="decimal"') + campo('pp_dia', 'Pagando hasta el día', ' type="number" min="1" max="31"') +
+    '<label>Mora<select name="mora_tipo"' + dis + '>' + [['ninguna', 'No se cobra'], ['porcentaje', 'Porcentaje sobre lo vencido'], ['fijo', 'Monto fijo por apartamento']].map(([k, t]) => '<option value="' + k + '"' + (c.mora_tipo === k ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></label>' +
+    campo('mora_valor', 'Valor de la mora (% o RD$)', ' inputmode="decimal"') + campo('mora_dias_gracia', 'Días de gracia después del vencimiento', ' type="number" min="0"') + '</div>' +
+    '<h2 style="margin-top:16px">Junta, caja y honorarios</h2><div class="form">' + campo('umbral_junta', 'Pagos desde este monto pasan por la Junta (RD$; 0 = no)', ' inputmode="decimal"') + campo('junta_nombre', 'Presidente de la Junta') + campo('junta_contacto', 'Contacto de la Junta (teléfono o correo)') +
+    campo('colchon_caja', 'Avisar si la caja proyectada baja de (RD$)', ' inputmode="decimal"') + campo('honorario_monto', 'Honorarios mensuales de Stili (RD$)', ' inputmode="decimal"') + campo('honorario_dia', 'Día de vencimiento de los honorarios', ' type="number" min="1" max="31"') +
+    campo('fondo_reserva_pct', 'Fondo de reserva según el reglamento (% de lo cobrado; 0 = no)', ' inputmode="decimal"') + '</div>' +
+    '<h2 style="margin-top:16px">Pago en línea</h2><div class="form"><label class="ancho">Enlace de la pasarela (use {recibo}, {monto} y {torre})<input name="pasarela_url" value="' + esc(c.pasarela_url) + '" placeholder="https://…?ref={recibo}&monto={monto}"' + dis + '></label></div>' +
+    '<p class="mini">El pago en línea necesita contratar una pasarela (Azul, CardNet u otra). Con el enlace puesto, cada recibo muestra «Pague en línea»; para que el cobro se registre solo, la pasarela debe avisar al servicio con la clave CTB_CLAVE_PASARELA.</p>' +
+    '<p class="mini">Fiscal: la DGII indicó (consulta del 09-oct-2023) que el condominio debe emitir comprobante fiscal por las cuotas, sin precisar el tipo; el recibo tiene un campo NCF para cuando Contabilidad lo defina. Las retenciones de ISR e ITBIS a proveedores no se calculan hasta confirmarlas con la DGII.</p>' +
+    (puede() ? '<div class="acciones-fila"><button class="btn primario" type="submit">Guardar las reglas</button></div>' : '') + '</form>';
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-config') return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target));
+  ['pp_porcentaje', 'mora_valor', 'umbral_junta', 'colchon_caja', 'honorario_monto', 'fondo_reserva_pct'].forEach(k => { f[k] = String(f[k] || '0').replace(/,/g, ''); if (isNaN(Number(f[k]))) f[k] = '0'; });
+  if (Number(f.pp_porcentaje) > 50 || Number(f.fondo_reserva_pct) > 50) return toast('Revise los porcentajes: parecen demasiado altos.', true);
+  await enviar('ctb_guardar', { tabla: 'config', datos: f }, 'Reglas guardadas.');
+});
+function cfgRubros() {
+  const rs = S.D.rubros || [];
+  if (!rs.length) return '<div class="card"><h2>Catálogo de rubros</h2><p>Esta torre todavía no tiene catálogo. Cargue el estándar (' + K.rubrosBase().filter(r => r.padre).length + ' rubros en ' + K.rubrosBase().filter(r => !r.padre).length + ' grupos) y luego active, oculte o agregue los que hagan falta.</p>' +
+    (puede() ? '<button class="btn primario" data-catalogo>Cargar el catálogo estándar</button>' : '') + '</div>';
+  return '<div class="card"><h2>Rubros</h2>' + tabla(['Código', 'Nombre', 'Tipo', 'Activo'], rs.slice().sort((a, b) => a.codigo.localeCompare(b.codigo, 'es', { numeric: true })).map(r => '<tr><td>' + (r.padre ? '' : '<b>') + esc(r.codigo) + (r.padre ? '' : '</b>') + '</td><td>' + (r.padre ? '&nbsp;&nbsp;' : '<b>') + esc(r.nombre) + (r.padre ? '' : '</b>') + '</td><td>' + esc(r.tipo) + '</td><td>' +
+    (r.padre && puede() ? '<label class="chk"><input type="checkbox" data-rubro-activo="' + esc(r.id) + '"' + (r.activo !== 'no' ? ' checked' : '') + '> ' + (r.activo !== 'no' ? 'Sí' : 'No') + '</label>' : '') + '</td></tr>'), '') + '</div>' +
+    (puede() ? '<form class="card" id="f-rubro"><h2>Agregar rubro</h2><div class="form"><label>Grupo<select name="padre" required>' + rs.filter(r => !r.padre).map(g => '<option value="' + esc(g.codigo) + '">' + esc(g.codigo + ' · ' + g.nombre) + '</option>').join('') + '</select></label><label>Nombre<input name="nombre" required></label></div><div class="acciones-fila"><button class="btn primario" type="submit">Agregar</button></div></form>' : '');
+}
+document.addEventListener('click', async e => { if (e.target.closest('[data-catalogo]')) await enviar('ctb_guardar', { tabla: 'rubros', operacion: 'catalogo', lista: K.rubrosBase() }, 'Catálogo cargado.'); });
+document.addEventListener('change', async e => { const r = e.target.closest('[data-rubro-activo]'); if (r) await enviar('ctb_guardar', { tabla: 'rubros', operacion: 'editar', id: r.dataset.rubroActivo, datos: { activo: r.checked ? 'si' : 'no' } }); });
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-rubro') return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target)), g = S.D.rubros.find(r => r.codigo === f.padre), hijos = S.D.rubros.filter(r => r.padre === f.padre).map(r => Number(r.codigo.split('.')[1]) || 0);
+  await enviar('ctb_guardar', { tabla: 'rubros', operacion: 'crear', datos: { codigo: f.padre + '.' + (Math.max(0, ...hijos) + 1), nombre: f.nombre, tipo: g.tipo, padre: f.padre, activo: 'si', orden: 999 } }, 'Rubro agregado.');
+});
+function cfgParametros() {
+  const ps = (S.D.parametros || []).filter(K.activo);
+  return '<div class="card"><h2>Parámetros de reparto</h2><p class="nota">Valor de cada apartamento para repartir un total: m² techados, porcentaje de participación según el reglamento, etc.</p>' +
+    tabla(['Parámetro', 'Tipo', 'Apartamentos con valor', ''], ps.map(p => '<tr><td><b>' + esc(p.nombre) + '</b></td><td>' + esc(p.tipo) + '</td><td>' + Object.values(p.valores || {}).filter(v => Number(v) > 0).length + ' de ' + S.D.aptos.length + '</td><td>' + (puede() ? '<button class="btn" data-param="' + esc(p.id) + '">Valores</button>' : '') + '</td></tr>'), 'Sin parámetros.') + '</div>' +
+    (puede() ? '<form class="card" id="f-param"><h2>Nuevo parámetro</h2><div class="form"><label>Nombre<input name="nombre" required placeholder="M² techados"></label><label>Tipo<select name="tipo"><option value="m2">M²</option><option value="porcentaje">Porcentaje</option><option value="otro">Otro</option></select></label></div><div class="acciones-fila"><button class="btn primario" type="submit">Crear</button></div></form>' : '');
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id === 'f-param') { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); await enviar('ctb_guardar', { tabla: 'parametros', operacion: 'crear', datos: Object.assign(f, { valores: {} }) }, 'Parámetro creado.'); }
+  if (e.target.id === 'f-param-valores') { e.preventDefault(); const fd = new FormData(e.target), v = {}; S.D.aptos.forEach(a => { v[a] = Number(String(fd.get('v_' + a) || '').replace(/,/g, '')) || 0; }); $('#dlg').close();
+    await enviar('ctb_guardar', { tabla: 'parametros', operacion: 'editar', id: e.target.dataset.id, datos: { valores: v } }, 'Valores guardados.'); }
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-param]'); if (!b) return;
+  const p = S.D.parametros.find(x => x.id === b.dataset.param);
+  dialogo('<h2>' + esc(p.nombre) + '</h2><form id="f-param-valores" data-id="' + esc(p.id) + '"><div class="grid-aptos">' + S.D.aptos.map(a => '<label>' + esc(a) + '<input name="v_' + esc(a) + '" inputmode="decimal" value="' + esc((p.valores || {})[a] || '') + '"></label>').join('') + '</div><div class="acciones-fila"><button class="btn primario" type="submit">Guardar</button></div></form>');
+});
+function cfgPresupuesto() {
+  const anio = S.periodo.slice(0, 4), pres = (S.D.presupuesto || []).filter(p => String(p.anio) === anio);
+  const egr = rubros().filter(r => r.tipo === 'egreso' && r.padre && r.activo !== 'no');
+  return '<form class="card" id="f-pres"><h2>Presupuesto ' + anio + ' (anual por rubro)</h2><p class="nota">Lo aprobado en la asamblea. Si ya lo cargó en Finanzas › Estados y presupuesto, aquí se usa por rubro para comparar con lo pagado.</p>' +
+    tabla(['Rubro', '$Monto anual'], egr.map(r => { const p = pres.find(x => x.rubro === r.codigo); return '<tr><td>' + esc(r.codigo + ' · ' + r.nombre) + '</td><td class="num"><input name="p_' + esc(r.codigo) + '" inputmode="decimal" style="width:140px;text-align:right" value="' + esc(p ? p.monto : '') + '"' + (puede() ? '' : ' disabled') + '></td></tr>'; }), '') +
+    (puede() ? '<div class="acciones-fila"><button class="btn primario" type="submit">Guardar el presupuesto</button></div>' : '') + '</form>';
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-pres') return; e.preventDefault();
+  const anio = S.periodo.slice(0, 4), fd = new FormData(e.target), pres = (S.D.presupuesto || []).filter(p => String(p.anio) === anio);
+  for (const [k, v] of fd.entries()) {
+    const cod = k.slice(2), monto = K.r2(String(v || '').replace(/,/g, '')), p = pres.find(x => x.rubro === cod);
+    if (p && K.c(p.monto) !== K.c(monto)) await api('ctb_guardar', { torre: S.torre, tabla: 'presupuesto', operacion: 'editar', id: p.id, datos: { monto } });
+    else if (!p && monto > 0) await api('ctb_guardar', { torre: S.torre, tabla: 'presupuesto', operacion: 'crear', datos: { anio, rubro: cod, monto } });
+  }
+  await cargarTorre(); toast('Presupuesto guardado.');
+});
+
+// ================================================================== CONTROL
+function vControl() {
+  const sub = subAct('control', 'anulaciones');
+  return subtabs('control', [['anulaciones', 'Anulaciones'], ['auditoria', 'Auditoría']]) + (sub === 'anulaciones' ?
+    '<div class="card"><h2>Anulaciones</h2><p class="nota">Nada se borra: recibos, cobros, gastos e ingresos se anulan con un motivo y quedan aquí.</p>' + tabla(['Fecha', 'Qué', 'Detalle', '$Monto', 'Motivo', 'Usuario'], (S.D.anulaciones || []).slice().reverse().map(a => '<tr><td>' + esc(a.fecha) + '</td><td>' + esc(a.tabla) + '</td><td>' + esc(a.detalle) + '</td><td class="num">' + (a.monto ? dinero(a.monto) : '') + '</td><td>' + esc(a.motivo) + '</td><td>' + esc(a.usuario) + '</td></tr>'), 'No hay anulaciones.') + '</div>' :
+    '<div class="card"><h2>Auditoría</h2><p class="nota">Cada cambio con el valor anterior y el nuevo.</p>' + tabla(['Fecha', 'Usuario', 'Acción', 'Qué', 'Antes → después'], (S.D.auditoria || []).slice().reverse().map(a => '<tr><td>' + esc(a.fecha) + '</td><td>' + esc(a.usuario) + '</td><td>' + esc(a.accion) + '</td><td>' + esc(a.tabla) + '</td><td><details><summary class="mini">ver</summary><small>' + esc(a.antes || '—') + '<br>→ ' + esc(a.despues || '—') + '</small></details></td></tr>'), (S.D.auditoria || []).length ? '' : 'Sin registros, o su usuario no tiene el nivel «profundizar».') + '</div>');
+}
+
+// ================================================================== TODAS LAS TORRES
+function vGlobal() {
+  const g = S.global; if (!g) return '';
+  const ts = g.torres.slice().sort((a, b) => b.vencido - a.vencido);
+  return '<div class="card"><h2>Todas las torres · ' + esc(mesTxt(g.hoy.slice(0, 7))) + '</h2>' + tabla(['Torre', '$Emitido', '$Cobrado', 'Cobranza', '$Vencido', 'Avisos', 'Último cierre'], ts.map(t => '<tr><td><a href="#inicio" data-ir-torre="' + esc(t.torre) + '"><b>' + esc(t.torre) + '</b></a>' + (t.usa ? '' : ' <span class="chip">sin empezar</span>') + '</td><td class="num">' + din0(t.emitido_mes) + '</td><td class="num">' + din0(t.cobrado_mes) + '</td><td>' + (t.emitido_mes ? Math.round(t.cobrado_mes * 100 / t.emitido_mes) + ' %' : '') + '</td><td class="num ' + (t.vencido ? 'rojo-t' : '') + '">' + din0(t.vencido) + '</td><td>' + (t.notificados ? '<span class="chip ambar">' + t.notificados + '</span>' : '') + '</td><td>' + esc(t.ultimo_cierre ? mesTxt(t.ultimo_cierre) : '—') + '</td></tr>'), 'Sin torres.') + '</div>';
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-ir-torre]'); if (b) { e.preventDefault(); S.torre = b.dataset.irTorre; guardarPref(); S.sec = 'inicio'; history.replaceState(null, '', '#inicio'); pintarCab(); cargarTorre(); } });
+
+// ================================================================== DEMOSTRACIÓN (sin servicio)
+const Demo = (() => {
+  const T = 'Torre Demo Prime', aptos = ['1A', '1B', '2A', '2B', '3A', '3B', '4A', '4B', '5A', '5B', '6A', '6B'];
+  let n = 0; const id = p => p + '-' + (++n);
+  const hoyD = K.hoyISO(), per0 = hoyD.slice(0, 7), meses = [-3, -2, -1, 0].map(i => K.sumarMeses(per0, i));
+  const D = { torre: T, puede_editar: true, puede_cerrar: true, gerente: true, ia: true, codigo_qr: 'DEMO42', aptos, config: { vence_dia: '15', pp_porcentaje: '5', pp_dia: '5', mora_tipo: 'porcentaje', mora_valor: '2', mora_dias_gracia: '15', serie_prefijo: 'R', serie_siguiente: '1', umbral_junta: '50000', junta_nombre: 'Lic. Presidente', honorario_monto: '28000', honorario_dia: '5', colchon_caja: '150000' },
+    rubros: K.rubrosBase().map((r, i) => Object.assign({ id: 'RUB-' + i }, r)), parametros: [{ id: 'PAR-1', nombre: 'M² techados', tipo: 'm2', estado: 'activo', valores: Object.fromEntries(aptos.map((a, i) => [a, i % 2 ? 120 : 145])) }],
+    conceptos: [], recibos: [], cobros: [], notificados: [], sin_identificar: [], ingresos: [], gastos: [], extracto: [], conciliaciones: [], cierres: [], gestiones: [], acuerdos: [], aprobaciones: [], anulaciones: [], auditoria: [],
+    cuentas: [{ id: 'CTA-1', nombre: 'BDI corriente', banco: 'BDI', numero: '0012345678', tipo: 'banco', saldo_inicial: 420000, fecha_inicial: meses[0] + '-01', activa: 'si' }, { id: 'CTA-2', nombre: 'Caja chica', banco: '', tipo: 'caja_chica', saldo_inicial: 0, fecha_inicial: meses[0] + '-01', tope: 15000, activa: 'si' }],
+    presupuesto: [['E1.2', 540000], ['E1.1', 96000], ['E2.1', 1080000], ['E3.1', 180000], ['E4.1', 336000], ['E6.3', 240000], ['E3.4', 90000]].map(([r, m]) => ({ id: id('PRE'), anio: per0.slice(0, 4), rubro: r, monto: m })),
+    pagos: [] };
+  // cuotas, recibos y cobros de 4 meses (los morosos: 3B y 5A; 6B dejó de pagar)
+  let serie = 1;
+  meses.forEach((per, mi) => {
+    D.conceptos.push({ id: id('CON'), periodo: per, nombre: 'Mantenimiento', rubro: 'I1.1', reparto: 'parametro', parametro: 'PAR-1', monto: 228000, tipo: 'ordinaria', estado: 'activo' });
+    if (mi === 3) return; // el mes actual queda para generar en la demostración
+    const prev = K.armarRecibos({ periodo: per, conceptos: D.conceptos, aptos, valores: { 'PAR-1': D.parametros[0].valores }, config: D.config, emision: per + '-01' });
+    prev.forEach(r => { r.id = id('REC'); r.numero = 'R' + String(serie++).padStart(6, '0'); r.estado = 'emitido'; D.recibos.push(r); });
+    prev.forEach((r, i) => {
+      if (r.apartamento === '3B' || r.apartamento === '5A' && mi > 0 || r.apartamento === '6B' && mi >= 1) return;
+      const dia = i % 3 === 0 ? 4 : 10 + i;
+      const f = per + '-' + String(dia).padStart(2, '0');
+      const ap = K.aplicarCobro({ monto: dia <= 5 ? K.r2(r.total * 0.95) : r.total, fecha: f, pendientes: K.conSaldo([r], []), config: D.config });
+      D.cobros.push({ id: id('COB'), fecha: f, apartamento: r.apartamento, monto: dia <= 5 ? K.r2(r.total * 0.95) : r.total, forma: 'transferencia', cuenta_id: 'CTA-1', referencia: 'T' + (1000 + D.cobros.length), origen: 'directo', aplicaciones: ap.aplicaciones, descuento: ap.descuento, a_favor: ap.a_favor, estado: 'activo' });
+    });
+    [['Edesur', 'E1.2', 44800], ['CAASD', 'E1.1', 7900], ['Nómina del personal', 'E2.1', 72500], ['Elevadores Otis', 'E3.1', 14200], ['Limpieza Brillo', 'E6.3', 20000], ['Stili Group · Honorarios de administración', 'E4.1', 28000]].forEach(([s, r, m], j) => {
+      D.pagos.push({ id: id('CXP'), suplidor: s, concepto: s + ' ' + per, monto: m + mi * 300, estado: 'pagada', fecha: per + '-0' + (2 + j), pagado_en: per + '-' + (18 + j), rubro: r, cuenta_id: 'CTA-1', cheque: j === 3 ? String(2050 + mi) : '' });
+    });
+    D.gastos.push({ id: id('GAS'), tipo: 'gasto', fecha: per + '-12', cuenta_id: 'CTA-2', rubro: 'E9.1', monto: 3200 + mi * 150, detalle: 'Materiales de limpieza', estado: 'activo' });
+    if (mi === 0) D.gastos.push({ id: id('GAS'), tipo: 'transferencia', fecha: per + '-03', cuenta_id: 'CTA-1', destino_id: 'CTA-2', monto: 15000, detalle: 'Apertura de caja chica', estado: 'activo' });
+  });
+  D.pagos.push({ id: id('CXP'), suplidor: 'Generadores del Caribe', concepto: 'Overhaul planta eléctrica', monto: 86500, estado: 'pendiente', fecha: per0 + '-03', rubro: 'E3.4', cuenta_id: 'CTA-1' });
+  D.pagos.push({ id: id('CXP'), suplidor: 'Edesur', concepto: 'Edesur ' + per0, monto: 46100, estado: 'pendiente', fecha: per0 + '-02', rubro: 'E1.2', cuenta_id: 'CTA-1' });
+  // conciliaciones y cierres de los dos primeros meses; extracto del tercero
+  [0, 1].forEach(mi => {
+    const per = meses[mi], lib = K.libro('CTA-1', Object.assign({}, D, { rubros: D.rubros }), K.finDe(per));
+    const conc = K.conciliar({ cuentaId: 'CTA-1', d: D, periodo: per, extracto: lib.movimientos.filter(m => m.fecha.slice(0, 7) === per).map(m => ({ id: 'X' + m.clave, cuenta_id: 'CTA-1', fecha: m.fecha, monto: m.monto, referencia: m.referencia || '' })), saldoBanco: lib.saldo,
+      yaConciliados: D.conciliaciones.reduce((a, k) => a.concat(k.claves), []) });
+    D.conciliaciones.push({ id: id('CNC'), cuenta_id: 'CTA-1', periodo: per, saldo_banco: lib.saldo, saldo_libros: lib.saldo, transito: 0, no_cobrados: 0, claves: conc.emparejados.map(e => e.libro.clave), extracto_ids: [], estado: 'conciliada', creado_por: 'Contabilidad' });
+    const lc = K.libro('CTA-2', D, K.finDe(per));
+    D.conciliaciones.push({ id: id('CNC'), cuenta_id: 'CTA-2', periodo: per, saldo_banco: lc.saldo, saldo_libros: lc.saldo, transito: 0, no_cobrados: 0, claves: lc.movimientos.map(m => m.clave), extracto_ids: [], estado: 'conciliada', creado_por: 'Contabilidad' });
+    D.cierres.push({ id: id('CIE'), periodo: per, estado: 'cerrado', por: 'Contabilidad', archivos: [] });
+  });
+  const per2 = meses[2], lib2 = K.libro('CTA-1', D, K.finDe(per2));
+  lib2.movimientos.filter(m => m.fecha.slice(0, 7) === per2 && m.tipo !== 'pago' || m.fecha.slice(0, 7) === per2 && m.tipo === 'pago' && !m.cheque).forEach((m, i) => D.extracto.push({ id: 'EXT-' + i, cuenta_id: 'CTA-1', fecha: m.fecha, descripcion: m.detalle.replace(/^Cobro apto\. \w+ · /, 'Transferencia '), referencia: m.referencia || '', monto: m.monto, estado: 'pendiente' }));
+  D.extracto.push({ id: 'EXT-C', cuenta_id: 'CTA-1', fecha: K.finDe(per2), descripcion: 'Comisión por manejo de cuenta', referencia: '', monto: -450, estado: 'pendiente' });
+  D.extracto.push({ id: 'EXT-D', cuenta_id: 'CTA-1', fecha: per2 + '-27', descripcion: 'Depósito en efectivo', referencia: 'DEP7781', monto: 8150, estado: 'pendiente' });
+  D.sin_identificar.push({ id: id('SIN'), fecha: per0 + '-02', monto: 7900, cuenta_id: 'CTA-1', referencia: 'TRF 99812', descripcion: 'Transferencia sin concepto', estado: 'pendiente' });
+  D.notificados.push({ id: id('NOT'), fecha: per0 + '-06', fecha_aviso: per0 + '-06', apartamento: '5A', monto: 8540, banco: 'Popular', referencia: '771234', nombre: 'Residente 5A', comprobante_url: '', canal: 'qr', estado: 'pendiente' });
+  D.gestiones.push({ id: id('GES'), fecha: K.sumarMeses(per0, -1) + '-20', apartamento: '3B', tipo: 'llamada', nota: 'Dice que paga a fin de mes.', creado_por: 'Gestora', estado: 'activo' });
+  const deuda3B = K.estadoCuenta('3B', D.recibos, D.cobros).deuda;
+  D.acuerdos.push({ id: id('ACU'), fecha: K.sumarMeses(per0, -1) + '-01', apartamento: '3B', total: deuda3B, cuotas: K.planCuotas(deuda3B, 3, K.sumarMeses(per0, -1) + '-10'), estado: 'vigente', nota: 'Tres pagos mensuales' });
+  D.aprobaciones.push({ id: id('APR'), cxp_id: D.pagos[D.pagos.length - 2].id, suplidor: 'Generadores del Caribe', monto: 86500, estado: 'pendiente', pedida_por: 'Contabilidad' });
+  D.pagos.forEach(p => { const a = D.aprobaciones.find(x => x.cxp_id === p.id); p.junta = a ? a.estado : ''; });
+
+  const clonar = () => JSON.parse(JSON.stringify(D));
+  const audit = (accion, tabla, reg) => D.auditoria.push({ fecha: new Date().toISOString().slice(0, 16).replace('T', ' '), usuario: 'Demostración', accion, tabla, registro: reg, antes: '', despues: '' });
+  const err = m => { throw new Error(m); };
+  const abierto = f => { if (K.mesCerrado(String(f || '').slice(0, 7) + '-01', D.cierres)) err('El mes ' + String(f).slice(0, 7) + ' está cerrado. Solo el Gerente General puede reabrirlo.'); };
+  const A = {
+    ctb_global: () => ({ hoy: hoyD, torres: [{ torre: T, emitido_mes: 0, cobrado_mes: 0, vencido: K.antiguedad(D.recibos, D.cobros, hoyD).vencido, notificados: 1, ultimo_cierre: meses[1], usa: true },
+      { torre: 'Torre Niza 7', emitido_mes: 412000, cobrado_mes: 298000, vencido: 186000, notificados: 2, ultimo_cierre: meses[1], usa: true }, { torre: 'Coral Park', emitido_mes: 0, cobrado_mes: 0, vencido: 0, notificados: 0, ultimo_cierre: '', usa: false }] }),
+    ctb_datos: q => { if (q.torre !== T) err('En la demostración solo «' + T + '» tiene datos.'); return clonar(); },
+    ctb_guardar: q => {
+      const t = q.tabla, d = q.datos || {};
+      if (t === 'config') { Object.assign(D.config, d); return clonar(); }
+      if (q.operacion === 'catalogo') { if (D.rubros.length) err('Esta torre ya tiene su catálogo de rubros.'); D.rubros = q.lista.map((r, i) => Object.assign({ id: 'RUB-' + i }, r)); return clonar(); }
+      if (q.operacion === 'crear') { const campo = { sin_identificar: 'fecha', ingresos: 'fecha', gastos: 'fecha', conceptos: 'periodo', acuerdos: 'fecha' }[t]; if (campo) abierto(d[campo]);
+        if (t === 'cxp_rubro') { const p = D.pagos.find(x => x.id === d.cxp_id); Object.assign(p, { rubro: d.rubro, cuenta_id: d.cuenta_id }); return clonar(); }
+        D[t].push(Object.assign({ id: id('CTB'), estado: t === 'sin_identificar' ? 'pendiente' : t === 'acuerdos' ? 'vigente' : 'activo', creado_por: 'Demostración' }, d)); audit('crear', t, ''); return clonar(); }
+      if (q.operacion === 'editar') { const f = D[t].find(x => x.id === q.id); Object.assign(f, d); audit('editar', t, q.id); return clonar(); }
+      if (q.operacion === 'anular') { const f = D[t].find(x => x.id === q.id); abierto(f.emision || f.fecha || f.periodo);
+        if (t === 'recibos' && (K.aplicadoPorRecibo(D.cobros)[f.id] || 0) > 0) err('Ese recibo tiene cobros aplicados. Anule primero esos cobros.');
+        f.estado = 'anulado'; f.motivo = q.motivo;
+        if (t === 'cobros' && f.origen === 'sin_identificar') { const s = D.sin_identificar.find(x => x.id === f.origen_id); if (s) s.estado = 'pendiente'; }
+        if (t === 'cobros' && f.origen === 'notificado') { const s = D.notificados.find(x => x.id === f.origen_id); if (s) s.estado = 'pendiente'; }
+        D.anulaciones.push({ fecha: hoyD, tabla: t, registro: f.id, detalle: f.numero || f.detalle || f.apartamento || f.nombre || '', monto: f.monto || f.total, motivo: q.motivo, usuario: 'Demostración' }); return clonar(); }
+    },
+    ctb_recibos: q => {
+      let s = Number(D.config.serie_siguiente) || serie; if (s < serie) s = serie;
+      const mapa = {};
+      q.recibos.forEach(r => { abierto(r.emision); if ((r.tipo === 'ordinaria' || r.tipo === 'mora') && D.recibos.some(x => K.activo(x) && x.apartamento === r.apartamento && x.periodo === q.periodo && x.tipo === r.tipo)) err('El apto. ' + r.apartamento + ' ya tiene recibo de ' + q.periodo + '.');
+        const o = Object.assign({ id: id('REC'), numero: (D.config.serie_prefijo || 'R') + String(s++).padStart(6, '0'), periodo: q.periodo, estado: 'emitido' }, r); D.recibos.push(o); mapa[r.apartamento + '|' + r.tipo] = o; });
+      D.config.serie_siguiente = String(s); serie = s;
+      (q.cruces || []).forEach(k => { const disp = K.aFavor(D.cobros)[k.apartamento] || 0; const aps = k.aplicaciones.map(x => { const r = mapa[k.apartamento + '|' + x.tipo]; return r ? { recibo_id: r.id, numero: r.numero, monto: Math.min(x.monto, disp), descuento: 0 } : null; }).filter(Boolean);
+        const usado = aps.reduce((t, x) => t + K.c(x.monto), 0); if (usado > 0) D.cobros.push({ id: id('COB'), fecha: k.fecha, apartamento: k.apartamento, monto: K.p(usado), forma: 'anticipo', origen: 'cruce', aplicaciones: aps, a_favor: 0, descuento: 0, estado: 'activo' }); });
+      return clonar();
+    },
+    ctb_cobrar: q => {
+      const k = q.cobro; abierto(k.fecha);
+      if (!(k.monto > 0)) err('El monto debe ser mayor que cero.');
+      const sald = K.conSaldo(D.recibos, D.cobros); let suma = 0;
+      k.aplicaciones.forEach(x => { const r = sald.find(y => y.id === x.recibo_id); if (K.c(x.monto) + K.c(x.descuento || 0) > K.c(r.saldo)) err('El recibo ' + r.numero + ' solo tiene ' + r.saldo + ' pendiente.'); suma += K.c(x.monto); });
+      let cuenta = k.cuenta_id;
+      if (k.origen === 'sin_identificar') { const s = D.sin_identificar.find(x => x.id === k.origen_id); s.estado = 'identificado'; cuenta = s.cuenta_id; }
+      const nuevo = { id: id('COB'), fecha: k.fecha, apartamento: k.apartamento, monto: k.monto, forma: k.forma, cuenta_id: cuenta, referencia: k.referencia, origen: k.origen, origen_id: k.origen_id, aplicaciones: k.aplicaciones, descuento: K.p(k.aplicaciones.reduce((t, x) => t + K.c(x.descuento || 0), 0)), a_favor: K.p(K.c(k.monto) - suma), estado: 'activo' };
+      D.cobros.push(nuevo);
+      if (k.origen === 'sin_identificar') D.sin_identificar.find(x => x.id === k.origen_id).cobro_id = nuevo.id;
+      if (k.origen === 'notificado') Object.assign(D.notificados.find(x => x.id === k.origen_id), { estado: 'aprobado', cobro_id: nuevo.id, revisado_por: 'Demostración' });
+      return clonar();
+    },
+    ctb_notificado_rechazar: q => { Object.assign(D.notificados.find(x => x.id === q.id), { estado: 'rechazado', motivo: q.motivo, revisado_por: 'Demostración' }); return clonar(); },
+    ctb_extracto: q => { let nuevos = 0; q.movimientos.forEach(m => { if (!D.extracto.some(x => x.cuenta_id === q.cuenta_id && x.fecha === m.fecha && x.monto === m.monto && x.referencia === m.referencia)) { D.extracto.push(Object.assign({ id: id('MOV'), cuenta_id: q.cuenta_id, estado: 'pendiente' }, m)); nuevos++; } }); const r = clonar(); r.aviso = nuevos + ' movimientos nuevos.'; return r; },
+    ctb_conciliar: q => { abierto(q.periodo + '-01');
+      const hechos = D.conciliaciones.filter(k => K.activo(k) && k.cuenta_id === q.cuenta_id).reduce((a, k) => a.concat(k.claves || []), []);
+      const r = K.conciliar({ cuentaId: q.cuenta_id, d: Object.assign({}, D), periodo: q.periodo, extracto: D.extracto.filter(x => x.cuenta_id === q.cuenta_id && x.estado !== 'conciliado'), saldoBanco: q.saldo_banco, parejas: q.parejas, yaConciliados: hechos });
+      if (!r.lista) err('No cuadra: diferencia de ' + r.diferencia + '.');
+      const ids = r.emparejados.filter(e => e.banco).map(e => e.banco.id);
+      D.conciliaciones.push({ id: id('CNC'), cuenta_id: q.cuenta_id, periodo: q.periodo, saldo_banco: r.saldo_banco, saldo_libros: r.saldo_libros, transito: r.total_transito, no_cobrados: r.total_no_cobrados, claves: r.emparejados.map(e => e.libro.clave), extracto_ids: ids, estado: 'conciliada', creado_por: 'Demostración' });
+      D.extracto.filter(x => ids.indexOf(x.id) >= 0).forEach(x => { x.estado = 'conciliado'; }); return clonar(); },
+    ctb_cerrar: q => { D.cierres = D.cierres.filter(k => k.periodo !== q.periodo); D.cierres.push({ id: id('CIE'), periodo: q.periodo, estado: 'cerrado', por: 'Demostración', archivos: [] }); return clonar(); },
+    ctb_reabrir: q => { Object.assign(D.cierres.find(k => k.periodo === q.periodo), { estado: 'reabierto', motivo: q.motivo }); return clonar(); },
+    ctb_aprobacion_pedir: q => { let a = D.aprobaciones.find(x => x.cxp_id === q.cxp_id); if (!a) { const p = D.pagos.find(x => x.id === q.cxp_id); a = { id: id('APR'), cxp_id: p.id, suplidor: p.suplidor, monto: p.monto, estado: 'pendiente' }; D.aprobaciones.push(a); p.junta = 'pendiente'; } const r = clonar(); r.enlace_junta = location.href.replace(/contabilidad\.html.*$/, 'aprobar.html?demo=1&t=demo'); return r; },
+    ctb_honorario: q => { if (D.pagos.some(p => p.concepto === 'Honorarios de administración ' + q.periodo)) err('Los honorarios de ' + q.periodo + ' ya están en Cuentas por Pagar.');
+      D.pagos.push({ id: id('CXP'), suplidor: 'Stili Group · Honorarios de administración', concepto: 'Honorarios de administración ' + q.periodo, monto: Number(D.config.honorario_monto), estado: 'pendiente', fecha: hoyD, rubro: 'E4.1', cuenta_id: '' }); return clonar(); },
+    ctb_informe_ia: q => new Promise(ok => setTimeout(() => ok({ texto: 'En ' + mesTxt(q.periodo) + ' la torre cobró ' + din0(q.cifras.liquidacion.ingresos_mes) + ' y pagó ' + din0(q.cifras.liquidacion.egresos_mes) + ', con un resultado de ' + din0(q.cifras.liquidacion.resultado_mes) + '. (Texto de ejemplo: en el sistema real lo redacta la IA con estas mismas cifras.)\n\nLa cartera vencida suma ' + din0(q.cifras.cartera.vencida) + '; ' + din0(q.cifras.cartera.mas_de_90_dias) + ' tiene más de 90 días y está en gestión con acuerdos de pago.\n\nLa Junta debe decidir la aprobación del overhaul de la planta eléctrica (RD$ 86,500), que supera el monto fijado para pagos sin aprobación.' }), 700)),
+  };
+  return { llamar: (accion, q) => { if (!A[accion]) throw new Error('Acción no disponible en la demostración: ' + accion); return new Promise((ok, mal) => setTimeout(() => { try { ok(A[accion](q)); } catch (e) { mal(e); } }, 120)); } };
+})();
+
+// ------------------------------------------------------------------ arranque
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'contabilidad'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Contabilidad</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a> <a class="btn" href="?demo=1">Ver la demostración</a></div>'; }
+else { StiliModulos.montar(document.body, 'contabilidad'); iniciar(); }
+</script>
+</body>
+</html>

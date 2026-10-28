@@ -18,7 +18,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '2.8.1';
+  const VERSION_BARRA = '3.0';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -53,6 +53,17 @@
       { t: 'Resumen', items: [
         { t: 'Semáforo de las torres', d: 'Liquidez, por cobrar y por pagar', href: 'presupuesto.html', ve: 'presupuesto' },
         { t: 'Estados y presupuesto', d: 'Estados financieros leídos con IA', href: 'torres.html?m=finanzas#/finanzas', ve: 'cuentas', viejo: 'torres' }] },
+      { t: 'Contabilidad de la torre', items: [
+        { t: 'Inicio de Contabilidad', d: 'Saldos, cartera, Vigía de cobros y caja a 90 días', href: 'contabilidad.html#inicio', ve: 'contabilidad', viejo: 'torres' },
+        { t: 'Cuotas y recibos', d: 'Conceptos del mes, reparto y recibos', href: 'contabilidad.html#cuotas', ve: 'contabilidad', viejo: 'torres' },
+        { t: 'Cobros', d: 'Cobrar, avisos de pago y depósitos sin identificar', href: 'contabilidad.html#cobros', ve: 'contabilidad', viejo: 'torres' },
+        { t: 'Cobranza y acuerdos', d: 'Cartera por antigüedad y seguimiento', href: 'contabilidad.html#cobranza', ve: 'contabilidad', viejo: 'torres' },
+        { t: 'Pagos y bancos', d: 'Rubros, Junta, caja chica y transferencias', href: 'contabilidad.html#bancos', ve: 'contabilidad', viejo: 'torres' },
+        { t: 'Conciliación y cierre', d: 'Estado del banco y cierre de mes', href: 'contabilidad.html#conciliacion', ve: 'contabilidad', viejo: 'torres' },
+        { t: 'Reportes', d: 'Liquidación, informe a la Junta y más', href: 'contabilidad.html#reportes', ve: 'contabilidad', viejo: 'torres' },
+        { t: 'Contabilidad formal', d: 'Libro diario, balance y resultados', href: 'contabilidad.html#formal', ve: 'contabilidad', viejo: 'torres' },
+        { t: 'Configuración contable', d: 'Reglas, rubros, reparto y presupuesto', href: 'contabilidad.html#config', ve: 'contabilidad', viejo: 'torres' },
+        { t: 'Todas las torres', href: 'contabilidad.html#global', ve: 'contabilidad', viejo: 'torres' }] },
       { t: 'Ingresos · por cobrar', items: [
         { t: 'Cuentas por cobrar', d: 'Cargar el listado semanal y ver saldos', href: 'cobros.html', ve: 'cobros' },
         { t: 'Por cobrar de la torre', d: 'Detalle por apartamento', href: 'torres.html?m=finanzas#/cxc', ve: 'cobros' }] },
@@ -122,7 +133,7 @@
   ];
   MODULOS.forEach(m => { m.sub = [].concat(...(m.grupos || []).map(g => g.items)); });   // lista plana (compatibilidad)
   // Páginas viejas o internas y su módulo
-  const DENTRO_DE = { invitados: 'lobby', presupuesto: 'finanzas', usuarios: 'ajustes', admin: 'ajustes', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'operaciones', torres: 'condominios', nomina: 'personal', cobros: 'finanzas' };
+  const DENTRO_DE = { invitados: 'lobby', presupuesto: 'finanzas', usuarios: 'ajustes', admin: 'ajustes', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'operaciones', torres: 'condominios', nomina: 'personal', cobros: 'finanzas', contabilidad: 'finanzas' };
 
   const CSS = `
 .sm-barra { background: #003A75; color: #fff; border-bottom: 3px solid #DCB40C; font-family: Montserrat, "Segoe UI", system-ui, sans-serif; }
@@ -572,6 +583,6 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     } }, window.STILI_PROTECCION || {});
   const actual = document.currentScript && document.currentScript.src;
   const s = document.createElement('script');
-  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=2.8.1') : 'stili-proteccion.js?v=2.8.1';
+  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.0') : 'stili-proteccion.js?v=3.0';
   (document.head || document.documentElement).appendChild(s);
 })();
