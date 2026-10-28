@@ -141,7 +141,8 @@ const SECCION_VIEJA = { presupuesto: 'finanzas', contratos: 'proveedores', comun
 const lobby = () => (S.lista && S.lista.lobby) || {};
 // v2.7 · la misma pantalla de la torre sirve a cinco módulos; cada uno ve solo sus secciones
 const MODULO_SECCIONES = {
-  inicio: ['tablero', 'general', 'junta', 'documentos', 'historial'],
+  // v2.8 · Condominios es la ficha completa de la torre: todo lo de esa torre en un solo lugar (cada dato se guarda en su módulo)
+  inicio: ['tablero', 'general', 'junta', 'apartamentos', 'personal', 'proveedores', 'documentos', 'accesos', 'finanzas', 'cxp', 'cxc', 'reclamaciones', 'tareas', 'pedidos', 'historial'],
   operaciones: ['reclamaciones', 'tareas', 'pedidos', 'proveedores'],
   finanzas: ['finanzas', 'cxp', 'cxc'],
   personal: ['personal'],
@@ -183,7 +184,9 @@ window.addEventListener('message', e => {
 function pintarTabs() {
   const d = S.detalle;
   const corto = window.matchMedia('(max-width: 700px)').matches;
-  $('#tabs').innerHTML = SECCIONES.filter(([k]) => tieneSeccion(k, d)).map(([k, n]) => '<button type="button" data-s="' + k + '" aria-selected="' + (S.seccion === k) + '" title="' + esc(n) + '">' + esc(corto ? CORTO[k] : n) +
+  const orden = MODULO_SECCIONES[MODULO];   // v2.8 · las pestañas en el orden del módulo (Condominios: primero la torre, luego dinero y operación)
+  if (window.StiliModulos && StiliModulos.marcar) StiliModulos.marcar({ torre: { seccion: S.seccion, cxpTab: S.seccion === 'cxp' ? (S.cxpTab || 'relaciones') : '' } });
+  $('#tabs').innerHTML = SECCIONES.filter(([k]) => tieneSeccion(k, d)).sort((x, y) => orden.indexOf(x[0]) - orden.indexOf(y[0])).map(([k, n]) => '<button type="button" data-s="' + k + '" aria-selected="' + (S.seccion === k) + '" title="' + esc(n) + '">' + esc(corto ? CORTO[k] : n) +
     (k === 'reclamaciones' && d.reclamaciones && d.reclamaciones.resumen.abiertas ? '<span class="n">' + d.reclamaciones.resumen.abiertas + '</span>' : '') +
     (k === 'tareas' && d.tareas_abiertas ? '<span class="n">' + d.tareas_abiertas + '</span>' : '') +
     (k === 'proveedores' && d.contratos.some(c => c.dias !== null && c.dias <= 30) ? '<span class="n">' + d.contratos.filter(c => c.dias !== null && c.dias <= 30).length + '</span>' : '') + '</button>').join('');
@@ -206,6 +209,7 @@ document.addEventListener('click', e => {
 function verSeccion(k) {
   document.body.classList.toggle('ancho', k === 'cxp');
   S.seccion = k; guardar({ torre_seccion: k, ['seccion_' + MODULO]: k });
+  if (window.StiliModulos && StiliModulos.marcar) StiliModulos.marcar({ torre: { seccion: k, cxpTab: k === 'cxp' ? (S.cxpTab || 'relaciones') : '' } });
   $$('#tabs > button[data-s]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.s === k)));
   StiliModulos.mas($('#tabs'), { items: ':scope > button' });
   pintarSeccion();
@@ -359,6 +363,18 @@ document.addEventListener('change', e => {
   resumenArmar();
 });
 
+// v2.8 · los temas del menú desplegable que caen en esta misma página solo cambian el #hash: «#TORRE/seccion/pestaña» o «#/seccion»
+addEventListener('hashchange', () => {
+  if (!S.lista || !S.lista.torres.length) return;
+  const [p, sec, sub] = decodeURIComponent(location.hash.slice(1)).split('/');
+  if (!sec) return;                                        // «#TORRE» lo pone abrirTorre: nada que hacer
+  const clave = p || S.torre || cfg().torre_actual;
+  if (!SECCIONES.some(([k]) => k === sec)) return;
+  if (sec === 'cxp' && sub && CXP_TABS.some(([k]) => k === sub)) S.cxpTab = sub;
+  if (clave !== S.torre || !S.detalle) { S.seccion = sec; return abrirTorre(clave); }
+  history.replaceState(null, '', '#' + encodeURIComponent(S.torre));
+  if (tieneSeccion(sec, S.detalle)) verSeccion(sec);
+});
 async function abrirTorre(clave) {
   S.torre = clave; guardar({ torre_actual: clave });
   const t = S.lista.torres.find(x => x.clave === clave);
@@ -523,6 +539,7 @@ function lineaFactura(c, p) {
 function pintarCxp() {
   const c = S.cxp, el = $('#cxp'); if (!el || !c) return;
   const tab = S.cxpTab || 'relaciones';
+  if (window.StiliModulos && StiliModulos.marcar) StiliModulos.marcar({ torre: { seccion: 'cxp', cxpTab: tab } });
   const pend = c.partidas.filter(p => p.periodo === c.periodo && p.estado === 'pendiente').length;
   const porVal = c.recurrentes.filter(r => r.estado === 'propuesto').length;
   el.innerHTML = '<div class="card"><div class="cab"><h2>Cuentas por pagar · ' + esc(nombreMes(c.periodo)) + '</h2><label class="nota" style="display:flex;gap:8px;align-items:center">Mes de pago <input type="month" id="cxp-per" value="' + esc(c.periodo) + '"></label></div>' +
@@ -1607,9 +1624,9 @@ document.addEventListener('click', e => {
 async function iniciar() {
   if (!DEMO && !cfg().sesion) {
     $('#contenido').innerHTML = '<div class="card entrar"><h2>Torres</h2><p>Entre con su usuario de Stili en el Portal y vuelva a esta página.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>';
-    StiliModulos.montar(document.body, MODULO); return;
+    StiliModulos.montar(document.body, MODULO === 'inicio' ? 'condominios' : MODULO); return;
   }
-  StiliModulos.montar(document.body, MODULO);
+  StiliModulos.montar(document.body, MODULO === 'inicio' ? 'condominios' : MODULO);
   $('.cabecera .titulo b').textContent = NOMBRE_MODULO[MODULO];
   const previa = DEMO ? null : memoria('lista');
   if (previa) { S.lista = previa; mostrarLista(true); }
@@ -1629,8 +1646,10 @@ function mostrarLista(abrir) {
     if (!S.lista.torres.length) { $('#contenido').innerHTML = '<div class="vacio">' + (S.lista.puede_crear ? 'Todavía no hay torres. Use «+ Nueva torre».' : 'Su usuario no tiene torres asignadas. Pídalas al Gerente General.') + '</div>'; return; }
     $('#selector').hidden = false; $('#b-nueva').hidden = !S.lista.puede_crear || MODULO !== 'inicio';
     if (!abrir) return;                     // solo se refrescó la lista (permisos o torres nuevas)
-    const [pedida, sec] = (decodeURIComponent(location.hash.slice(1)) || cfg().torre_actual || '').split('/');   // v2.6 · #TORRE/seccion (enlaces del Inicio)
+    const [pedidaHash, sec, sub] = (decodeURIComponent(location.hash.slice(1)) || cfg().torre_actual || '').split('/');   // v2.6 · #TORRE/seccion (enlaces del Inicio)
+    const pedida = pedidaHash || cfg().torre_actual || '';   // v2.8 · «#/seccion» = la torre de la última vez
     if (sec && SECCIONES.some(([k]) => k === sec)) S.seccion = sec;
+    if (sec === 'cxp' && sub && CXP_TABS.some(([k]) => k === sub)) S.cxpTab = sub;
     const inicial = S.lista.torres.find(t => t.clave === pedida) || S.lista.torres[0];
     abrirTorre(inicial.clave);
   }

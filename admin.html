@@ -648,8 +648,14 @@ async function api(accion, datos) {
 const BASE_PAGINAS = () => CFG.paginas || (location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent/.test(location.host) ? location.href.replace(/[^/]*$/, '') : 'https://SU-USUARIO.github.io/visitantes/');
 
 // ------------------------------------------------------------------ Navegación
+// v2.8 · un tema del menú desplegable en esta misma página solo cambia el #hash: se abre esa pestaña
+addEventListener('hashchange', () => {
+  const v = VIEJAS[location.hash.slice(1)] || location.hash.slice(1), t = document.querySelector('.tab[data-v="' + v + '"]');
+  if (t && !t.hidden && (TABS_MODULO[MODULO] || []).includes(v)) vista(v);
+});
 function vista(v) {
   v = VIEJAS[v] || v;
+  if (window.StiliModulos && StiliModulos.marcar) StiliModulos.marcar({ admin: { vista: v } });
   $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.v === v)));
   const partes = v === 'revisar' ? ['encuestas', 'conflictos'].filter(x => nivel(x) > 0) : [v];
   $$('main > section').forEach(s => { s.hidden = !partes.some(p => s.id === 'v-' + p); });
