@@ -72,7 +72,7 @@
       { t: 'Nómina', items: [
         { t: 'Nóminas quincenales', d: 'Novedades, cálculo, aprobación y banco', nomina: '/nominas', ve: 'nomina' },
         { t: 'Cubre turnos', nomina: '/turnos', ve: 'nomina' },
-        { t: 'Préstamos', nomina: '/prestamos', ve: 'nomina' }] },
+        { t: 'Empleadores', d: 'RNC, TSS, banco y tamaño de cada torre', nomina: '/empleadores', ve: 'nomina' }] },
       { t: 'Asistencia y ausencias', items: [
         { t: 'Ponchador', d: 'Empleados del lobby y su PIN', href: 'admin.html?m=personal#personal', ve: 'personal', viejo: 'panel' },
         { t: 'Horas por quincena', href: 'admin.html?m=personal#quincena', ve: 'personal', viejo: 'panel' },
@@ -316,7 +316,7 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
   // v2.4 · una sola pantalla: la Nómina se abre en la misma ventana (con «← Inicio del Portal» en su menú)
   // v2.8 · Las rutas internas de la Nómina (/empleados, /nominas…) se activan cuando se verifiquen contra nomina/web.py en la PC.
   // Mientras tanto, cada tema de Nómina abre la Nómina en su inicio (como en la v2.7.8): nada queda roto.
-  const NOMINA_RUTAS_VERIFICADAS = false;
+  const NOMINA_RUTAS_VERIFICADAS = true;   // verificadas el 28-oct-2026 en nomina/templates/base.html
   async function abrirNomina(ir) {
     try {
       const r = await api('sso_ticket');
@@ -354,7 +354,7 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
 
   const esActualUrl = url => { try { const u = new URL(url, location.href); return u.origin === location.origin && u.pathname.replace(/\/$/, '') === location.pathname.replace(/\/$/, ''); } catch (e) { return false; } };
   // Temas de la Nómina leídos de su propio menú (solo dentro de la Nómina): rutas reales, sin adivinar
-  let temasNomina = null;
+  let temasNomina = null, salirNomina = '', usuarioNomina = '';
   function pintar(cont, actual) {
     const c = leer(), a = c.modulos || {}, u = c.usuario || {};
     if (EN_NOMINA) return pintarEnNomina(cont, actual);
@@ -398,7 +398,8 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     nav.innerHTML = mods.map((m, i) => '<div class="sm-mod' + (i >= mods.length - 2 ? ' derecha' : '') + '"><button type="button" class="sm-mod-btn" data-mod="' + m.k + '" aria-haspopup="true" aria-expanded="false"' + (m.k === 'personal' ? ' aria-current="page"' : '') + '>' + esc(m.t) + '</button>' +
       '<div class="sm-panel" role="menu" aria-label="' + esc(m.t) + '" hidden>' + m.grupos.map(g => '<section class="sm-grupo"><h3>' + esc(g.t) + '</h3>' + g.items.map(itemHtml).join('') + '</section>').join('') + '</div></div>').join('');
     cont.querySelector('.sm-cajon').innerHTML = mods.map(m => '<details' + (m.k === 'personal' ? ' open' : '') + '><summary>' + esc(m.t) + '</summary>' + m.grupos.map(g => '<div class="sm-grupo"><h3>' + esc(g.t) + '</h3>' + g.items.map(itemHtml).join('') + '</div>').join('') + '</details>').join('');
-    cont.querySelector('.sm-salir').hidden = true;
+    cont.querySelector('.sm-salir').hidden = !salirNomina;
+    cont.querySelector('.sm-usuario').textContent = usuarioNomina;
     const ruta = cont.querySelector('.sm-ruta'), per = mods.find(m => m.k === 'personal');
     let g0 = null, i0 = null; (per ? per.grupos : []).some(g => g.items.some(it => { if (it.url && esActualUrl(it.url)) { g0 = g; i0 = it; return true; } return false; }));
     ruta.hidden = false;
@@ -411,6 +412,9 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     let lateral = document.querySelector('aside, .sidebar, .lateral');
     if (!lateral && caja) { lateral = caja; while (lateral.parentElement && lateral.parentElement !== document.body && lateral.parentElement.children.length === 1) lateral = lateral.parentElement; }
     if (!lateral) return;
+    // Su «Salir» y el nombre del usuario pasan a la barra de arriba
+    const sal = lateral.querySelector('a[href*="logout"], a[href*="salir"]');
+    if (sal) { salirNomina = sal.href; const prev = sal.previousElementSibling; if (prev && !prev.querySelector('a')) usuarioNomina = prev.textContent.replace(/\s+/g, ' ').trim(); }
     const grupos = []; let g = null;
     const titulo = el => /^(h\d|p|div|span|small|li|strong|b)$/i.test(el.tagName) && !el.querySelector('a') && !el.closest('a') && el.textContent.trim().length > 2 && el.textContent.trim().length < 40 && el.children.length === 0;
     lateral.querySelectorAll('*').forEach(el => {
@@ -421,6 +425,7 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
       } else if (titulo(el)) {
         const t = el.textContent.trim();
         if (/stili soft|nómina y rrhh|^stili/i.test(t)) { if (grupos.some(x => x.items.length)) { g = { t: 'fuera', items: [] }; grupos.push(g); } return; }   // el logo de arriba no corta; la sección «Stili Soft» de abajo sí
+        if (g && g.t === 'fuera') return;   // después de «Stili Soft» solo viene el usuario y Salir: ya están en la barra
         g = { t: t.charAt(0) + t.slice(1).toLowerCase(), items: [] }; grupos.push(g);
       }
     });
@@ -480,7 +485,7 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
       pintarTema();
     });
     pintarTema();
-    cont.querySelector('.sm-salir').addEventListener('click', () => { guardar({ sesion: '', modulos: {}, usuario: {} }); location.href = BASE + 'portal/'; });
+    cont.querySelector('.sm-salir').addEventListener('click', () => { if (EN_NOMINA) { location.href = salirNomina || '/logout'; return; } guardar({ sesion: '', modulos: {}, usuario: {} }); location.href = BASE + 'portal/'; });
     // Menús: clic (o Enter / flecha abajo) abre; Escape o clic afuera cierra; con el ratón, pasar de un módulo a otro cambia de menú
     const nav = cont.querySelector('.sm-nav'), cajon = cont.querySelector('.sm-cajon'), mb = cont.querySelector('.sm-menu-btn');
     nav.addEventListener('click', e => { const b = e.target.closest('button.sm-mod-btn'); if (!b) return; e.stopPropagation();
