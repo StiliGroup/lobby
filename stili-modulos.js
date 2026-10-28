@@ -189,9 +189,66 @@
 :root[data-theme="dark"] .sm-grupo a:hover { background: #1E3346; color: #fff; } :root[data-theme="dark"] .sm-grupo a[aria-current="page"] { background: #33291A; color: #fff; }
 :root[data-theme="dark"] .sm-ruta { background: #16212E; border-bottom-color: #26364A; color: #93A6B4; } :root[data-theme="dark"] .sm-ruta b { color: #E6EEF2; }
 `;
+
+  // v2.8 · capa visual minimalista común (Torres, Finanzas, Operaciones, Lobby, Personal, Ajustes, Portal).
+  // Menos carga visual: letra de datos más pequeña y pareja, alertas compactas que conservan su color, tarjetas sin sombra,
+  // indicadores en rojo sin fondo relleno. Va al final del documento para quedar por encima del estilo de cada página.
+  const CSS_MINIMAL = `
+body { font-size: 14px; }
+.card { padding: 14px 16px; box-shadow: none; border-radius: 10px; }
+h2 { font-size: 11.5px; letter-spacing: .09em; margin-bottom: 10px; }
+h3 { font-size: 15px; }
+.nota { font-size: 13px; }
+.resumen h1 { font-size: 20px; }
+/* cabecera de página: más baja (el menú y la ruta ya dicen dónde está uno) */
+.cabecera .fila { padding-block: 8px; }
+.cabecera .titulo small { display: none; }
+.cabecera .titulo b { font-size: 17px; }
+.barra .fila { padding-block: 6px; }
+.marca small { display: none; }
+.marca b { font-size: 17px; }
+.tab, .secciones button { font-size: 13.5px; }
+/* datos */
+table { font-size: 13px; }
+th { font-size: 10.5px; padding: 6px 10px; border-bottom-width: 1px; }
+td { padding: 7px 10px; }
+.campos dt, label.campo, .form label { font-size: 12px; }
+.kpis { gap: 8px; }
+.kpi { padding: 9px 12px; border-radius: 8px; }
+.kpi span { font-size: 10.5px; letter-spacing: .07em; }
+.kpi b { font-size: 21px; line-height: 1.15; }
+.kpis.anchos .kpi b { font-size: 19px; }
+.kpi small { font-size: 11.5px; }
+/* indicadores en alerta: el color queda en el número y en una línea fina, sin fondo relleno */
+.kpi.malo, .kpi.kpi-alerta { background: var(--panel); border-color: var(--line); box-shadow: inset 2px 0 0 var(--crit); }
+.kpi.malo b, .kpi.malo span { color: var(--crit); }
+/* chips: más pequeños, el color se mantiene */
+.chip { font-size: 11.5px; padding: 2px 8px; font-weight: 600; gap: 3px; }
+.chips { gap: 5px; }
+/* alertas compactas: letra pequeña, conservan su color, sin bloque de color */
+.alertas-cxp { gap: 2px; }
+.alertas-cxp li { font-size: 12px; padding: 2px 0 2px 9px; background: none; border-left-width: 2px; border-radius: 0; line-height: 1.4; }
+.alertas-cxp li.al-rojo { background: none; color: var(--crit); }
+.alertas-cxp li.al-ambar { background: none; color: var(--warn); }
+.alertas-cxp li.al-azul { background: none; color: var(--titulo, var(--fg)); }
+.demo-aviso, .aviso-edicion { font-size: 12px; padding: 6px 12px; font-weight: 600; }
+/* botones */
+.btn { font-size: 13px; padding: 7px 12px; border-radius: 8px; }
+.btn.chico { font-size: 12px; padding: 5px 10px; }
+/* tarjetas de torre del Lobby */
+.torre { border-left-width: 3px; gap: 10px; }
+.torre .total { font-size: 22px; }
+.leyenda { font-size: 12px; }
+.feed li { font-size: 13px; }
+/* campos de formulario más livianos (en el teléfono se quedan en 16 px para que no se acerque la pantalla al escribir) */
+main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .card input:not([type=checkbox]):not([type=radio]), .card select, .card textarea { font-size: 13px; padding: 6px 9px; }
+@media (max-width: 640px) { main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .card input:not([type=checkbox]):not([type=radio]), .card select, .card textarea { font-size: 16px; } }
+@media print { .cabecera, .barra { display: none; } }
+`;
   function estilo() {
     if (document.getElementById('sm-css')) return;
     const s = document.createElement('style'); s.id = 'sm-css'; s.textContent = CSS; document.head.appendChild(s);
+    const m = document.createElement('style'); m.id = 'sm-minimal'; m.textContent = CSS_MINIMAL; (document.body || document.head).appendChild(m);
   }
 
   const texto = el => Array.from(el.childNodes).map(n => n.textContent.trim()).filter(Boolean).join(' · ');
