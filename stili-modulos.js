@@ -567,6 +567,6 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     } }, window.STILI_PROTECCION || {});
   const actual = document.currentScript && document.currentScript.src;
   const s = document.createElement('script');
-  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=23') : 'stili-proteccion.js?v=23';
+  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=2.8.1') : 'stili-proteccion.js?v=2.8.1';
   (document.head || document.documentElement).appendChild(s);
 })();

@@ -1,8 +1,7 @@
-/* Stili · protección de pantalla (v2.3)
+/* Stili · protección de pantalla (v2.3 · v2.8.1 sin difuminado)
  * Ningún navegador puede impedir del todo una captura (ni una foto con el celular). Esto la disuade:
  *  - marca de agua con el nombre de quien mira y la hora (si alguien filtra una captura, se sabe de quién salió);
  *  - la tecla «Imprimir pantalla» borra el portapapeles y oculta la pantalla un momento;
- *  - la pantalla se difumina cuando la ventana pierde el foco (herramienta de recortes, otra app);
  *  - sin clic derecho, sin copiar y sin imprimir (salvo páginas hechas para imprimir).
  * Cada intento queda en la bitácora. Configuración: window.STILI_PROTECCION = { quien, correo, registrar(tipo) }.
  */
@@ -18,7 +17,6 @@
   const css = document.createElement('style');
   css.textContent =
     '.stili-marca{position:fixed;inset:0;pointer-events:none;z-index:2147483000;background-repeat:repeat}' +
-    'html.stili-oculto body>*:not(.stili-marca):not(.stili-velo){filter:blur(18px)!important;transition:filter .05s}' +
     '.stili-velo{position:fixed;inset:0;z-index:2147483001;display:none;align-items:center;justify-content:center;background:rgba(0,43,87,.92);color:#fff;font:600 16px Montserrat,system-ui,sans-serif;text-align:center;padding:24px}' +
     'html.stili-tapado .stili-velo{display:flex}' +
     'body{-webkit-user-select:none;user-select:none}input,textarea,select,[contenteditable="true"],.permite-copiar{-webkit-user-select:text;user-select:text}' +
@@ -59,13 +57,8 @@
   document.addEventListener('keydown', e => { if (esCaptura(e)) { tapar(); registrar('captura_tecla'); if (e.key !== 'PrintScreen') e.preventDefault(); } }, true);
   document.addEventListener('keyup', e => { if (e.key === 'PrintScreen' || e.code === 'PrintScreen') { tapar(); registrar('captura_tecla'); } }, true);
 
-  // Difuminar cuando la ventana pierde el foco (recortes, otra aplicación). No cuando el foco pasa a un marco interno.
-  const ocultar = () => { if (document.activeElement && document.activeElement.tagName === 'IFRAME') return; html.classList.add('stili-oculto'); };
-  const mostrar = () => html.classList.remove('stili-oculto');
-  window.addEventListener('blur', () => setTimeout(ocultar, 0));
-  window.addEventListener('focus', mostrar);
-  document.addEventListener('visibilitychange', () => document.hidden ? html.classList.add('stili-oculto') : mostrar());
-  document.addEventListener('pointerdown', mostrar, true);
+  // v2.8.1 · La pantalla ya no se difumina cuando la ventana pierde el foco o usted se aleja (lo pidió el Gerente General).
+  // Siguen la marca de agua, el velo con la tecla Imprimir pantalla y los bloqueos de copiar e imprimir.
 
   // Clic derecho, copiar e imprimir
   document.addEventListener('contextmenu', e => { if (!enCampo(e.target)) e.preventDefault(); });
