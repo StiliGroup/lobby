@@ -16,6 +16,9 @@
   const guardar = c => { try { localStorage.setItem(LS, JSON.stringify(Object.assign(leer(), c))); } catch (e) { /* sin almacenamiento */ } };
   const script = document.currentScript;
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
+  // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
+  const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
+  const VERSION_BARRA = '2.8.1';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -345,12 +348,16 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
 
   // En la sala DEMO (?demo=1) los enlaces siguen en demostración
   const conDemo = href => { if (!/[?&]demo=1\b/.test(location.search) || /^portal\//.test(href)) return href; const [ruta, hash] = href.split('#'); return ruta + (ruta.includes('?') ? '&' : '?') + 'demo=1' + (hash !== undefined ? '#' + hash : ''); };
-  const enlaceItem = it => it.nomina !== undefined ? '#' : BASE + conDemo(it.href);
+  const enlaceItem = it => it.url ? it.url : it.nomina !== undefined ? '#' : BASE + conDemo(it.href);
   const itemHtml = it => '<a href="' + esc(enlaceItem(it)) + '"' + (it.nomina !== undefined ? ' data-nomina="' + esc(it.nomina) + '"' : '') + (it.href && esActual(it.href) ? ' aria-current="page"' : '') +
-    '>' + esc(it.t) + (it.nomina !== undefined ? ' <span aria-hidden="true">↗</span>' : '') + (it.d ? '<small>' + esc(it.d) + '</small>' : '') + '</a>';
+    (it.url && esActualUrl(it.url) ? ' aria-current="page"' : '') + '>' + esc(it.t) + (it.nomina !== undefined && !EN_NOMINA ? ' <span aria-hidden="true">↗</span>' : '') + (it.d ? '<small>' + esc(it.d) + '</small>' : '') + '</a>';
 
+  const esActualUrl = url => { try { const u = new URL(url, location.href); return u.origin === location.origin && u.pathname.replace(/\/$/, '') === location.pathname.replace(/\/$/, ''); } catch (e) { return false; } };
+  // Temas de la Nómina leídos de su propio menú (solo dentro de la Nómina): rutas reales, sin adivinar
+  let temasNomina = null;
   function pintar(cont, actual) {
     const c = leer(), a = c.modulos || {}, u = c.usuario || {};
+    if (EN_NOMINA) return pintarEnNomina(cont, actual);
     // Con el servicio de antes de la v2.7 (sin las claves nuevas) se usa la clave vieja
     const ve = m => m.siempre || (a[m.ve] !== undefined ? !!a[m.ve] : m.viejo ? !!a[m.viejo] : m.k === 'demo' ? !!c.sesion : false);
     actual = DENTRO_DE[actual] || actual;
@@ -378,6 +385,63 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     if (mod) mod.grupos.some(g => g.items.some(it => { if (it.href && esActual(it.href)) { grupo = g; item = it; return true; } return false; }));
     ruta.hidden = !mod || !c.sesion || mod.k === 'demo';
     ruta.firstChild.innerHTML = mod ? '<span>' + esc(mod.t) + '</span>' + (grupo ? '<span>' + esc(grupo.t) + '</span><span><b>' + esc(item.t) + '</b></span>' : '') : '';
+  }
+
+  // Dentro de la Nómina no hay sesión del Portal en este navegador: se muestran todos los módulos (cada página revisa los permisos al abrir).
+  function pintarEnNomina(cont, actual) {
+    const mods = MODULOS.filter(m => m.k !== 'demo').map(m => {
+      if (m.k !== 'personal' || !temasNomina || !temasNomina.length) return Object.assign({}, m, { grupos: m.grupos.map(g => ({ t: g.t, items: g.items.filter(it => !it.nomina) })).filter(g => g.items.length) });
+      const otros = m.grupos.map(g => ({ t: g.t, items: g.items.filter(it => !it.nomina) })).filter(g => g.items.length);
+      return Object.assign({}, m, { grupos: temasNomina.concat(otros) });
+    });
+    const nav = cont.querySelector('.sm-nav');
+    nav.innerHTML = mods.map((m, i) => '<div class="sm-mod' + (i >= mods.length - 2 ? ' derecha' : '') + '"><button type="button" class="sm-mod-btn" data-mod="' + m.k + '" aria-haspopup="true" aria-expanded="false"' + (m.k === 'personal' ? ' aria-current="page"' : '') + '>' + esc(m.t) + '</button>' +
+      '<div class="sm-panel" role="menu" aria-label="' + esc(m.t) + '" hidden>' + m.grupos.map(g => '<section class="sm-grupo"><h3>' + esc(g.t) + '</h3>' + g.items.map(itemHtml).join('') + '</section>').join('') + '</div></div>').join('');
+    cont.querySelector('.sm-cajon').innerHTML = mods.map(m => '<details' + (m.k === 'personal' ? ' open' : '') + '><summary>' + esc(m.t) + '</summary>' + m.grupos.map(g => '<div class="sm-grupo"><h3>' + esc(g.t) + '</h3>' + g.items.map(itemHtml).join('') + '</div>').join('') + '</details>').join('');
+    cont.querySelector('.sm-salir').hidden = true;
+    const ruta = cont.querySelector('.sm-ruta'), per = mods.find(m => m.k === 'personal');
+    let g0 = null, i0 = null; (per ? per.grupos : []).some(g => g.items.some(it => { if (it.url && esActualUrl(it.url)) { g0 = g; i0 = it; return true; } return false; }));
+    ruta.hidden = false;
+    ruta.firstChild.innerHTML = '<span>Personal</span>' + (g0 ? '<span>' + esc(g0.t) + '</span><span><b>' + esc(i0.t) + '</b></span>' : '<span><b>Nómina</b></span>');
+  }
+  /** Lee el menú viejo de la Nómina (grupos y enlaces), lo quita de la pantalla y deja el contenido a todo el ancho. */
+  function absorberMenuNomina() {
+    const enlaces = Array.from(document.querySelectorAll('aside a[href], nav a[href], .sidebar a[href], .lateral a[href], .menu a[href]')).filter(a => !a.closest('.sm-barra'));
+    const caja = enlaces.length ? enlaces.reduce((acc, a) => { let el = a.parentElement; while (el && el !== document.body && !el.contains(acc)) el = el.parentElement; return el || acc; }, enlaces[0].parentElement) : null;
+    let lateral = document.querySelector('aside, .sidebar, .lateral');
+    if (!lateral && caja) { lateral = caja; while (lateral.parentElement && lateral.parentElement !== document.body && lateral.parentElement.children.length === 1) lateral = lateral.parentElement; }
+    if (!lateral) return;
+    const grupos = []; let g = null;
+    const titulo = el => /^(h\d|p|div|span|small|li|strong|b)$/i.test(el.tagName) && !el.querySelector('a') && !el.closest('a') && el.textContent.trim().length > 2 && el.textContent.trim().length < 40 && el.children.length === 0;
+    lateral.querySelectorAll('*').forEach(el => {
+      if (el.tagName === 'A' && el.getAttribute('href') && !/^#/.test(el.getAttribute('href'))) {
+        const t = el.textContent.replace(/[←↗]/g, '').trim(); if (!t) return;
+        if (!g) { g = { t: 'Nómina', items: [] }; grupos.push(g); }
+        g.items.push({ t, url: el.href });
+      } else if (titulo(el)) {
+        const t = el.textContent.trim();
+        if (/stili soft|nómina y rrhh|^stili/i.test(t)) { if (grupos.some(x => x.items.length)) { g = { t: 'fuera', items: [] }; grupos.push(g); } return; }   // el logo de arriba no corta; la sección «Stili Soft» de abajo sí
+        g = { t: t.charAt(0) + t.slice(1).toLowerCase(), items: [] }; grupos.push(g);
+      }
+    });
+    // Lo que lleva de vuelta al Portal (Inicio del Portal, Torres, Lobby…) ya está en la barra de arriba
+    // «Inicio» de la Nómina (antes de la primera sección) va al comienzo del primer grupo
+    if (grupos.length > 1 && grupos[0].t === 'Nómina') { const ini = grupos.shift(); grupos[0].items = ini.items.map(it => Object.assign(it, { t: /^inicio$/i.test(it.t) ? 'Inicio de la Nómina' : it.t })).concat(grupos[0].items); }
+    temasNomina = grupos.filter(x => x.t !== 'fuera' && x.items.length).map(x => ({ t: 'Nómina · ' + x.t.replace(/^Nómina · /, ''), items: x.items.filter(it => !/portal|github\.io/i.test(it.url) && !/inicio del portal/i.test(it.t)) })).filter(x => x.items.length);
+    // Quitar el menú viejo y devolver su espacio al contenido
+    const ancho = lateral.getBoundingClientRect().width;
+    lateral.style.display = 'none';
+    const padre = lateral.parentElement;
+    if (padre && /grid/.test(getComputedStyle(padre).display)) { padre.style.gridTemplateColumns = 'minmax(0, 1fr)'; padre.style.gridTemplateAreas = 'none'; }
+    [document.body].concat(Array.from(document.body.children), padre ? Array.from(padre.children) : []).forEach(el => {
+      const cs = getComputedStyle(el);
+      if (ancho > 80 && Math.abs(parseFloat(cs.marginLeft) - ancho) < 40) el.style.marginLeft = '0';
+      if (ancho > 80 && Math.abs(parseFloat(cs.paddingLeft) - ancho) < 40) el.style.paddingLeft = '0';
+    });
+  }
+  function arrancarEnNomina() {
+    const ir = () => { absorberMenuNomina(); montar(document.body, 'personal'); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ir); else ir();
   }
 
   function cerrarMenus(excepto) {
@@ -439,7 +503,7 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     cont.addEventListener('click', e => { const a = e.target.closest('.sm-panel a, .sm-cajon a'); if (a && !a.dataset.nomina) { cerrarMenus(); cajon.hidden = true; mb.setAttribute('aria-expanded', 'false'); } });
     cont._pintar = () => pintar(cont, actual);
     pintar(cont, actual);
-    StiliModulos.refrescar().then(() => pintar(cont, actual)).catch(() => {});
+    if (!EN_NOMINA) StiliModulos.refrescar().then(() => pintar(cont, actual)).catch(() => {});
     window.addEventListener('storage', e => { if (e.key === LS) pintar(cont, actual); });
     window.addEventListener('hashchange', () => pintar(cont, actual));
     return cont;
@@ -487,7 +551,8 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     if (a.target === '_blank' && u.origin === location.origin) a.removeAttribute('target');      // páginas del Portal: en la misma ventana
   }, true);
 
-  window.StiliModulos = { montar, mas, refrescar, api, abrirNomina, leer, guardar, visor, marcar, BASE, MODULOS };
+  window.StiliModulos = { montar, mas, refrescar, api, abrirNomina, leer, guardar, visor, marcar, BASE, MODULOS, VERSION: VERSION_BARRA };
+  if (EN_NOMINA) arrancarEnNomina();
 })();
 
 // v2.3 · protección de pantalla en todas las páginas del Portal (marca de agua con el nombre, sin capturas ni copias)
