@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
 <link rel="stylesheet" href="stili-estilo.css?v=3.0">
 <script src="config.js"></script>
-<script src="stili-modulos.js?v=3.0"></script>
+<script src="stili-modulos.js?v=3.1"></script>
 <script src="stili-contabilidad.js?v=3.0"></script>
 <style>
 .ctb-cab { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -88,8 +88,13 @@ const hoy = () => K.hoyISO();
 const SECCIONES = [['inicio', 'Inicio'], ['cuotas', 'Cuotas y recibos'], ['cobros', 'Cobros'], ['cobranza', 'Cobranza'], ['bancos', 'Pagos y bancos'], ['conciliacion', 'Conciliación y cierre'],
   ['reportes', 'Reportes'], ['formal', 'Contabilidad formal'], ['config', 'Configuración'], ['control', 'Control'], ['global', 'Todas las torres']];
 const S = { torres: [], torre: '', D: null, sec: 'inicio', sub: {}, periodo: hoy().slice(0, 7), apto: '', cobro: null, conc: { cuenta: '', periodo: '', parejas: [], saldo: '', marcaB: '', marcaL: '' } };
-const guardarPref = () => { try { localStorage.setItem('ctb_torre', S.torre); } catch (e) { /* sin almacenamiento */ } };
-const leerPref = () => { try { return localStorage.getItem('ctb_torre') || ''; } catch (e) { return ''; } };
+// v3.1 · la torre es la misma de la barra (StiliModulos.torre) en todas las páginas; 'ctb_torre' queda de respaldo
+const normT = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const deLista = n => S.torres.find(t => normT(t) === normT(n)) || '';
+const guardarPref = () => { try { localStorage.setItem('ctb_torre', S.torre); } catch (e) { /* sin almacenamiento */ } if (window.StiliModulos && StiliModulos.fijarTorre) StiliModulos.fijarTorre({ torre: S.torre }, true); };
+const leerPref = () => { const g = window.StiliModulos && StiliModulos.torre ? StiliModulos.torre().torre : ''; if (deLista(g)) return deLista(g); try { return localStorage.getItem('ctb_torre') || ''; } catch (e) { return ''; } };
+function cambiarTorre(t) { S.torre = t; guardarPref(); S.apto = ''; S.cobro = null; S.conc = { cuenta: '', periodo: '', parejas: [], saldo: '' }; pintarCab(); cargarTorre(); }
+window.addEventListener('stili:torre', e => { const t = deLista(e.detail && e.detail.torre); if (t && t !== S.torre) cambiarTorre(t); });
 const puede = () => S.D && S.D.puede_editar;
 const cfg = () => K.reglas(S.D ? S.D.config : {});
 const rubros = () => (S.D && S.D.rubros && S.D.rubros.length ? S.D.rubros : K.rubrosBase());
@@ -114,9 +119,10 @@ async function iniciar() {
   try {
     const g = await api('ctb_global');
     S.torres = g.torres.map(t => t.torre); S.global = g;
+    if (window.StiliModulos && StiliModulos.ponerTorres && (DEMO || !document.querySelector('.sm-torre:not([hidden])'))) StiliModulos.ponerTorres(S.torres.map(t => ({ torre: t })));
     if (!S.torres.length) { $('#contenido').innerHTML = '<div class="vacio">Su usuario no tiene torres asignadas.</div>'; return; }
     const pref = leerPref();
-    S.torre = S.torres.indexOf(pref) >= 0 ? pref : S.torres[0];
+    S.torre = S.torres.indexOf(pref) >= 0 ? pref : S.torres[0]; guardarPref();
     leerHash(); pintarCab();
     await cargarTorre();
   } catch (err) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (/sesi/i.test(err.message) ? '<a class="btn primario" href="portal/">Entrar en el Portal</a>' : '') + '</div>'; }
@@ -129,10 +135,13 @@ async function enviar(accion, datosEnvio, aviso) {
   try { const r = await api(accion, Object.assign({ torre: S.torre }, datosEnvio)); if (r && r.torre !== undefined && r.recibos) S.D = r; pintar(); if (aviso || (r && r.aviso)) toast((r && r.aviso) || aviso); return r; }
   catch (err) { toast(err.message, true); return null; }
 }
-function leerHash() { const h = location.hash.replace('#', ''); if (SECCIONES.some(([k]) => k === h)) S.sec = h; }
-window.addEventListener('hashchange', () => { leerHash(); pintar(); });
+// v3.1 · «#seccion/pestaña» (p. ej. #reportes/liquidacion): los temas del menú abren la pestaña exacta
+function leerHash() { const [h, sub] = decodeURIComponent(location.hash.replace('#', '')).split('/'); if (SECCIONES.some(([k]) => k === h)) { S.sec = h; if (sub) S.sub[h] = sub; } }
+function ponerHash() { const sub = S.sub[S.sec]; history.replaceState(null, '', '#' + S.sec + (sub ? '/' + sub : '')); if (window.StiliModulos && StiliModulos.marcar) StiliModulos.marcar(); }
+window.addEventListener('hashchange', () => { leerHash(); pintar(); window.scrollTo(0, 0); });
 function pintarCab() {
-  $('#cab').innerHTML = '<label>Torre<select id="sel-torre" aria-label="Torre">' + S.torres.map(t => '<option' + (t === S.torre ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></label>' +
+  const enBarra = !!document.querySelector('.sm-torre:not([hidden])');   // v3.1 · si la barra ya tiene el selector de torre, aquí no se repite
+  $('#cab').innerHTML = (enBarra ? '' : '<label>Torre<select id="sel-torre" aria-label="Torre">' + S.torres.map(t => '<option' + (t === S.torre ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></label>') +
     '<label>Mes<input type="month" id="sel-mes" value="' + esc(S.periodo) + '" aria-label="Mes"></label>';
 }
 function pintar() {
@@ -149,12 +158,12 @@ function pintar() {
     (!puede() && S.sec !== 'global' ? '<div class="aviso-edicion">Su usuario puede consultar. Para registrar, pida el nivel «Editar» de «Finanzas · Contabilidad» al Gerente General.</div>' : '') + f();
 }
 document.addEventListener('change', e => {
-  if (e.target.id === 'sel-torre') { S.torre = e.target.value; guardarPref(); S.apto = ''; S.cobro = null; S.conc = { cuenta: '', periodo: '', parejas: [], saldo: '' }; cargarTorre(); }
+  if (e.target.id === 'sel-torre') cambiarTorre(e.target.value);
   if (e.target.id === 'sel-mes') { S.periodo = e.target.value || hoy().slice(0, 7); pintar(); }
 });
 document.addEventListener('click', e => {
-  const b = e.target.closest('[data-sec]'); if (b) { S.sec = b.dataset.sec; history.replaceState(null, '', '#' + S.sec); pintar(); window.scrollTo(0, 0); return; }
-  const s = e.target.closest('[data-sub]'); if (s) { const [sec, k] = s.dataset.sub.split(':'); S.sub[sec] = k; pintar(); return; }
+  const b = e.target.closest('[data-sec]'); if (b) { S.sec = b.dataset.sec; ponerHash(); pintar(); window.scrollTo(0, 0); return; }
+  const s = e.target.closest('[data-sub]'); if (s) { const [sec, k] = s.dataset.sub.split(':'); S.sub[sec] = k; ponerHash(); pintar(); return; }
 });
 
 // ------------------------------------------------------------------ diálogos
@@ -955,7 +964,7 @@ function vGlobal() {
   const ts = g.torres.slice().sort((a, b) => b.vencido - a.vencido);
   return '<div class="card"><h2>Todas las torres · ' + esc(mesTxt(g.hoy.slice(0, 7))) + '</h2>' + tabla(['Torre', '$Emitido', '$Cobrado', 'Cobranza', '$Vencido', 'Avisos', 'Último cierre'], ts.map(t => '<tr><td><a href="#inicio" data-ir-torre="' + esc(t.torre) + '"><b>' + esc(t.torre) + '</b></a>' + (t.usa ? '' : ' <span class="chip">sin empezar</span>') + '</td><td class="num">' + din0(t.emitido_mes) + '</td><td class="num">' + din0(t.cobrado_mes) + '</td><td>' + (t.emitido_mes ? Math.round(t.cobrado_mes * 100 / t.emitido_mes) + ' %' : '') + '</td><td class="num ' + (t.vencido ? 'rojo-t' : '') + '">' + din0(t.vencido) + '</td><td>' + (t.notificados ? '<span class="chip ambar">' + t.notificados + '</span>' : '') + '</td><td>' + esc(t.ultimo_cierre ? mesTxt(t.ultimo_cierre) : '—') + '</td></tr>'), 'Sin torres.') + '</div>';
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-ir-torre]'); if (b) { e.preventDefault(); S.torre = b.dataset.irTorre; guardarPref(); S.sec = 'inicio'; history.replaceState(null, '', '#inicio'); pintarCab(); cargarTorre(); } });
+document.addEventListener('click', e => { const b = e.target.closest('[data-ir-torre]'); if (b) { e.preventDefault(); S.sec = 'inicio'; history.replaceState(null, '', '#inicio'); cambiarTorre(b.dataset.irTorre); } });
 
 // ================================================================== DEMOSTRACIÓN (sin servicio)
 const Demo = (() => {

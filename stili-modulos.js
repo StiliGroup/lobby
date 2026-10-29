@@ -1,5 +1,7 @@
-/* Stili Group · barra común de módulos (v2.8)
- * Ocho módulos: Inicio · Condominios · Finanzas · Personal · Operaciones · Lobby · Ajustes · DEMO.
+/* Stili Group · barra común de módulos (v3.1)
+ * Módulos por función, como Habitanto: Inicio · Administrativo · Financiero · Reportes · Comunicaciones · Personal · Lobby · Ajustes · DEMO.
+ * Selector de torre en la barra: la torre elegida es la misma en todas las páginas (StiliModulos.torre(), evento «stili:torre»).
+ * En la PC los menús se abren al pasar el ratón; en el teléfono, cajón con buscador.
  * Cada módulo abre un menú desplegable con sus temas agrupados por categoría; debajo, la ruta «Módulo › Categoría › Tema».
  * Cada página la monta con:  StiliModulos.montar(elemento, 'torres')
  * Los botones que no caben en la pantalla pasan al desplegable «Más ▾» (StiliModulos.mas(nav)).
@@ -18,7 +20,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '3.0';
+  const VERSION_BARRA = '3.1';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -27,55 +29,96 @@
   // Enlaces de torres.html: «#/seccion» abre la sección en la torre que se usó la última vez; «#/cxp/pagos» abre también la pestaña.
   // `nomina` = ruta dentro de la Nómina (se abre en la misma ventana con un boleto de un solo uso).
   // Regla de coherencia: cada tema vive en UN módulo; Condominios muestra la ficha completa de la torre (todo lo de esa torre en un lugar).
+  // v3.1 · Menú por función, como Habitanto: Inicio · Administrativo · Financiero · Reportes · Comunicaciones · Personal · Lobby · Ajustes.
+  // Cada tema vive en UN lugar principal; los atajos (como «Avisos de pago» en Comunicaciones) abren la misma pantalla.
+  const CTB = 'contabilidad.html#';
+  const ct = (t, h, d) => ({ t, d, href: CTB + h, ve: 'contabilidad', viejo: 'torres' });
   const MODULOS = [
     { k: 'inicio', t: 'Inicio', siempre: true, grupos: [
       { t: 'Mi espacio', items: [
         { t: 'Mi inicio', d: 'Avisos, pendientes y accesos rápidos', href: 'portal/', siempre: true },
         { t: 'Mi tarjeta, display y firma', d: 'Piezas con la marca Stili', href: 'portal/#mi', siempre: true },
-        { t: 'Cumpleaños', d: 'Junta, empleados de torres y equipo Stili', href: 'cumpleanos.html', ve: 'cumpleanos' }] }] },
-    { k: 'condominios', t: 'Condominios', ve: 'torres', grupos: [
-      { t: 'La torre', items: [
+        { t: 'Cumpleaños', d: 'Junta, empleados de torres y equipo Stili', href: 'cumpleanos.html', ve: 'cumpleanos' }] },
+      { t: 'Resumen', items: [
         { t: 'Tablero del condominio', d: 'Todo de la torre en un vistazo', href: 'torres.html?m=inicio#/tablero', ve: 'torres' },
+        ct('Contabilidad de la torre', 'inicio', 'Saldos, cartera, Vigía y caja a 90 días'),
+        { t: 'Semáforo de las torres', d: 'Liquidez, por cobrar y por pagar', href: 'presupuesto.html', ve: 'presupuesto' },
+        ct('Todas las torres', 'global', 'Emitido, cobrado y vencido de cada torre')] }] },
+    { k: 'administrativo', t: 'Administrativo', ve: 'torres', grupos: [
+      { t: 'Condominio', items: [
         { t: 'Generales y legales', d: 'RNC, dirección, registro TSS', href: 'torres.html?m=inicio#/general', ve: 'torres' },
         { t: 'Junta Directiva', href: 'torres.html?m=inicio#/junta', ve: 'torres' },
-        { t: 'Notas e historial', href: 'torres.html?m=inicio#/historial', ve: 'torres' }] },
-      { t: 'Unidades y personas', items: [
         { t: 'Apartamentos y residentes', href: 'torres.html?m=inicio#/apartamentos', ve: 'torres' },
-        { t: 'Personal de la torre', d: 'Empleados que vienen de Nómina', href: 'torres.html?m=inicio#/personal', ve: 'torres' }] },
+        { t: 'Personal de la torre', d: 'Empleados que vienen de Nómina', href: 'torres.html?m=inicio#/personal', ve: 'torres' },
+        { t: 'Notas e historial', href: 'torres.html?m=inicio#/historial', ve: 'torres' }] },
       { t: 'Contratos y documentos', items: [
         { t: 'Proveedores y contratos', href: 'torres.html?m=inicio#/proveedores', ve: 'torres' },
         { t: 'Reglamentos y documentos', href: 'torres.html?m=inicio#/documentos', ve: 'torres' },
         { t: 'Accesos y servicios', d: 'EDESUR, CAASD, banca en línea', href: 'torres.html?m=inicio#/accesos', ve: 'torres' }] },
-      { t: 'Clientes', items: [
-        { t: 'Opinión de los clientes', d: 'Encuesta por QR, recomendación y comentarios', href: 'opiniones.html', ve: 'torres' },
-        { t: 'Códigos QR del lobby', d: 'Un cartel por torre para imprimir', href: 'opiniones.html#qr', ve: 'torres' }] }] },
-    { k: 'finanzas', t: 'Finanzas', ve: 'finanzas', grupos: [
-      { t: 'Resumen', items: [
-        { t: 'Semáforo de las torres', d: 'Liquidez, por cobrar y por pagar', href: 'presupuesto.html', ve: 'presupuesto' },
-        { t: 'Estados y presupuesto', d: 'Estados financieros leídos con IA', href: 'torres.html?m=finanzas#/finanzas', ve: 'cuentas', viejo: 'torres' }] },
-      { t: 'Contabilidad de la torre', items: [
-        { t: 'Inicio de Contabilidad', d: 'Saldos, cartera, Vigía de cobros y caja a 90 días', href: 'contabilidad.html#inicio', ve: 'contabilidad', viejo: 'torres' },
-        { t: 'Cuotas y recibos', d: 'Conceptos del mes, reparto y recibos', href: 'contabilidad.html#cuotas', ve: 'contabilidad', viejo: 'torres' },
-        { t: 'Cobros', d: 'Cobrar, avisos de pago y depósitos sin identificar', href: 'contabilidad.html#cobros', ve: 'contabilidad', viejo: 'torres' },
-        { t: 'Cobranza y acuerdos', d: 'Cartera por antigüedad y seguimiento', href: 'contabilidad.html#cobranza', ve: 'contabilidad', viejo: 'torres' },
-        { t: 'Pagos y bancos', d: 'Rubros, Junta, caja chica y transferencias', href: 'contabilidad.html#bancos', ve: 'contabilidad', viejo: 'torres' },
-        { t: 'Conciliación y cierre', d: 'Estado del banco y cierre de mes', href: 'contabilidad.html#conciliacion', ve: 'contabilidad', viejo: 'torres' },
-        { t: 'Reportes', d: 'Liquidación, informe a la Junta y más', href: 'contabilidad.html#reportes', ve: 'contabilidad', viejo: 'torres' },
-        { t: 'Contabilidad formal', d: 'Libro diario, balance y resultados', href: 'contabilidad.html#formal', ve: 'contabilidad', viejo: 'torres' },
-        { t: 'Configuración contable', d: 'Reglas, rubros, reparto y presupuesto', href: 'contabilidad.html#config', ve: 'contabilidad', viejo: 'torres' },
-        { t: 'Todas las torres', href: 'contabilidad.html#global', ve: 'contabilidad', viejo: 'torres' }] },
-      { t: 'Ingresos · por cobrar', items: [
-        { t: 'Cuentas por cobrar', d: 'Cargar el listado semanal y ver saldos', href: 'cobros.html', ve: 'cobros' },
-        { t: 'Por cobrar de la torre', d: 'Detalle por apartamento', href: 'torres.html?m=finanzas#/cxc', ve: 'cobros' }] },
-      { t: 'Egresos · por pagar (3 pasos)', items: [
+      { t: 'Operaciones', items: [
+        { t: 'Tareas de la torre', d: 'Levantamientos, estatus y comentarios', href: 'torres.html?m=operaciones#/tareas', ve: 'operaciones', viejo: 'torres' },
+        { t: 'Tareas por gestor', href: 'tareas.html', ve: 'operaciones', viejo: 'torres' },
+        { t: 'Tareas por oficio', href: 'tareas.html#oficios', ve: 'operaciones', viejo: 'torres' },
+        { t: 'Suplidores', d: 'Registro e invitación a Telegram', href: 'tareas.html#suplidores', ve: 'operaciones', viejo: 'torres' },
+        { t: 'Órdenes de trabajo y facturas', href: 'tareas.html#ordenes', ve: 'operaciones', viejo: 'torres' },
+        { t: 'Pedidos de limpieza', href: 'torres.html?m=operaciones#/pedidos', ve: 'operaciones', viejo: 'torres' }] }] },
+    { k: 'financiero', t: 'Financiero', ve: ['finanzas', 'contabilidad'], viejo: 'torres', grupos: [
+      { t: 'Ingresos', items: [
+        ct('Cuotas y recibos', 'cuotas', 'Conceptos del mes, reparto y recibos'),
+        ct('Cobros', 'cobros', 'Cobrar, avisos y depósitos sin identificar'),
+        ct('Cobranza y acuerdos', 'cobranza', 'Cartera por antigüedad y seguimiento'),
+        { t: 'Listado semanal de cuentas por cobrar', d: 'Cargar el listado y ver saldos', href: 'cobros.html', ve: 'cobros' }] },
+      { t: 'Egresos · por pagar', items: [
         { t: '1 · Bandeja', d: 'Facturas, nómina y Vigía de pagos', href: 'torres.html?m=finanzas#/cxp/bandeja', ve: 'cuentas', viejo: 'torres' },
         { t: '2 · Armar y aprobar', d: 'Balance del banco y relación', href: 'torres.html?m=finanzas#/cxp/armar', ve: 'cuentas', viejo: 'torres' },
         { t: '3 · Pagar y confirmar', d: 'Forma de pago y confirmación con el banco', href: 'torres.html?m=finanzas#/cxp/pagar', ve: 'cuentas', viejo: 'torres' },
         { t: 'Pagos recurrentes', href: 'torres.html?m=finanzas#/cxp/recurrentes', ve: 'cuentas', viejo: 'torres' },
-        { t: 'Historial de pagos', d: 'Por mes y por suplidor', href: 'torres.html?m=finanzas#/cxp/historial', ve: 'cuentas', viejo: 'torres' }] },
-      { t: 'Bancos', items: [
-        { t: 'Cuentas y confirmación con el banco', d: 'Cuentas de cada torre y sus estados', href: 'torres.html?m=finanzas#/cxp/banco', ve: 'cuentas', viejo: 'torres' },
-        { t: 'Chequeras', href: 'torres.html?m=finanzas#/cxp/cheques', ve: 'cuentas', viejo: 'torres' }] }] },
+        ct('Rubros, Junta y honorarios', 'bancos/pagos', 'Rubro de cada factura y aprobación de la Junta')] },
+      { t: 'Bancos y cierre', items: [
+        ct('Cuentas y movimientos', 'bancos/cuentas'),
+        ct('Caja chica y gastos', 'bancos/caja'),
+        ct('Transferencias', 'bancos/transferencias'),
+        ct('Conciliación bancaria', 'conciliacion/conciliar', 'Estado del banco y arqueo de caja'),
+        ct('Cierre de mes', 'conciliacion/cierre'),
+        { t: 'Confirmación con el banco', d: 'Pagos de Cuentas por pagar', href: 'torres.html?m=finanzas#/cxp/banco', ve: 'cuentas', viejo: 'torres' },
+        { t: 'Chequeras', href: 'torres.html?m=finanzas#/cxp/cheques', ve: 'cuentas', viejo: 'torres' }] },
+      { t: 'Configuración', items: [
+        ct('Reglas de la torre', 'config/reglas', 'Vencimiento, pronto pago, mora, Junta'),
+        ct('Rubros', 'config/rubros'),
+        ct('Parámetros de reparto', 'config/parametros', 'M², porcentajes'),
+        ct('Presupuesto', 'config/presupuesto')] }] },
+    { k: 'reportes', t: 'Reportes', ve: ['finanzas', 'contabilidad'], viejo: 'torres', grupos: [
+      { t: 'Contables', items: [
+        ct('Liquidación mensual', 'reportes/liquidacion'),
+        ct('Informe a la Junta', 'reportes/junta', 'Con resumen redactado por IA'),
+        ct('Ingresos y egresos por rubro', 'reportes/rubros'),
+        ct('Presupuesto contra lo real', 'reportes/presupuesto'),
+        ct('Cuotas contra cobros', 'reportes/cuotas'),
+        ct('Estado por proveedor', 'reportes/proveedores'),
+        ct('Registro de ventas y compras', 'reportes/registro')] },
+      { t: 'Estados financieros', items: [
+        ct('Balance y estado de resultados', 'formal/estados'),
+        ct('Libro diario', 'formal/diario', 'CSV para el contador'),
+        { t: 'Estados leídos con IA', d: 'Estados bancarios y de Habitanto', href: 'torres.html?m=finanzas#/finanzas', ve: 'cuentas', viejo: 'torres' }] },
+      { t: 'Gestión', items: [
+        { t: 'Semáforo de las torres', href: 'presupuesto.html', ve: 'presupuesto' },
+        { t: 'Historial de pagos', d: 'Por mes y por suplidor', href: 'torres.html?m=finanzas#/cxp/historial', ve: 'cuentas', viejo: 'torres' },
+        { t: 'KPI de gestoras', d: 'Tareas a tiempo y opinión de sus torres', href: 'opiniones.html#gestoras', ve: 'operaciones', viejo: 'torres' },
+        ct('Anulaciones y auditoría', 'control')] },
+      { t: 'Personal', items: [
+        { t: 'Reportes legales', d: 'TSS, ISR, IR-13, DGT', nomina: '/reportes', ve: 'nomina' }] }] },
+    { k: 'comunicaciones', t: 'Comunicaciones', ve: 'torres', grupos: [
+      { t: 'Residentes', items: [
+        { t: 'Reclamaciones y comunicados', href: 'torres.html?m=operaciones#/reclamaciones', ve: 'operaciones', viejo: 'torres' },
+        ct('Avisos de pago de residentes', 'cobros/avisos', 'Comprobantes que suben por el QR'),
+        { t: 'Opinión de los clientes', d: 'Encuesta por QR y comentarios', href: 'opiniones.html', ve: 'torres' },
+        { t: 'Códigos QR del lobby', d: 'Un cartel por torre para imprimir', href: 'opiniones.html#qr', ve: 'torres' }] },
+      { t: 'Junta Directiva', items: [
+        ct('Aprobaciones de pagos', 'bancos/pagos', 'Enlace al presidente de la Junta'),
+        ct('Informe mensual', 'reportes/junta')] },
+      { t: 'Empleos', items: [
+        { t: 'Avisos y canales de empleo', href: 'reclutamiento.html#canales', ve: 'personal', viejo: 'nomina_permiso' },
+        { t: 'Página pública de empleos', href: 'empleo.html', siempre: true }] }] },
     { k: 'personal', t: 'Personal', ve: 'personal', viejo: 'nomina_permiso', grupos: [
       { t: 'Empleados', items: [
         { t: 'Expedientes', d: 'Ficha, salario, contrato e historial', nomina: '/empleados', ve: 'nomina' },
@@ -91,26 +134,10 @@
         { t: 'Licencias médicas', nomina: '/licencias', ve: 'nomina' }] },
       { t: 'Reclutamiento', items: [
         { t: 'Candidatos', d: 'Solicitudes ordenadas por puntaje', href: 'reclutamiento.html', ve: 'personal', viejo: 'nomina_permiso' },
-        { t: 'Vacantes', href: 'reclutamiento.html#vacantes', ve: 'personal', viejo: 'nomina_permiso' },
-        { t: 'Avisos y canales', d: 'Textos con enlace, QR y alcance por canal', href: 'reclutamiento.html#canales', ve: 'personal', viejo: 'nomina_permiso' },
-        { t: 'Página pública de empleos', href: 'empleo.html', siempre: true }] },
+        { t: 'Vacantes', href: 'reclutamiento.html#vacantes', ve: 'personal', viejo: 'nomina_permiso' }] },
       { t: 'Cumplimiento', items: [
-        { t: 'Reportes legales', d: 'TSS, ISR, IR-13, DGT', nomina: '/reportes', ve: 'nomina' },
         { t: 'Calculadoras', d: 'Neto y prestaciones', nomina: '/calculadoras', ve: 'nomina' },
         { t: 'Empleadores y parámetros', nomina: '/parametros', ve: 'nomina' }] }] },
-    { k: 'operaciones', t: 'Operaciones', ve: 'operaciones', viejo: 'torres', grupos: [
-      { t: 'Tareas', items: [
-        { t: 'Tareas de la torre', d: 'Levantamientos, estatus y comentarios', href: 'torres.html?m=operaciones#/tareas', ve: 'operaciones', viejo: 'torres' },
-        { t: 'Tareas por gestor', href: 'tareas.html', ve: 'operaciones', viejo: 'torres' },
-        { t: 'Tareas por oficio', href: 'tareas.html#oficios', ve: 'operaciones', viejo: 'torres' },
-        { t: 'KPI de gestoras', d: 'Tareas a tiempo y opinión de sus torres', href: 'opiniones.html#gestoras', ve: 'operaciones', viejo: 'torres' }] },
-      { t: 'Suplidores', items: [
-        { t: 'Suplidores', d: 'Registro e invitación a Telegram', href: 'tareas.html#suplidores', ve: 'operaciones', viejo: 'torres' },
-        { t: 'Órdenes de trabajo y facturas', href: 'tareas.html#ordenes', ve: 'operaciones', viejo: 'torres' },
-        { t: 'Proveedores y contratos', href: 'torres.html?m=operaciones#/proveedores', ve: 'operaciones', viejo: 'torres' }] },
-      { t: 'Comunidad', items: [
-        { t: 'Reclamaciones y comunicados', href: 'torres.html?m=operaciones#/reclamaciones', ve: 'operaciones', viejo: 'torres' },
-        { t: 'Pedidos de limpieza', href: 'torres.html?m=operaciones#/pedidos', ve: 'operaciones', viejo: 'torres' }] }] },
     { k: 'lobby', t: 'Lobby', ve: 'lobby', grupos: [
       { t: 'En vivo', items: [
         { t: 'Tablero de portería', d: 'Quién está adentro en cada torre', href: 'admin.html?m=lobby#tablero', ve: 'lobby' },
@@ -133,7 +160,9 @@
   ];
   MODULOS.forEach(m => { m.sub = [].concat(...(m.grupos || []).map(g => g.items)); });   // lista plana (compatibilidad)
   // Páginas viejas o internas y su módulo
-  const DENTRO_DE = { invitados: 'lobby', presupuesto: 'finanzas', usuarios: 'ajustes', admin: 'ajustes', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'operaciones', torres: 'condominios', nomina: 'personal', cobros: 'finanzas', contabilidad: 'finanzas' };
+  // Páginas y claves viejas → su módulo (si la página actual no aparece en ningún menú)
+  const DENTRO_DE = { invitados: 'lobby', presupuesto: 'financiero', usuarios: 'ajustes', admin: 'ajustes', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'administrativo', torres: 'administrativo',
+    nomina: 'personal', cobros: 'financiero', contabilidad: 'financiero', condominios: 'administrativo', operaciones: 'administrativo', finanzas: 'financiero' };
 
   const CSS = `
 .sm-barra { background: #003A75; color: #fff; border-bottom: 3px solid #DCB40C; font-family: Montserrat, "Segoe UI", system-ui, sans-serif; }
@@ -197,9 +226,36 @@
 .sm-cajon details[open] summary::after { content: "–"; }
 .sm-cajon .sm-grupo { padding: 0 0 8px; }
 .sm-ruta { background: #F1F4F9; border-bottom: 1px solid #DCE3EC; font: 500 13px Montserrat, "Segoe UI", system-ui, sans-serif; color: #5A6B78; }
-.sm-ruta div { max-width: 1360px; margin: 0 auto; padding: 7px max(16px, env(safe-area-inset-left, 0px)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sm-ruta-in { max-width: 1360px; margin: 0 auto; padding: 4px max(16px, env(safe-area-inset-left, 0px)); display: flex; align-items: center; gap: 12px; min-height: 34px; }
+.sm-migas { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sm-ruta b { color: #003A75; font-weight: 700; }
 .sm-ruta span + span::before { content: "›"; margin: 0 8px; color: #9AA8B6; }
+/* v3.1 · selector de torre y buscador del cajón */
+.sm-torre { position: relative; flex: 0 1 auto; min-width: 0; margin-left: auto; }
+.sm-torre-btn { display: flex; align-items: center; gap: 7px; max-width: 300px; background: #fff; border: 1px solid #C9D4E2; color: #003A75; border-radius: 8px; padding: 4px 10px; cursor: pointer; font: 700 13px Montserrat, system-ui, sans-serif; }
+.sm-torre-btn span { color: #8A6D00; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+.sm-torre-btn b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.sm-torre-btn::after { content: ""; flex: 0 0 auto; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); opacity: .7; }
+.sm-torre-btn:hover { border-color: #003A75; }
+.sm-torre-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 75; background: #fff; color: #13293D; border-radius: 12px; padding: 8px; width: 270px; max-width: calc(100vw - 24px); box-shadow: 0 14px 40px rgba(19,41,61,.24); }
+.sm-torre-menu[hidden] { display: none; }
+.sm-torre-filtro, .sm-buscar { width: 100%; border: 1px solid #DCE3EC; border-radius: 8px; padding: 8px 10px; font: 500 14px Montserrat, system-ui, sans-serif; margin-bottom: 6px; background: #fff; color: #13293D; }
+.sm-torre-lista { max-height: 60vh; overflow-y: auto; }
+.sm-torre-lista button { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 9px 10px; font: 600 14px Montserrat, system-ui, sans-serif; color: #13293D; cursor: pointer; }
+.sm-torre-lista button:hover, .sm-torre-lista button:focus-visible { background: #E3E8F4; color: #003A75; outline: none; }
+.sm-torre-lista button[aria-selected="true"] { background: #FFF6D6; color: #003A75; box-shadow: inset 3px 0 0 #DCB40C; }
+.sm-torre-lista p { margin: 8px 10px; font-size: 13px; color: #5A6B78; }
+.sm-cajon .sm-buscar { margin: 8px 0 4px; font-size: 16px; }
+.sm-cajon [hidden] { display: none !important; }
+@media (max-width: 640px) { .sm-torre-btn { max-width: 60vw; } .sm-migas span:not(:last-child) { display: none; } .sm-migas span + span::before { display: none; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sm-torre-btn { background: #13222F; border-color: #26394A; color: #E6EEF2; } :root:not([data-theme="light"]) .sm-torre-btn span { color: #D9B45E; }
+  :root:not([data-theme="light"]) .sm-torre-menu { background: #13222F; color: #E6EEF2; } :root:not([data-theme="light"]) .sm-torre-lista button { color: #E6EEF2; }
+  :root:not([data-theme="light"]) .sm-torre-lista button:hover { background: #1E3346; } :root:not([data-theme="light"]) .sm-torre-lista button[aria-selected="true"] { background: #33291A; color: #fff; }
+  :root:not([data-theme="light"]) .sm-torre-filtro, :root:not([data-theme="light"]) .sm-buscar { background: #0C1822; color: #E6EEF2; border-color: #26394A; } }
+:root[data-theme="dark"] .sm-torre-btn { background: #13222F; border-color: #26394A; color: #E6EEF2; } :root[data-theme="dark"] .sm-torre-btn span { color: #D9B45E; }
+:root[data-theme="dark"] .sm-torre-menu { background: #13222F; color: #E6EEF2; } :root[data-theme="dark"] .sm-torre-lista button { color: #E6EEF2; }
+:root[data-theme="dark"] .sm-torre-lista button:hover { background: #1E3346; } :root[data-theme="dark"] .sm-torre-lista button[aria-selected="true"] { background: #33291A; color: #fff; }
+:root[data-theme="dark"] .sm-torre-filtro, :root[data-theme="dark"] .sm-buscar { background: #0C1822; color: #E6EEF2; border-color: #26394A; }
 @media (max-width: 1080px) { .sm-usuario { display: none; } .sm-mod-btn { padding-left: 9px; padding-right: 9px; } }
 @media (max-width: 900px) { .sm-barra .sm-nav { display: none; } .sm-menu-btn { display: inline-block; margin-left: auto; } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sm-panel, :root:not([data-theme="light"]) .sm-cajon { background: #13222F; color: #E6EEF2; }
@@ -351,6 +407,10 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
       return !!sec && sec === actualSec && (!sub || sub === actualSub);
     }
     if (/admin\.html$/.test(u.pathname)) return h(u.hash) === (h(aquí.hash) || paginaAdmin.vista || '');
+    if (/contabilidad\.html$/.test(u.pathname)) {   // v3.1 · «#seccion/pestaña»: un enlace sin pestaña vale para toda la sección
+      const [sec, sub] = h(u.hash).split('/'), [sec2, sub2] = h(aquí.hash).split('/');
+      return !!sec && sec === (sec2 || 'inicio') && (!sub || sub === sub2);
+    }
     return h(u.hash) === h(aquí.hash);
   }
   // Las páginas avisan qué sección o pestaña tienen abierta (para marcarla en el menú aunque el hash no la diga)
@@ -370,10 +430,18 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     const c = leer(), a = c.modulos || {}, u = c.usuario || {};
     if (EN_NOMINA) return pintarEnNomina(cont, actual);
     // Con el servicio de antes de la v2.7 (sin las claves nuevas) se usa la clave vieja
-    const ve = m => m.siempre || (a[m.ve] !== undefined ? !!a[m.ve] : m.viejo ? !!a[m.viejo] : m.k === 'demo' ? !!c.sesion : false);
-    actual = DENTRO_DE[actual] || actual;
-    const visibles = MODULOS.filter(m => (c.sesion && ve(m)) || m.k === 'inicio').map(m => Object.assign({}, m, {
-      grupos: (m.grupos || []).map(g => ({ t: g.t, items: g.items.filter(it => c.sesion ? ve(it) : it.siempre) })).filter(g => g.items.length) }));
+    const una = (k, viejo) => a[k] !== undefined ? !!a[k] : viejo ? !!a[viejo] : false;
+    const ve = m => m.siempre || (m.ve ? [].concat(m.ve).some(k => una(k, m.viejo)) : m.k === 'demo' ? !!c.sesion : false);
+    // Un módulo se ve si el usuario ve al menos uno de sus temas (o, si va directo, su propia clave)
+    const visibles = MODULOS.map(m => Object.assign({}, m, {
+      grupos: (m.grupos || []).map(g => ({ t: g.t, items: g.items.filter(it => c.sesion ? ve(it) : it.siempre) })).filter(g => g.items.length) }))
+      .filter(m => m.k === 'inicio' || (c.sesion && (m.grupos.length || (m.href && ve(m)))));
+    // Módulo actual: el que tiene el tema de esta pantalla (el de la página primero); si ninguno, el de la página
+    const dePagina = DENTRO_DE[actual] || actual;
+    // el módulo de la página si tiene el tema (los atajos de otros módulos no lo cambian); si no, el tema más preciso
+    const largo = m => Math.max(0, ...m.grupos.flatMap(g => g.items.filter(it => it.href && esActual(it.href)).map(it => it.href.length)));
+    const conTema = visibles.map(m => [m, largo(m) + (m.k === dePagina && largo(m) ? 1000 : 0)]).filter(x => x[1] >= 1).sort((x, y) => y[1] - x[1]).map(x => x[0])[0];
+    actual = conTema ? conTema.k : dePagina;
     const nav = cont.querySelector('.sm-nav');
     nav.innerHTML = visibles.map((m, i) => {
       const directo = m.href && !m.grupos.length;
@@ -385,17 +453,20 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     }).join('');
     // Cajón para teléfonos y pantallas angostas: los mismos menús en acordeón
     const cajon = cont.querySelector('.sm-cajon');
-    cajon.innerHTML = visibles.map(m => m.href && !m.grupos.length ? '<div class="sm-grupo" style="padding:8px 0"><a href="' + BASE + m.href + '">' + esc(m.t) + '</a></div>'
+    cajon.innerHTML = '<input type="search" class="sm-buscar" placeholder="Buscar en el menú…" aria-label="Buscar en el menú">' + visibles.map(m => m.href && !m.grupos.length ? '<div class="sm-grupo" style="padding:8px 0"><a href="' + BASE + m.href + '">' + esc(m.t) + '</a></div>'
       : '<details' + (m.k === actual ? ' open' : '') + '><summary>' + esc(m.t) + '</summary>' + m.grupos.map(g => '<div class="sm-grupo"><h3>' + esc(g.t) + '</h3>' + g.items.map(itemHtml).join('') + '</div>').join('') + '</details>').join('');
     cont.querySelector('.sm-usuario').textContent = c.sesion && u.nombre ? u.nombre + ' · ' + (u.segmento_nombre || '') : '';
     cont.querySelector('.sm-salir').hidden = !c.sesion;
+
     // Ruta: Módulo › Categoría › Tema (dónde estoy)
     const ruta = cont.querySelector('.sm-ruta');
     const mod = visibles.find(m => m.k === actual);
     let grupo = null, item = null;
-    if (mod) mod.grupos.some(g => g.items.some(it => { if (it.href && esActual(it.href)) { grupo = g; item = it; return true; } return false; }));
-    ruta.hidden = !mod || !c.sesion || mod.k === 'demo';
-    ruta.firstChild.innerHTML = mod ? '<span>' + esc(mod.t) + '</span>' + (grupo ? '<span>' + esc(grupo.t) + '</span><span><b>' + esc(item.t) + '</b></span>' : '') : '';
+    // el tema más preciso gana (p. ej. «Avisos de pago» antes que «Cobros» en #cobros/avisos)
+    if (mod) mod.grupos.forEach(g => g.items.forEach(it => { if (it.href && esActual(it.href) && (!item || it.href.length > item.href.length)) { grupo = g; item = it; } }));
+    ruta._migas = !(!mod || !c.sesion || mod.k === 'demo');
+    ruta.querySelector('.sm-migas').innerHTML = mod ? '<span>' + esc(mod.t) + '</span>' + (grupo ? '<span>' + esc(grupo.t) + '</span><span><b>' + esc(item.t) + '</b></span>' : '') : '';
+    pintarTorre(cont);   // también decide si la fila de la ruta se ve (ruta o selector de torre)
   }
 
   // Dentro de la Nómina no hay sesión del Portal en este navegador: se muestran todos los módulos (cada página revisa los permisos al abrir).
@@ -414,7 +485,7 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     const ruta = cont.querySelector('.sm-ruta'), per = mods.find(m => m.k === 'personal');
     let g0 = null, i0 = null; (per ? per.grupos : []).some(g => g.items.some(it => { if (it.url && esActualUrl(it.url)) { g0 = g; i0 = it; return true; } return false; }));
     ruta.hidden = false;
-    ruta.firstChild.innerHTML = '<span>Personal</span>' + (g0 ? '<span>' + esc(g0.t) + '</span><span><b>' + esc(i0.t) + '</b></span>' : '<span><b>Nómina</b></span>');
+    ruta.querySelector('.sm-migas').innerHTML = '<span>Personal</span>' + (g0 ? '<span>' + esc(g0.t) + '</span><span><b>' + esc(i0.t) + '</b></span>' : '<span><b>Nómina</b></span>');
   }
   /** Lee el menú viejo de la Nómina (grupos y enlaces), lo quita de la pantalla y deja el contenido a todo el ancho. */
   function absorberMenuNomina() {
@@ -477,13 +548,67 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     }
   }
 
+  // ---------------------------------------------------------------- v3.1 · selector de torre (como el de condominio de Habitanto)
+  // La torre elegida se guarda en 'stili-admin' (torre_actual = clave, torre_nombre = nombre) y vale para todas las páginas.
+  // La lista sale de torres_lista (con permiso de Torres) o la pone la propia página (StiliModulos.ponerTorres), también en DEMO.
+  const LS_TORRES = 'stili-torres-barra';
+  const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  let torresBarra = (() => { try { return /[?&]demo=1\b/.test(location.search) ? [] : JSON.parse(localStorage.getItem(LS_TORRES) || '[]'); } catch (e) { return []; } })();
+  function ponerTorres(lista, recordar) {
+    torresBarra = (lista || []).map(t => typeof t === 'string' ? { torre: t, clave: '' } : { torre: t.torre || t.nombre || t.clave, clave: t.clave || '' }).filter(t => t.torre);
+    if (recordar) { try { localStorage.setItem(LS_TORRES, JSON.stringify(torresBarra)); } catch (e) { /* nada */ } }
+    document.querySelectorAll('.sm-barra').forEach(b => pintarTorre(b));
+  }
+  /** La torre elegida: { clave, torre } (vacía si no hay). */
+  function torre() {
+    const c = leer(), t = torresBarra.find(x => (c.torre_actual && x.clave === c.torre_actual) || (c.torre_nombre && norm(x.torre) === norm(c.torre_nombre)));
+    return t ? Object.assign({}, t) : { clave: c.torre_actual || '', torre: c.torre_nombre || '' };
+  }
+  /** Fija la torre para todas las páginas. Acepta { clave, torre }, la clave o el nombre. Avisa con el evento «stili:torre». */
+  function fijarTorre(q, silencio) {
+    const t = typeof q === 'string' ? (torresBarra.find(x => x.clave === q || norm(x.torre) === norm(q)) || { clave: '', torre: q }) : Object.assign({}, q);
+    const conocida = torresBarra.find(x => (t.clave && x.clave === t.clave) || (t.torre && norm(x.torre) === norm(t.torre)));
+    if (conocida) { t.clave = t.clave || conocida.clave; t.torre = t.torre || conocida.torre; }
+    const antes = torre();
+    guardar({ torre_actual: t.clave || '', torre_nombre: t.torre || '' });
+    document.querySelectorAll('.sm-barra').forEach(b => pintarTorre(b));
+    if (!silencio && (antes.clave !== (t.clave || '') || norm(antes.torre) !== norm(t.torre))) window.dispatchEvent(new CustomEvent('stili:torre', { detail: torre() }));
+    return t;
+  }
+  function pintarTorre(cont) {
+    const caja = cont.querySelector('.sm-torre'); if (!caja) return;
+    const t = torre(), hay = torresBarra.length > 0 && !EN_NOMINA && !!leer().sesion || (torresBarra.length > 0 && /[?&]demo=1\b/.test(location.search));
+    caja.hidden = !hay;
+    const ruta = cont.querySelector('.sm-ruta'); if (ruta && ruta._migas !== undefined) ruta.hidden = !ruta._migas && !hay;
+    if (!hay) return;
+    caja.querySelector('.sm-torre-btn b').textContent = t.torre || 'Elegir torre';
+    const lista = caja.querySelector('.sm-torre-lista'), filtro = norm((caja.querySelector('.sm-torre-filtro') || {}).value);
+    caja.querySelector('.sm-torre-filtro').hidden = torresBarra.length < 8;
+    lista.innerHTML = torresBarra.filter(x => !filtro || norm(x.torre + ' ' + x.clave).includes(filtro)).map(x => {
+      const sel = (t.clave && x.clave === t.clave) || norm(x.torre) === norm(t.torre);
+      return '<button type="button" role="option" aria-selected="' + sel + '" data-clave="' + esc(x.clave) + '" data-torre="' + esc(x.torre) + '">' + esc(x.torre) + '</button>';
+    }).join('') || '<p>Ninguna torre con ese nombre.</p>';
+  }
+  async function cargarTorres() {
+    const c = leer(), a = c.modulos || {};
+    if (EN_NOMINA || !c.sesion || !servicio() || /[?&]demo=1\b/.test(location.search)) return;
+    if (!(a.torres || a.contabilidad || a.finanzas || a.operaciones)) return;
+    try { const r = await api('torres_lista'); ponerTorres((r.torres || []).map(t => ({ torre: t.torre, clave: t.clave })), true); } catch (e) { /* sin permiso de Torres: la página pone su lista */ }
+  }
+
+  // En la PC (con ratón) los menús se abren al pasar por encima, como en Habitanto; con el dedo, con un toque
+  const conRaton = () => window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches && innerWidth > 900;
+
   /** Monta la barra en `donde` (al inicio) y la mantiene al día con la sesión. */
   function montar(donde, actual) {
     estilo();
     const cont = document.createElement('div'); cont.className = 'sm-barra'; cont.setAttribute('role', 'navigation'); cont.setAttribute('aria-label', 'Módulos de Stili');
     cont.innerHTML = '<div class="sm-fila"><a class="sm-logo" href="' + BASE + 'portal/"><img src="' + BASE + 'portal/icono-192.png" alt=""><b>STILI SOFT</b></a>' +
-      '<nav class="sm-nav"></nav><button type="button" class="sm-menu-btn" aria-expanded="false">☰ Menú</button><span class="sm-usuario"></span><button type="button" class="sm-tema" title="Cambiar el tema de la pantalla"></button><button type="button" class="sm-salir" hidden>Salir</button></div>' +
-      '<div class="sm-cajon" hidden></div><div class="sm-ruta" hidden><div></div></div>';
+      '<nav class="sm-nav"></nav>' +
+      '<button type="button" class="sm-menu-btn" aria-expanded="false">☰ Menú</button><span class="sm-usuario"></span><button type="button" class="sm-tema" title="Cambiar el tema de la pantalla"></button><button type="button" class="sm-salir" hidden>Salir</button></div>' +
+      '<div class="sm-cajon" hidden></div><div class="sm-ruta" hidden><div class="sm-ruta-in"><nav class="sm-migas" aria-label="Está en"></nav>' +
+      '<div class="sm-torre" hidden><button type="button" class="sm-torre-btn" aria-haspopup="listbox" aria-expanded="false" title="Torre con la que está trabajando"><span>Torre</span><b></b></button>' +
+      '<div class="sm-torre-menu" hidden><input type="search" class="sm-torre-filtro" placeholder="Buscar torre…" aria-label="Buscar torre"><div class="sm-torre-lista" role="listbox" aria-label="Torres"></div></div></div>' + '</div></div>';
     donde.insertBefore(cont, donde.firstChild);
     const TEMAS = { claro: ['☀', 'Tema claro'], oscuro: ['☾', 'Tema oscuro'], auto: ['◐', 'Tema automático (como el equipo)'] }, ORDEN = ['claro', 'oscuro', 'auto'];
     const bt = cont.querySelector('.sm-tema');
@@ -503,6 +628,33 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
       if (b.getAttribute('aria-expanded') === 'true' && Date.now() - (b._porRaton || 0) < 600) return;   // se acaba de abrir al pasar el ratón: el clic no lo cierra
       abrirMenu(b, e.detail === 0); });
     nav.addEventListener('mouseover', e => { const b = e.target.closest('button.sm-mod-btn'); if (b && nav.querySelector('.sm-mod-btn[aria-expanded="true"]') && b.getAttribute('aria-expanded') !== 'true') { abrirMenu(b); b._porRaton = Date.now(); } });
+    // v3.1 · pasar el ratón abre el menú (con una pausa corta para que no se abra al cruzar la barra); salir lo cierra
+    let tAbrir, tCerrar;
+    nav.addEventListener('mouseover', e => {
+      if (!conRaton()) return; const m = e.target.closest('.sm-mod'); if (!m) return; clearTimeout(tCerrar);
+      const b = m.querySelector('button.sm-mod-btn'); if (!b || b.getAttribute('aria-expanded') === 'true') return;
+      clearTimeout(tAbrir); tAbrir = setTimeout(() => { abrirMenu(b); b._porRaton = Date.now(); }, 110);
+    });
+    nav.addEventListener('mouseleave', () => { if (!conRaton()) return; clearTimeout(tAbrir); tCerrar = setTimeout(() => cerrarMenus(), 280); });
+    nav.addEventListener('mouseenter', () => clearTimeout(tCerrar));
+    // Selector de torre
+    const ct = cont.querySelector('.sm-torre'), ctb = ct.querySelector('.sm-torre-btn'), ctm = ct.querySelector('.sm-torre-menu'), ctf = ct.querySelector('.sm-torre-filtro');
+    const cerrarTorre = () => { ctm.hidden = true; ctb.setAttribute('aria-expanded', 'false'); };
+    ctb.addEventListener('click', e => { e.stopPropagation(); cerrarMenus(); ctm.hidden = !ctm.hidden; ctb.setAttribute('aria-expanded', String(!ctm.hidden));
+      if (!ctm.hidden) { ctf.value = ''; pintarTorre(cont); (ctf.hidden ? ctm.querySelector('[aria-selected="true"], button') : ctf).focus(); } });
+    ctf.addEventListener('input', () => pintarTorre(cont));
+    ctm.addEventListener('click', e => { e.stopPropagation(); const o = e.target.closest('button[data-torre]'); if (!o) return; cerrarTorre(); fijarTorre({ clave: o.dataset.clave, torre: o.dataset.torre }); });
+    document.addEventListener('click', e => { if (!ct.contains(e.target)) cerrarTorre(); });
+    ct.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarTorre(); ctb.focus(); }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const os = Array.from(ctm.querySelectorAll('button[data-torre]')); const i = os.indexOf(document.activeElement); const n = os[(i + (e.key === 'ArrowDown' ? 1 : os.length - 1 + (i < 0 ? 1 : 0))) % os.length]; if (n) n.focus(); } });
+    // Buscador del cajón (teléfono): filtra los temas y abre los módulos que tienen coincidencias
+    cajon.addEventListener('input', e => {
+      if (!e.target.classList.contains('sm-buscar')) return; const q = norm(e.target.value);
+      cajon.querySelectorAll('details').forEach(d => { let n = 0;
+        d.querySelectorAll('.sm-grupo').forEach(g => { let k = 0; g.querySelectorAll('a').forEach(a => { const si = !q || norm(a.textContent + ' ' + d.querySelector('summary').textContent).includes(q); a.hidden = !si; if (si) k++; }); g.hidden = !k; n += k; });
+        d.hidden = !n; if (q) d.open = n > 0; });
+      cajon.querySelectorAll(':scope > .sm-grupo').forEach(g => { g.hidden = !!q && !norm(g.textContent).includes(q); });
+    });
     nav.addEventListener('keydown', e => {
       const b = e.target.closest('.sm-mod-btn'), enPanel = e.target.closest('.sm-panel');
       if (b && e.key === 'ArrowDown' && b.tagName === 'BUTTON') { e.preventDefault(); if (b.getAttribute('aria-expanded') !== 'true') abrirMenu(b, true); else { const a = b.nextElementSibling.querySelector('a'); if (a) a.focus(); } }
@@ -519,8 +671,8 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     cont.addEventListener('click', e => { const a = e.target.closest('.sm-panel a, .sm-cajon a'); if (a && !a.dataset.nomina) { cerrarMenus(); cajon.hidden = true; mb.setAttribute('aria-expanded', 'false'); } });
     cont._pintar = () => pintar(cont, actual);
     pintar(cont, actual);
-    if (!EN_NOMINA) StiliModulos.refrescar().then(() => pintar(cont, actual)).catch(() => {});
-    window.addEventListener('storage', e => { if (e.key === LS) pintar(cont, actual); });
+    if (!EN_NOMINA) StiliModulos.refrescar().then(() => { pintar(cont, actual); return cargarTorres(); }).catch(() => {});
+    window.addEventListener('storage', e => { if (e.key === LS) pintar(cont, actual); });   // otra pestaña cambió la sesión o la torre
     window.addEventListener('hashchange', () => pintar(cont, actual));
     return cont;
   }
@@ -567,11 +719,11 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     if (a.target === '_blank' && u.origin === location.origin) a.removeAttribute('target');      // páginas del Portal: en la misma ventana
   }, true);
 
-  window.StiliModulos = { montar, mas, refrescar, api, abrirNomina, leer, guardar, visor, marcar, BASE, MODULOS, VERSION: VERSION_BARRA };
+  window.StiliModulos = { montar, mas, refrescar, api, abrirNomina, leer, guardar, visor, marcar, torre, fijarTorre, ponerTorres, BASE, MODULOS, VERSION: VERSION_BARRA };
   if (EN_NOMINA) arrancarEnNomina();
 })();
 
-// v2.3 · protección de pantalla en todas las páginas del Portal (marca de agua con el nombre, sin capturas ni copias)
+// v2.3 · protección de pantalla en todas las páginas del Portal (sin capturas ni copias; desde la v3.0 sin marca de agua)
 (function () {
   let cfg = {}; try { cfg = JSON.parse(localStorage.getItem('stili-admin') || '{}'); } catch (e) { /* sin almacenamiento */ }
   const u = cfg.usuario || {};
@@ -583,6 +735,6 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     } }, window.STILI_PROTECCION || {});
   const actual = document.currentScript && document.currentScript.src;
   const s = document.createElement('script');
-  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.0') : 'stili-proteccion.js?v=3.0';
+  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.1') : 'stili-proteccion.js?v=3.1';
   (document.head || document.documentElement).appendChild(s);
 })();

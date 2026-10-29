@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
 <script src="config.js"></script>
-<script src="stili-modulos.js?v=3.0"></script>
+<script src="stili-modulos.js?v=3.1"></script>
 <script src="stili-vigia.js?v=3.0"></script>
 <link rel="stylesheet" href="stili-estilo.css?v=3.0">
 </head>
@@ -377,8 +377,10 @@ addEventListener('hashchange', () => {
   if (tieneSeccion(sec, S.detalle)) verSeccion(sec);
 });
 async function abrirTorre(clave) {
-  S.torre = clave; guardar({ torre_actual: clave });
+  S.torre = clave;
   const t = S.lista.torres.find(x => x.clave === clave);
+  guardar({ torre_actual: clave, torre_nombre: t ? t.torre : '' });   // v3.1 · la misma torre en la barra y en todas las páginas
+  if (StiliModulos.fijarTorre) StiliModulos.fijarTorre({ clave, torre: t ? t.torre : '' }, true);
   $('#sel-nombre').textContent = t ? t.torre : clave; $('#sel-gestor').textContent = t ? t.gestor : '';
   history.replaceState(null, '', '#' + encodeURIComponent(clave));
   const previo = DEMO ? null : memoria('detalle|' + clave);
@@ -1699,7 +1701,10 @@ async function iniciar() {
     if (!previa) $('#contenido').innerHTML = '<div class="card"><p>' + esc(err.message) + '</p>' + (err.codigo === 'SESION' || err.codigo === 'SESION_VENCIDA' ? '<a class="btn primario" href="portal/">Entrar de nuevo</a>' : '') + '</div>';
   }
 }
+// v3.1 · la torre elegida en la barra de arriba abre esa torre aquí, en la misma sección
+addEventListener('stili:torre', e => { const c = e.detail && e.detail.clave; if (S.lista && c && c !== S.torre && S.lista.torres.some(t => t.clave === c)) abrirTorre(c); });
 function mostrarLista(abrir) {
+  if (StiliModulos.ponerTorres && S.lista) StiliModulos.ponerTorres(S.lista.torres.map(t => ({ torre: t.torre, clave: t.clave })), !DEMO);
   {
     S.seccion = S.torre ? S.seccion : (cfg()['seccion_' + MODULO] || MODULO_SECCIONES[MODULO][0]);
     $('#b-nueva').hidden = !S.lista.puede_crear || MODULO !== 'inicio'; $('#b-tareas').hidden = !(S.lista.tareas > 0) || MODULO !== 'operaciones';
