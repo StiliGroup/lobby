@@ -272,6 +272,9 @@
 :root[data-theme="dark"] .sm-torre-filtro, :root[data-theme="dark"] .sm-buscar { background: #0C1822; color: #E6EEF2; border-color: #26394A; }
 @media (max-width: 1080px) { .sm-usuario { display: none; } .sm-mod-btn { padding-left: 9px; padding-right: 9px; } }
 @media (max-width: 900px) { .sm-barra .sm-nav { display: none; } .sm-menu-btn { display: inline-block; margin-left: auto; } }
+/* v3.5 · si los módulos no caben (nombre largo, muchos módulos), primero se oculta el nombre del usuario y se aprietan; si aun así no caben, va el menú en cajón */
+.sm-barra.apretado .sm-usuario { display: none; } .sm-barra.apretado .sm-mod-btn { padding-left: 8px; padding-right: 8px; }
+.sm-barra.angosto .sm-fila > .sm-nav { display: none; } .sm-barra.angosto .sm-menu-btn { display: inline-block; margin-left: auto; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sm-panel, :root:not([data-theme="light"]) .sm-cajon { background: #13222F; color: #E6EEF2; }
   :root:not([data-theme="light"]) .sm-grupo a, :root:not([data-theme="light"]) .sm-cajon summary { color: #E6EEF2; }
   :root:not([data-theme="light"]) .sm-grupo a small { color: #93A6B4; } :root:not([data-theme="light"]) .sm-grupo h3 { color: #D9B45E; }
@@ -440,6 +443,23 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
   const esActualUrl = url => { try { const u = new URL(url, location.href); return u.origin === location.origin && u.pathname.replace(/\/$/, '') === location.pathname.replace(/\/$/, ''); } catch (e) { return false; } };
   // Temas de la Nómina leídos de su propio menú (solo dentro de la Nómina): rutas reales, sin adivinar
   let temasNomina = null, salirNomina = '', usuarioNomina = '';
+  /** Que nada quede encima de otra cosa: mide si los módulos caben y, si no, oculta el nombre o pasa al cajón. */
+  function ajustarBarra(cont) {
+    const barra = cont.classList && cont.classList.contains('sm-barra') ? cont : (cont.querySelector && cont.querySelector('.sm-barra')) || cont;
+    const nav = barra.querySelector && barra.querySelector('.sm-fila > .sm-nav'); if (!nav) return;
+    const fila = barra.querySelector('.sm-fila');
+    const noCabe = () => nav.scrollWidth > nav.clientWidth + 1 || fila.scrollWidth > fila.clientWidth + 1;
+    const us = barra.querySelector('.sm-usuario');
+    barra.classList.remove('apretado', 'angosto');
+    if (us && us.dataset.completo !== undefined) us.textContent = us.dataset.completo;
+    if (getComputedStyle(nav).display === 'none') return;   // pantalla angosta: ya está el cajón
+    if (noCabe() && us && us.dataset.corto) us.textContent = us.dataset.corto;   // 1 · solo el primer nombre
+    if (noCabe()) barra.classList.add('apretado');                                // 2 · sin nombre y módulos más juntos
+    if (noCabe()) barra.classList.add('angosto');                                 // 3 · menú en cajón
+  }
+  let ajusteT = 0;
+  window.addEventListener('resize', () => { clearTimeout(ajusteT); ajusteT = setTimeout(() => document.querySelectorAll('.sm-barra').forEach(ajustarBarra), 120); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => document.querySelectorAll('.sm-barra').forEach(ajustarBarra));
   function pintar(cont, actual) {
     const c = leer(), a = c.modulos || {}, u = c.usuario || {};
     if (EN_NOMINA) return pintarEnNomina(cont, actual);
@@ -469,8 +489,13 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     const cajon = cont.querySelector('.sm-cajon');
     cajon.innerHTML = '<input type="search" class="sm-buscar" placeholder="Buscar en el menú…" aria-label="Buscar en el menú">' + visibles.map(m => m.href && !m.grupos.length ? '<div class="sm-grupo" style="padding:8px 0"><a href="' + BASE + m.href + '">' + esc(m.t) + '</a></div>'
       : '<details' + (m.k === actual ? ' open' : '') + '><summary>' + esc(m.t) + '</summary>' + m.grupos.map(g => '<div class="sm-grupo"><h3>' + esc(g.t) + '</h3>' + g.items.map(itemHtml).join('') + '</div>').join('') + '</details>').join('');
-    cont.querySelector('.sm-usuario').textContent = c.sesion && u.nombre ? u.nombre + ' · ' + (u.segmento_nombre || '') : '';
+    const us = cont.querySelector('.sm-usuario');
+    us.dataset.completo = c.sesion && u.nombre ? u.nombre + ' · ' + (u.segmento_nombre || '') : '';
+    us.dataset.corto = c.sesion && u.nombre ? String(u.nombre).split(/\s+/)[0] : '';
+    us.textContent = us.dataset.completo; us.title = us.dataset.completo;
     cont.querySelector('.sm-salir').hidden = !c.sesion;
+    cont.querySelector('.sm-salir').title = c.sesion && u.nombre ? 'Salir · ' + u.nombre + ' · ' + (u.segmento_nombre || '') : 'Salir';
+    ajustarBarra(cont);
 
     // Ruta: Módulo › Categoría › Tema (dónde estoy)
     const ruta = cont.querySelector('.sm-ruta');
