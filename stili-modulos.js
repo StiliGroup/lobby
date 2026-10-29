@@ -20,7 +20,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '3.5';
+  const VERSION_BARRA = '3.5.1';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -686,7 +686,9 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     const c = leer(), a = c.modulos || {};
     if (EN_NOMINA || !c.sesion || !servicio() || /[?&]demo=1\b/.test(location.search)) return;
     if (!(a.torres || a.contabilidad || a.finanzas || a.operaciones)) return;
-    try { const r = await api('torres_lista'); ponerTorres((r.torres || []).map(t => ({ torre: t.torre, clave: t.clave })), true); } catch (e) { /* sin permiso de Torres: la página pone su lista */ }
+    // v3.5.1 · la lista de torres se pide a lo sumo cada 5 minutos (antes, en cada página): la barra usa la guardada
+    if (fresco('torres')) return;
+    try { const r = await api('torres_lista'); ponerTorres((r.torres || []).map(t => ({ torre: t.torre, clave: t.clave })), true); marcarFresco('torres'); } catch (e) { /* sin permiso de Torres: la página pone su lista */ }
   }
 
   // En la PC (con ratón) los menús se abren al pasar por encima, como en Habitanto; con el dedo, con un toque
@@ -764,17 +766,24 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     cont.addEventListener('click', e => { const a = e.target.closest('.sm-panel a, .sm-cajon a'); if (a && !a.dataset.nomina) { cerrarMenus(); cajon.hidden = true; mb.setAttribute('aria-expanded', 'false'); } });
     cont._pintar = () => pintar(cont, actual);
     pintar(cont, actual);
-    if (!EN_NOMINA) StiliModulos.refrescar().then(() => { pintar(cont, actual); return cargarTorres(); }).catch(() => {});
+    if (!EN_NOMINA) StiliModulos.refrescar().then(r => { if (!r || !r.guardado) pintar(cont, actual); return cargarTorres(); }).catch(() => {});
     window.addEventListener('storage', e => { if (e.key === LS) pintar(cont, actual); });   // otra pestaña cambió la sesión o la torre
     window.addEventListener('hashchange', () => pintar(cont, actual));
     return cont;
   }
 
   /** Pide al servicio qué módulos ve el usuario y lo guarda para todas las páginas. */
-  async function refrescar() {
+  // v3.5.1 · menú y permisos: se usan los guardados y se piden de nuevo a lo sumo cada 5 minutos (o al entrar con otra sesión)
+  const FRESCO_MS = 5 * 60000;
+  const claveFresco = k => 'stili-fresco-' + k + '-' + String(leer().sesion || '').slice(-16);
+  function fresco(k) { try { return Date.now() - Number(sessionStorage.getItem(claveFresco(k)) || 0) < FRESCO_MS; } catch (e) { return false; } }
+  function marcarFresco(k) { try { sessionStorage.setItem(claveFresco(k), String(Date.now())); } catch (e) { /* nada */ } }
+  async function refrescar(forzar) {
     if (!leer().sesion || !servicio()) return null;
+    if (!forzar && fresco('portal') && leer().modulos) return { accesos: leer().modulos, usuario: leer().usuario, guardado: true };
     const r = await api('portal');
     guardar({ modulos: r.accesos, usuario: r.usuario });
+    marcarFresco('portal');
     return r;
   }
 

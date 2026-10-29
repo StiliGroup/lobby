@@ -603,7 +603,7 @@ dialog.d form { padding: 20px; display: grid; gap: 12px; }
 </dialog>
 <div id="toast" class="toast" hidden role="status"></div>
 <script src="config.js"></script>
-<script src="stili-modulos.js?v=3.5"></script>
+<script src="stili-modulos.js?v=3.5.1"></script>
 <script>
 'use strict';
 const TZ = 'America/Santo_Domingo';
@@ -617,6 +617,9 @@ function leerCfg() { try { return JSON.parse(localStorage.getItem('stili-admin')
 function guardarCfg() { try { localStorage.setItem('stili-admin', JSON.stringify(CFG)); } catch (e) { /* sin almacenamiento */ } }
 // v2.1 · tres usos de esta página: el módulo Lobby, el módulo Administración y las secciones del lobby dentro de cada torre
 const PARAM = new URLSearchParams(location.search);
+// v3.5.1 · Stili Soft empieza en el Inicio (Portal). «admin.html» a secas (marcadores viejos) lleva allí; el Lobby se abre desde el menú.
+const IR_PORTAL = !PARAM.has('m') && !PARAM.has('demo') && !location.hash;
+if (IR_PORTAL) location.replace('portal/');
 const MODULO = ({ lobby: 'lobby', invitados: 'lobby', admin: 'admin', usuarios: 'admin', ajustes: 'admin', torre: 'torre', personal: 'personal' })[PARAM.get('m')] || 'lobby';
 const INCRUSTADO = MODULO === 'torre' && PARAM.get('embed') === '1', TORRE = PARAM.get('torre') || '';
 // v2.7 · Lobby = portería (accesos y parámetros) · Personal = ponchador y horas · Ajustes = usuarios, claves y políticas
@@ -765,7 +768,7 @@ $('#f-clave').addEventListener('submit', async e => {
   catch (err) { toast(err.message, 'error'); }
 });
 $('#b-clave').addEventListener('click', () => pedirClave(false));
-$('#b-salir').addEventListener('click', () => { CFG.sesion = ''; guardarCfg(); S.sistema = null; mostrarLogin('Sesión cerrada.'); });
+$('#b-salir').addEventListener('click', () => { try { localStorage.removeItem(claveTablero()); } catch (e) { /* nada */ } CFG.sesion = ''; guardarCfg(); S.sistema = null; mostrarLogin('Sesión cerrada.'); });
 $('#b-nomina').addEventListener('click', async () => {
   try {
     const r = await api('sso_ticket');
@@ -783,6 +786,7 @@ async function cargarSistema() {
     const SEG = { gerente: 'Gerente General', asistente: 'Asistente Administrativo', gestores: 'Gestor de cuenta', rrhh: 'RRHH y Operaciones', contabilidad: 'Contabilidad' };
     $('#pill-rol').className = 'pill' + (S.sistema.gerente ? ' rol-gerente' : '');
     $('#pill-rol').textContent = (SEG[S.sistema.segmento] || (g ? 'Gerente' : 'Equipo')) + ' · ' + (S.sistema.nombre || '') + (S.sistema.torres ? ' · ' + S.sistema.torres.join(', ') : '');
+    if (!DEMO() && !INCRUSTADO) { $('#pill-con').hidden = true; $('#pill-rol').hidden = !S.sistema.torres; $('#pill-con').title = 'En línea · v' + S.sistema.version; }   // v3.5.1 · menos ruido: el nombre ya está en la barra
     aplicarPermisos();
   } catch (e) {
     $('#pill-con').innerHTML = '<span class="p demo"></span><span>Sin acceso</span>'; $('#pill-rol').textContent = '—';
@@ -792,8 +796,24 @@ async function cargarSistema() {
 }
 
 // ------------------------------------------------------------------ Tablero
+// v3.5.1 · el tablero se pinta al instante con lo último que se vio en este equipo y se actualiza solo (el servicio lo guarda 1 minuto)
+const claveTablero = () => 'stili-tablero-' + String(CFG.sesion || '').split('.')[0];
+function tableroGuardado() { try { const x = JSON.parse(localStorage.getItem(claveTablero()) || 'null'); return x && Date.now() - x.t < 12 * 3600000 ? x : null; } catch (e) { return null; } }
+function marcarActualizando(si, t) {
+  let m = $('#tab-estado'); if (!m) { m = document.createElement('div'); m.id = 'tab-estado'; m.className = 'nota'; m.style.cssText = 'font-size:12px;margin:-6px 0 10px;min-height:16px'; $('#v-tablero').prepend(m); }
+  m.textContent = si ? 'Actualizando…' + (t ? ' (mostrando lo de las ' + new Date(t).toLocaleTimeString('es-DO', { hour: 'numeric', minute: '2-digit' }) + ')' : '') : '';
+}
 async function cargarTablero() {
-  try { S.tablero = await api('tablero'); pintarTablero(S.tablero); } catch (e) { $('#torres').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; }
+  if (!S.tablero && !DEMO()) {
+    const g = tableroGuardado();
+    if (g) { try { S.tablero = g.r; pintarTablero(g.r); } catch (e) { /* se espera al servicio */ } marcarActualizando(true, g.t); }
+    else { $('#kpis').innerHTML = '<div class="vacio" style="grid-column:1/-1">Cargando el tablero…</div>'; $('#feed').innerHTML = '<li class="nota">Cargando…</li>'; $('#atencion').innerHTML = '<div class="nota">Cargando…</div>'; }
+  }
+  try {
+    S.tablero = await api('tablero'); pintarTablero(S.tablero);
+    if (!DEMO()) try { localStorage.setItem(claveTablero(), JSON.stringify({ t: Date.now(), r: S.tablero })); } catch (e) { /* sin espacio */ }
+  } catch (e) { if (!S.tablero) $('#torres').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; else toast(e.message, 'error'); }
+  marcarActualizando(false);
 }
 function pintarTablero(r) {
   const T = r.torres, sum = k => T.reduce((a, t) => a + (Number(t[k]) || 0), 0);
@@ -1648,6 +1668,11 @@ const Demo = (() => {
 
 // ------------------------------------------------------------------ Inicio
 async function iniciar() {
+  if (IR_PORTAL) return;
+  // v3.5.1 · en paralelo: el tablero y los documentos se piden mientras llega el usuario (antes, uno tras otro)
+  const conTablero = (MODULO === 'lobby' || MODULO === 'personal') && !INCRUSTADO;
+  const tableroP = conTablero && (!location.hash || location.hash === '#tablero') ? cargarTablero() : null;
+  const docsP = DEMO() ? null : api('documentos').catch(() => null);
   await cargarSistema();
   if (!S.sistema) return;
   if (window.StiliModulos && !INCRUSTADO && !document.querySelector('.sm-barra')) StiliModulos.montar(document.body, MODULO);
@@ -1657,8 +1682,8 @@ async function iniciar() {
     if (!(S.sistema.gerente || S.sistema.usuarios)) { $$('main > section').forEach(s => { s.hidden = true; });
       $('main').insertAdjacentHTML('beforeend', '<div class="card"><h2>Ajustes</h2><p class="nota">Este módulo es del Gerente General. Si lo necesita, pídale que se lo asigne.</p></div>'); return; }
   }
-  if (nivel('documentos') > 0) { try { S.docs = await api('documentos'); } catch (e) { /* sin documentos */ } }
-  if ((MODULO === 'lobby' || MODULO === 'personal') && nivel('tablero') > 0) await cargarTablero();
+  if (nivel('documentos') > 0) { try { S.docs = docsP ? await docsP : await api('documentos'); } catch (e) { /* sin documentos */ } }
+  if ((MODULO === 'lobby' || MODULO === 'personal') && nivel('tablero') > 0) { if (tableroP) { await tableroP; if (S.tablero && S.docs) pintarTablero(S.tablero); } else await cargarTablero(); }
   const inicial = VIEJAS[(location.hash || '').slice(1)] || (location.hash || '').slice(1), propias = TABS_MODULO[MODULO];
   const pedida = propias.includes(inicial) ? inicial : MODULO === 'lobby' ? (propias.includes(CFG.vista) ? CFG.vista : 'tablero') : propias[0];
   const tab = $('.tab[data-v="' + pedida + '"]');
@@ -1687,7 +1712,7 @@ function prepararTorre() {
   });
 }
 if (CFG.admin) { CFG.admin = ''; guardarCfg(); }   // v2.5 · se borra cualquier código ADM- viejo guardado en este equipo
-if (!DEMO() && !CFG.sesion) mostrarLogin(); else iniciar();
+if (IR_PORTAL) { /* va al Inicio */ } else if (!DEMO() && !CFG.sesion) mostrarLogin(); else iniciar();
 </script>
 </body>
 </html>
