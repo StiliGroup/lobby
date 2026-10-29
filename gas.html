@@ -126,7 +126,7 @@ function pLecturas() {
       const al = l.alerta ? (l.alerta.nivel === 'alerta' ? '<span class="alerta-txt">⚠ +' + l.alerta.aumento + ' %</span><div class="mini">promedio ' + m3(l.alerta.promedio) + '</div>' : '<span class="ok-txt">Normal</span>') : '';
       return '<tr><td><b>' + esc(l.apartamento) + '</b>' + (l.fuera_de_lista ? ' <span class="chip ambar">fuera de la lista</span>' : '') + '</td>' +
         '<td>' + (l.foto_url ? '<a class="btn chico" href="' + esc(l.foto_url) + '" target="_blank" rel="noopener">Ver</a> ' : '') + (edit ? '<label class="btn chico camara">' + (l.foto_url ? 'Otra' : '📷 Foto') + '<input type="file" accept="image/*" capture="environment" data-foto="' + esc(l.apartamento) + '"></label>' : '') + '</td>' +
-        '<td class="num">' + m3(l.anterior) + '</td>' +
+        '<td class="num">' + m3(l.anterior) + (l.anterior_manual ? '<div class="mini">medidor nuevo</div>' : '') + '</td>' +
         '<td class="num">' + (edit ? '<input class="lect' + (cambios[l.apartamento] !== undefined ? ' cambio' : '') + '" inputmode="decimal" data-apto="' + esc(l.apartamento) + '" value="' + esc(val) + '" aria-label="Lectura actual de ' + esc(l.apartamento) + '">' : m3(l.lectura)) + ia + '</td>' +
         '<td class="num">' + m3(l.consumo) + prob + '</td><td>' + al + '</td><td class="num">' + (c ? dinero(c.monto) : '—') + '</td></tr>';
     }).join('') + '</tbody></table></div>' +
@@ -169,6 +169,14 @@ function pAjustes(nuevo) {
 }
 
 // ---------------------------------------------------------------- eventos
+function mostrarRechazos(rech) {
+  const menores = rech.filter(x => x.menor);
+  $('#dlg-cuerpo').innerHTML = '<h2>Lecturas con problema</h2><ul class="al">' + rech.map(x => '<li class="ambar"><b>' + esc(x.apartamento) + '</b>: ' + esc(x.motivo) + '</li>').join('') + '</ul>' +
+    (menores.length && D.puede_editar ? '<h3 class="sub" style="margin-top:14px">¿Cambiaron el medidor?</h3><p class="mini">Escriba la lectura con la que empezó el medidor nuevo; el consumo se calcula desde ahí.</p><div class="form">' +
+      menores.map(x => '<label>' + esc(x.apartamento) + ' · lectura de hoy ' + esc(x.lectura) + '<input inputmode="decimal" data-anterior-nuevo="' + esc(x.apartamento) + '" data-lectura="' + esc(x.lectura) + '" placeholder="Lectura inicial del medidor nuevo"></label>').join('') + '</div>' : '') +
+    '<div class="acciones-fila">' + (menores.length && D.puede_editar ? '<button class="btn primario" data-medidor-nuevo>Guardar con medidor nuevo</button>' : '') + '<button class="btn" data-cerrar>Cerrar</button></div>';
+  $('#dlg').showModal();
+}
 const num = v => { const t = String(v == null ? '' : v).replace(/,/g, '').trim(); return t === '' ? '' : Number(t); };
 const leerArchivo = f => new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = mal; r.readAsDataURL(f); });
 /** Achica la foto a 1600 px (la IA no necesita más y sube rápido desde el teléfono). */
@@ -199,10 +207,17 @@ document.addEventListener('click', async e => {
     if (ds.agregarRango !== undefined) { const c = el.closest('form').querySelector('#rangos'); const tmp = document.createElement('div'); tmp.innerHTML = c.firstElementChild.outerHTML; tmp.querySelectorAll('input').forEach(i => { i.value = ''; }); c.appendChild(tmp.firstElementChild); return; }
     if (ds.quitarRango !== undefined) { const c = el.closest('#rangos'); if (c.children.length > 1) el.closest('.rango').remove(); else el.closest('.rango').querySelectorAll('input').forEach(i => { i.value = ''; }); return; }
     if (ds.guardar !== undefined) {
-      const lista = Object.keys(cambios).map(a => ({ apartamento: a, lectura: num(cambios[a]) })).filter(x => x.lectura === '' || x.lectura >= 0);
+      const lista = Object.keys(cambios).map(a => ({ apartamento: a, lectura: String(cambios[a]).trim() }));   // el servicio entiende 1234,56 y 1,234.56
       if (!lista.length) return toast('No hay lecturas nuevas.');
       const r = await hacer('lecturas', { lecturas: lista }, el);
-      if (r && r.resultado && r.resultado.rechazos.length) { $('#dlg-cuerpo').innerHTML = '<h2>Lecturas con problema</h2><ul class="al">' + r.resultado.rechazos.map(x => '<li class="ambar"><b>' + esc(x.apartamento) + '</b>: ' + esc(x.motivo) + '</li>').join('') + '</ul><div class="acciones-fila"><button class="btn" data-cerrar>Entendido</button></div>'; $('#dlg').showModal(); }
+      if (r && r.resultado && r.resultado.rechazos.length) mostrarRechazos(r.resultado.rechazos);
+      return;
+    }
+    if (ds.medidorNuevo !== undefined) {
+      const lista = Array.from(document.querySelectorAll('[data-anterior-nuevo]')).filter(i => i.value.trim() !== '').map(i => ({ apartamento: i.dataset.anteriorNuevo, lectura: i.dataset.lectura, anterior: i.value.trim() }));
+      if (!lista.length) return toast('Escriba la lectura inicial del medidor nuevo.');
+      $('#dlg').close(); const r = await hacer('lecturas', { lecturas: lista }, null);
+      if (r && r.resultado && r.resultado.rechazos.length) mostrarRechazos(r.resultado.rechazos);
       return;
     }
     if (ds.importar !== undefined) { $('#dlg-cuerpo').innerHTML = '<h2>Importar lecturas</h2><p class="mini">Pegue desde Excel dos columnas: apartamento y lectura (una fila por apartamento). También sirve un CSV.</p><form id="f-imp" class="form"><label class="ancho"><textarea name="texto" rows="10" placeholder="A01	666.929&#10;A02	615.919"></textarea></label><label class="ancho">o elija un archivo CSV<input type="file" name="archivo" accept=".csv,text/csv,text/plain"></label><div class="ancho acciones-fila"><button class="btn primario">Importar</button><button type="button" class="btn" data-cerrar>Cancelar</button></div></form>'; return $('#dlg').showModal(); }
@@ -237,7 +252,7 @@ document.addEventListener('submit', async e => {
       let texto = v('texto'); const a = f.elements.archivo.files[0]; if (a) texto = await a.text();
       if (!texto) return toast('Pegue las lecturas o elija un archivo.');
       const r = await hacer('importar', { texto }, b); $('#dlg').close();
-      if (r && r.resultado && r.resultado.rechazos.length) { $('#dlg-cuerpo').innerHTML = '<h2>Filas con problema</h2><ul class="al">' + r.resultado.rechazos.map(x => '<li class="ambar">' + (x.apartamento ? '<b>' + esc(x.apartamento) + '</b>: ' : '') + esc(x.motivo) + '</li>').join('') + '</ul><div class="acciones-fila"><button class="btn" data-cerrar>Entendido</button></div>'; $('#dlg').showModal(); }
+      if (r && r.resultado && r.resultado.rechazos.length) mostrarRechazos(r.resultado.rechazos);
       return;
     }
   } catch (er) { toast(er.message); }
