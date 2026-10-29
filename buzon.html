@@ -34,7 +34,7 @@ const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&a
 const DEMO = new URLSearchParams(location.search).has('demo');
 const dinero = v => 'RD$ ' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fecha = f => { const m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}:\d{2}))?/); return m ? m[3] + '/' + m[2] + '/' + m[1] + (m[4] ? ' ' + m[4] : '') : esc(f); };
-const EST = { registrada: ['Registrada', 'verde'], duplicada: ['Duplicada: no se registró', 'rojo'], problema: ['Revisar', 'ambar'] };
+const EST = { registrada: ['Registrada', 'verde'], duplicada: ['Duplicada: no se registró', 'rojo'], problema: ['Revisar', 'ambar'], procesando: ['Procesando', 'azul'], reintentar: ['Se reintenta', 'azul'] };
 let D = null, filtro = '';
 const demo = () => ({ carpeta: 'https://drive.google.com/', activo: true, cada_minutos: 10, ultima: '2026-10-28T22:40', en_cola: [{ torre: 'Torre Niza 7', archivos: 2 }],
   registro: [
@@ -48,7 +48,7 @@ const demo = () => ({ carpeta: 'https://drive.google.com/', activo: true, cada_m
     { partida_id: 'PG-102', torre: 'Torre Niza 7', ncf: 'B0100009999', tipo_ncf: 'Factura de crédito fiscal', rnc_emisor: '131000001', emisor_dgii: 'FERRETERIA OCHOA SRL', estado_emisor: 'ACTIVO', dgii_ncf: 'no_valido', itbis: 300, total: 2300,
       alertas: [{ nivel: 'azul', texto: 'El nombre del suplidor no venía en la factura: se tomó de la DGII por el RNC (FERRETERIA OCHOA SRL).' }, { nivel: 'rojo', texto: 'La DGII dice que el NCF B0100009999 no es válido para el RNC 131000001.' }, { nivel: 'rojo', texto: 'El ITBIS (300) no es el 18 % ni el 16 % de la base gravada (2000): es 15 %.' }] }] });
 async function cargar(op) {
-  try { D = DEMO ? demo() : await StiliModulos.api('cxp_buzon', { operacion: op || 'datos' }); pintar(); if (op === 'procesar') toast(D.resultado && D.resultado.ocupado ? D.resultado.aviso : (D.resultado && D.resultado.hechos ? D.resultado.hechos.length + ' archivo(s) procesados.' : 'Listo.')); }
+  try { D = DEMO ? demo() : await StiliModulos.api('cxp_buzon', { operacion: op || 'datos' }); pintar(); if (op === 'procesar') toast(D.resultado && D.resultado.ocupado ? D.resultado.aviso : (D.resultado && D.resultado.hechos ? D.resultado.hechos.length + ' archivo(s) procesados.' + (D.resultado.pendiente ? ' Quedan más: siguen solos en la próxima vuelta.' : '') : 'Listo.')); }
   catch (e) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(e.message) + '</p></div>'; }
 }
 const toast = m => { let el = $('#aviso'); if (!el) { el = document.createElement('div'); el.id = 'aviso'; el.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#13293D;color:#fff;padding:10px 16px;border-radius:10px;z-index:90;font-weight:600;max-width:calc(100% - 32px)'; document.body.appendChild(el); } el.textContent = m; el.hidden = false; setTimeout(() => { el.hidden = true; }, 4000); };
