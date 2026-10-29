@@ -20,7 +20,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '3.4.2';
+  const VERSION_BARRA = '3.4.3';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -388,13 +388,66 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     btn.textContent = 'Más (' + fuera.length + ') ▾';
   }
 
-  async function api(accion, datos) {
+  async function llamar(accion, datos) {
     const c = leer();
     const r = await fetch(servicio(), { method: 'POST', body: JSON.stringify(Object.assign({ accion, sesion: c.sesion || '' }, datos || {})) });
     const j = await r.json();
     if (!j.ok) { const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo; throw e; }
     return j;
   }
+  // v3.4.3 · Clave ADM: si el servicio la pide (datos de Stili · Condo Ad Services), se pide aquí mismo y se repite la llamada.
+  async function api(accion, datos) {
+    try { return await llamar(accion, datos); }
+    catch (e) {
+      if ((e.codigo === 'ADM' || e.codigo === 'ADM_SIN_CONFIGURAR') && accion !== 'adm' && await pedirAdm(e.codigo)) return llamar(accion, datos);
+      throw e;
+    }
+  }
+  let admPendiente = null;
+  function pedirAdm(modo) {
+    if (admPendiente) return admPendiente;
+    admPendiente = new Promise(resolve => {
+      let d = document.getElementById('sm-adm');
+      if (!d) {
+        d = document.createElement('dialog'); d.id = 'sm-adm';
+        d.style.cssText = 'border:0;border-radius:12px;padding:20px 22px;max-width:380px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.25);font-size:14px;line-height:1.45;color:inherit;background:var(--card,#fff)';
+        document.body.appendChild(d);
+      }
+      const campo = (n, t) => '<label style="display:block;font-size:12px;margin:10px 0 4px;opacity:.8">' + t + '</label><input name="' + n + '" type="password" required autocomplete="off" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #c9d1da;border-radius:8px;font:inherit">';
+      const pintar = (m, puedeCrear) => {
+        const crear = m === 'crear', cambiar = m === 'cambiar';
+        d.innerHTML = '<form method="dialog" autocomplete="off"><h2 style="margin:0 0 6px;font-size:17px">' + (crear ? 'Crear la clave ADM' : cambiar ? 'Cambiar la clave ADM' : '🔒 Datos de Stili') + '</h2>' +
+          '<p style="margin:0;font-size:13px;opacity:.85">' + (m === 'sin' ? 'Los datos de Stili (Condo Ad Services) piden la clave ADM y todavía no está creada. La crea el Gerente General.'
+            : crear || cambiar ? 'Al menos 10 caracteres, con letras y números. No se puede recuperar, solo cambiar.' + (cambiar ? ' Al cambiarla se cierran las demás aperturas.' : '')
+            : 'Los datos de Stili Group (Condo Ad Services) piden la clave ADM. Se cierra sola tras 15 minutos sin uso.') + '</p>' +
+          (m === 'sin' ? '' : cambiar ? campo('actual', 'Clave ADM actual') + campo('nueva', 'Clave nueva') + campo('repetir', 'Repita la clave nueva') : crear ? campo('nueva', 'Clave ADM nueva') + campo('repetir', 'Repítala') : campo('clave', 'Clave ADM')) +
+          '<p class="sm-adm-error" role="alert" style="color:#b3261e;font-size:12px;margin:8px 0 0;min-height:1em"></p>' +
+          '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' + (m === 'sin' ? '' : '<button value="ok" style="background:#29417F;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer">' + (crear ? 'Crear' : cambiar ? 'Cambiar' : 'Abrir') + '</button>') +
+          '<button value="cancelar" formnovalidate style="background:transparent;border:1px solid #c9d1da;border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer">' + (m === 'sin' ? 'Cerrar' : 'Cancelar') + '</button></div></form>';
+        const f = d.querySelector('form'), err = d.querySelector('.sm-adm-error');
+        f.addEventListener('submit', async ev => {
+          if (ev.submitter && ev.submitter.value === 'cancelar') return;
+          ev.preventDefault();
+          const v = k => (f.elements[k] || {}).value || '';
+          const b = f.querySelector('button[value="ok"]'); b.disabled = true; err.textContent = '';
+          try {
+            if (crear || cambiar) await llamar('adm', { op: 'configurar', actual: v('actual'), nueva: v('nueva'), repetir: v('repetir') });
+            else await llamar('adm', { op: 'abrir', clave: v('clave') });
+            f.reset(); d.close('listo');
+          } catch (e2) { err.textContent = e2.message; b.disabled = false; const i = f.querySelector('input'); if (i) { i.select(); i.focus(); } }
+        });
+        const i = f.querySelector('input'); setTimeout(() => i && i.focus(), 30);
+      };
+      const fin = () => { d.removeEventListener('close', fin); const ok = d.returnValue === 'listo'; d.innerHTML = ''; admPendiente = null; resolve(ok); };
+      d.addEventListener('close', fin);
+      d.returnValue = '';
+      if (modo === 'ADM_SIN_CONFIGURAR') llamar('adm', { op: 'estado' }).then(s => { pintar(s.puede_configurar ? 'crear' : 'sin'); d.showModal(); }).catch(() => { pintar('sin'); d.showModal(); });
+      else { pintar(modo === 'CAMBIAR' ? 'cambiar' : 'abrir'); d.showModal(); }
+    });
+    return admPendiente;
+  }
+  const adm = { pedir: () => pedirAdm('ADM'), cambiar: () => pedirAdm('CAMBIAR'), estado: () => llamar('adm', { op: 'estado' }), cerrar: () => llamar('adm', { op: 'cerrar' }),
+    registro: () => llamar('adm', { op: 'registro' }) };
 
   // v2.4 · una sola pantalla: la Nómina se abre en la misma ventana (con «← Inicio del Portal» en su menú)
   // v2.8 · Las rutas internas de la Nómina (/empleados, /nominas…) se activan cuando se verifiquen contra nomina/web.py en la PC.
@@ -757,7 +810,7 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     if (a.target === '_blank' && u.origin === location.origin) a.removeAttribute('target');      // páginas del Portal: en la misma ventana
   }, true);
 
-  window.StiliModulos = { montar, mas, refrescar, api, abrirNomina, leer, guardar, visor, marcar, torre, fijarTorre, ponerTorres, BASE, MODULOS, VERSION: VERSION_BARRA };
+  window.StiliModulos = { montar, mas, refrescar, api, adm, abrirNomina, leer, guardar, visor, marcar, torre, fijarTorre, ponerTorres, BASE, MODULOS, VERSION: VERSION_BARRA };
   if (EN_NOMINA) arrancarEnNomina();
 })();
 

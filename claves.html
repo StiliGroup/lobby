@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
 <link rel="stylesheet" href="stili-estilo.css?v=3.0">
 <script src="config.js"></script>
-<script src="stili-modulos.js?v=3.4.2"></script>
+<script src="stili-modulos.js?v=3.4.3"></script>
 <style>
 .secciones nav { overflow-x: auto; scrollbar-width: thin; }
 .mini { font-size: 12.5px; color: var(--muted); }
@@ -71,6 +71,8 @@ function pintar() {
   const t = sinT(buscar), lista = D.claves.filter(c => !t || sinT(c.torre + ' ' + c.entidad + ' ' + c.usuario + ' ' + c.notas).indexOf(t) >= 0);
   $('#contenido').innerHTML = pre + '<div class="card"><div class="cab"><h2>Cuentas de las torres</h2>' + (D.puede_editar ? '<button class="btn primario" data-nueva>+ Agregar clave</button>' : '') + '</div>' +
     '<p class="segura">Las claves están cifradas. Se ven una a una y cada vista queda anotada con su nombre. ' + (D.puede_ver ? 'Al verla, se oculta sola a los 30 segundos.' : 'Su nivel permite ver la lista, no las claves.') + ' No las copie en chats ni en papeles.</p>' +
+    (D.stili && (D.puede_editar || D.stili.ocultas) && !DEMO ? '<p class="mini">' + (D.stili.abierta ? '🔓 Claves de Stili (Condo Ad Services) abiertas: se cierran solas tras 15 minutos sin uso. <button class="btn chico" data-adm-cerrar>Cerrar</button>'
+      : '🔒 Las claves propias de Stili (Condo Ad Services) piden la clave ADM' + (D.stili.ocultas ? ' (' + D.stili.ocultas + ' ocultas)' : '') + '. <button class="btn chico" data-adm-abrir>Abrirlas</button>') + '</p>' : '') +
     '<div class="filtros"><input type="search" id="buscar" placeholder="Buscar entidad, usuario o torre" value="' + esc(buscar) + '"><label><input type="checkbox" id="todas"' + (todas ? ' checked' : '') + '> Todas mis torres</label>' + (!todas ? '<span class="mini">Torre: ' + esc(torreBarra() || '— elija en la barra —') + '</span>' : '') + '</div>' +
     (lista.length ? '<div class="tabla"><table><thead><tr><th>Torre</th><th>Entidad</th><th>Usuario</th><th>Clave</th><th>Notas</th><th></th></tr></thead><tbody>' + lista.map(c => {
       const v = visibles[c.id];
@@ -115,6 +117,8 @@ document.addEventListener('click', async e => {
   try {
     if (ds.tab) { tab = ds.tab; history.replaceState(null, '', tab === 'registro' ? '#registro' : '#'); if (tab === 'registro' && !R) return cargarRegistro(); return pintar(); }
     if (ds.cerrar !== undefined) return $('#dlg').close();
+    if (ds.admAbrir !== undefined) { if (await StiliModulos.adm.pedir()) cargar(); return; }   // v3.4.3 · clave ADM
+    if (ds.admCerrar !== undefined) { await StiliModulos.adm.cerrar(); return cargar(); }
     if (ds.nueva !== undefined) return dlgClave(null);
     if (ds.pendiente !== undefined) { const p = D.pendientes[Number(ds.pendiente)]; return dlgClave({ torre: p.torre, entidad: p.entidad, usuario: p.usuario }); }
     if (ds.editar) return dlgClave(D.claves.find(c => c.id === ds.editar));

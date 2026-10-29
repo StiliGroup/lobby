@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
 <link rel="stylesheet" href="stili-estilo.css?v=3.0">
 <script src="config.js"></script>
-<script src="stili-modulos.js?v=3.4.2"></script>
+<script src="stili-modulos.js?v=3.4.3"></script>
 <style>
 td.num, th.num { text-align: right; white-space: nowrap; }
 .secciones nav { overflow-x: auto; scrollbar-width: thin; }
@@ -124,7 +124,10 @@ async function hacer(op, datos, boton) {
 }
 async function cargar() {
   try { D = DEMO ? demo() : await StiliModulos.api('emp', { op: 'datos' }); pintar(); }
-  catch (e) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(e.message) + '</p></div>'; }
+  catch (e) {
+    const adm = e.codigo === 'ADM' || e.codigo === 'ADM_SIN_CONFIGURAR';   // v3.4.3 · clave ADM
+    $('#contenido').innerHTML = '<div class="card"><p>' + esc(e.message) + '</p>' + (adm ? '<button class="btn primario" data-adm-abrir>Escribir la clave ADM</button>' : '') + '</div>';
+  }
 }
 
 // ---------------------------------------------------------------- nombres del catálogo
@@ -141,11 +144,13 @@ function pintar() {
   const pend = (D.propuestas || []).filter(p => p.estado === 'propuesta').length;
   $('#nav').innerHTML = TABS.map(([k, t]) => '<button type="button" role="tab" data-tab="' + k + '" aria-selected="' + (tab === k) + '">' + esc(t) +
     (k === 'compras' && n('revisar') + n('listo') ? '<span class="n">' + (n('revisar') + n('listo')) + '</span>' : '') + (k === 'clientes' && pend ? '<span class="n">' + pend + '</span>' : '') + '</button>').join('');
-  $('#estado-cab').innerHTML = D.conectado ? '<span class="chip verde">Alegra conectado</span>' : '<span class="chip rojo">Alegra sin conectar</span>';
+  $('#estado-cab').innerHTML = (D.conectado ? '<span class="chip verde">Alegra conectado</span>' : '<span class="chip rojo">Alegra sin conectar</span>') +
+    (DEMO ? '' : ' <button class="btn chico" data-adm-cerrar title="Los datos de Stili se cierran solos tras 15 minutos sin uso">🔒 Cerrar</button>');
   const pre = DEMO ? '<div class="aviso-edicion">Demostración con datos de ejemplo: nada se envía a Alegra.</div>' : '';
   const P = { inicio: pInicio, compras: pCompras, subir: pSubir, conciliacion: pConciliacion, clientes: pClientes, criterio: pCriterio, config: pConfig }[tab] || pInicio;
   $('#contenido').innerHTML = pre + (!D.conectado && tab !== 'config' ? '<div class="card"><b>Falta conectar Alegra.</b> ' + (D.gerente ? '<a href="#config">Conéctelo en «Conexión y ajustes»</a> con el correo y el token de su cuenta de Alegra.' : 'Pídale a Gerencia que lo conecte.') + '</div>' : '') + P();
   if (tab === 'conciliacion' && concSel && !concLineas) cargarLineas(concSel);
+  if (tab === 'config') pintarAdm();
 }
 function pInicio() {
   const cola = D.cola || [], n = k => cola.filter(q => q.estado === k).length, s = D.sync || {}, mes = new Date().toISOString().slice(0, 7);
@@ -346,7 +351,15 @@ function pConfig() {
     '<label>Numeración de las facturas a clientes<select name="EMP_PLANTILLA_VENTA"' + (D.gerente ? '' : ' disabled') + '>' + opciones('numeraciones', c.EMP_PLANTILLA_VENTA, '— La preferida en Alegra —') + '</select></label>' +
     inp('EMP_VENCE_DIAS', 'Días de crédito a clientes', ' type="number" min="0" max="120"') + inp('EMP_GMAIL_ETIQUETA', 'Etiqueta de Gmail con facturas (opcional)') +
     (D.gerente ? '<div class="ancho"><button class="btn primario">Guardar ajustes</button></div>' : '') + '</form>' +
-    '<p class="mini">Carpeta en Drive: ' + (D.carpeta ? '<a href="' + esc(D.carpeta) + '" target="_blank" rel="noopener">Facturas Stili Group (empresa)</a> (Entrada, Procesadas, Originales, Extractos)' : 'se crea al instalar') + ' · Proceso automático: ' + (D.activo ? 'activo' : 'sin activar') + '.</p></div>';
+    '<p class="mini">Carpeta en Drive: ' + (D.carpeta ? '<a href="' + esc(D.carpeta) + '" target="_blank" rel="noopener">Facturas Stili Group (empresa)</a> (Entrada, Procesadas, Originales, Extractos)' : 'se crea al instalar') + ' · Proceso automático: ' + (D.activo ? 'activo' : 'sin activar') + '.</p></div>' +
+    '<div class="card"><h2>Clave ADM</h2><p class="nota">Todo lo de Stili Group (este módulo, las claves propias de Stili y el personal de Stili en la Nómina) pide la clave ADM, además del permiso. Se cierra sola tras 15 minutos sin uso. Cada apertura e intento queda anotado.</p><div id="adm-acc" class="acciones-fila"></div><div id="adm-reg"></div></div>';
+}
+async function pintarAdm() {   // v3.4.3 · el Gerente General cambia la clave ADM y ve quién la usó
+  const box = $('#adm-acc'); if (!box || DEMO) return;
+  try {
+    const s = await StiliModulos.adm.estado();
+    box.innerHTML = s.puede_configurar ? '<button class="btn" data-adm-cambiar>Cambiar la clave ADM</button><button class="btn" data-adm-registro>Quién la usó</button>' : '';
+  } catch (e) { box.textContent = ''; }
 }
 
 // ---------------------------------------------------------------- eventos
@@ -356,6 +369,16 @@ document.addEventListener('click', async e => {
   const el = e.target.closest('button, [data-tab]'); if (!el) return;
   const ds = el.dataset;
   if (ds.tab) return irA(ds.tab);
+  if (ds.admAbrir !== undefined) { if (await StiliModulos.adm.pedir()) cargar(); return; }
+  if (ds.admCerrar !== undefined) { try { await StiliModulos.adm.cerrar(); } catch (e2) { /* ya estaba cerrada */ } D = null; $('#contenido').innerHTML = '<div class="card"><p>Datos de Stili cerrados.</p><button class="btn primario" data-adm-abrir>Abrir con la clave ADM</button></div>'; $('#nav').innerHTML = ''; $('#estado-cab').innerHTML = ''; return; }
+  if (ds.admCambiar !== undefined) { if (await StiliModulos.adm.cambiar()) toast('Clave ADM cambiada.'); return; }
+  if (ds.admRegistro !== undefined) {
+    try {
+      const r = await StiliModulos.adm.registro(), N = { abrir: 'Abrió', cerrar: 'Cerró', fallo: 'Intento fallido', bloqueo: 'Bloqueado', crear: 'Creó la clave', cambiar: 'Cambió la clave' };
+      $('#adm-reg').innerHTML = r.registro.length ? '<div class="tabla"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Qué</th><th>Desde</th></tr></thead><tbody>' + r.registro.slice(0, 200).map(x => '<tr><td>' + fecha(x.fecha) + '</td><td>' + esc(x.usuario) + '</td><td>' + esc(N[x.accion] || x.accion) + (x.detalle ? ' <span class="mini">' + esc(x.detalle) + '</span>' : '') + '</td><td>' + esc(x.origen === 'nomina' ? 'Nómina' : 'Stili Soft') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="nota">Sin movimientos.</p>';
+    } catch (e2) { toast(e2.message); }
+    return;
+  }
   if (ds.cerrar !== undefined) return $('#dlg').close();
   if (ds.f !== undefined) { filtro = ds.f; return pintar(); }
   if (ds.pf !== undefined) { propFiltro = ds.pf; return pintar(); }
