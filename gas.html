@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gas de la torre · Stili Soft</title>
+<meta name="description" content="Lecturas de los medidores de gas con foto, alerta de consumo alto, tanque, reporte anual y cobro en el recibo.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css?v=3.0">
+<script src="config.js"></script>
+<script src="stili-modulos.js?v=3.5"></script>
+<style>
+.secciones nav { overflow-x: auto; scrollbar-width: thin; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+.mini { font-size: 12.5px; color: var(--muted); }
+.fila-acc { display: flex; gap: 6px; flex-wrap: wrap; }
+.al { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; } .al li { font-size: 13px; padding-left: 9px; border-left: 2px solid var(--line); } .al li.ambar { border-left-color: var(--warn); }
+.btn.chico { padding: 5px 10px; font-size: 13px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.controles { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+.controles label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.controles input, .controles select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--fg); font: inherit; }
+input.lect { width: 110px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--fg); font: inherit; text-align: right; }
+input.lect.cambio { border-color: var(--navy); box-shadow: 0 0 0 2px var(--azul-suave); }
+.ia { font-size: 12px; margin-top: 3px; } .ia button { font-size: 12px; padding: 2px 8px; }
+.alerta-txt { color: var(--crit); font-weight: 600; font-size: 12.5px; } .ok-txt { color: var(--ok); font-size: 12.5px; }
+.rep td, .rep th { font-size: 12.5px; padding: 5px 6px; } .rep .sub td { color: var(--muted); } .rep tfoot td { font-weight: 700; background: var(--panel-2); }
+.neg { color: var(--crit); font-weight: 700; }
+.rango { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px; align-items: end; margin-bottom: 6px; }
+.rango input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--fg); font: inherit; width: 100%; }
+.camara input { display: none; }
+#aviso { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #13293D; color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 90; font-weight: 600; max-width: calc(100% - 32px); }
+@media print { .sm-barra, .secciones, .controles, .no-imprimir, .cabecera { display: none !important; } .card { box-shadow: none; border: 0; } }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Torres · Financiero</small><b id="titulo">Gas de la torre</b></div></div></header>
+<div class="secciones"><nav class="gutter" id="nav" role="tablist" aria-label="Gas"></nav></div>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<dialog id="dlg"><div class="cuerpo" id="dlg-cuerpo"></div></dialog>
+<div id="aviso" hidden></div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const dinero = v => v === null || v === undefined || v === '' || isNaN(v) ? '—' : 'RD$ ' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const m3 = v => v === null || v === undefined || v === '' || isNaN(v) ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const MES3 = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+const mesTxt = p => { const m = String(p || '').match(/^(\d{4})-(\d{2})/); return m ? MESES[Number(m[2]) - 1] + ' ' + m[1] : esc(p); };
+const TABS = [['lecturas', 'Lecturas del mes'], ['tanque', 'Tanque y compras'], ['reporte', 'Reporte anual'], ['ajustes', 'Ajustes del suministro']];
+const hoy = new Date(), mesActual = hoy.toISOString().slice(0, 7);
+let D = null, tab = TABS.some(t => t[0] === location.hash.slice(1)) ? location.hash.slice(1) : 'lecturas', periodo = mesActual, sumId = '', cambios = {};
+const toast = m => { const el = $('#aviso'); el.textContent = m; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, 5000); };
+const torre = () => DEMO ? (StiliModulos.torre().torre || 'Torre LB3') : (StiliModulos.torre().torre || '');
+
+// ---------------------------------------------------------------- demostración
+function demo() {
+  const aptos = ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08'], sum = { id: 'GAS-1', nombre: 'Tanque principal', activo: true, unidad: 'm3', factor_galon: 26.4, metodo: 'precio', precio: 145, rangos: [], alerta_meses: 3, alerta_pct: 40, tanque_inicial: 900, tanque_desde: '2026-06', rubro: 'I1.2' };
+  const base = [640, 580, 750, 610, 590, 470, 215, 480], porMes = [10, 15, 20, 13, 14, 15, 5, 14];
+  const lect = aptos.map((a, i) => { const ant = base[i] + porMes[i] * 3, c = i === 2 ? 46.2 : porMes[i] + (i % 3) * 0.7, l = i === 7 ? '' : +(ant + c).toFixed(3);
+    return { apartamento: a, lectura: l, anterior: ant, consumo: l === '' ? null : +c.toFixed(3), problema: '', foto_url: i < 3 ? '#' : '', ia: i === 3 ? { lectura: +(ant + c).toFixed(3), confianza: 'alta', nota: 'Dígitos claros' } : null,
+      alerta: l === '' ? null : i === 2 ? { nivel: 'alerta', aumento: 131, promedio: 20, meses: 3 } : { nivel: 'normal', aumento: 4, promedio: porMes[i], meses: 3 } }; });
+  const cargos = {}; lect.filter(l => l.consumo != null).forEach(l => { cargos[l.apartamento] = { base: l.consumo, precio: 145, monto: Math.round(l.consumo * 145 * 100) / 100 }; });
+  const meses = Array.from({ length: 12 }, (_, i) => '2026-' + String(i + 1).padStart(2, '0'));
+  const filas = aptos.map((a, i) => ({ apartamento: a, lecturas: meses.map((m, j) => j < 10 ? +(base[i] - porMes[i] * (6 - j)).toFixed(3) : null), consumos: meses.map((m, j) => j < 10 ? porMes[i] + (j % 2) : null) }));
+  const totales = meses.map((m, j) => j < 10 ? filas.reduce((s, f) => s + (f.consumos[j] || 0), 0) : 0);
+  return { torre: torre(), periodo, aptos, suministros: [sum], suministro: sum, puede_editar: true, lecturas: lect, facturado: false, cargos, compra_mes: 0,
+    compras: [{ id: 'GCO-1', periodo: '2026-09', fecha: '2026-09-15', galones: 300, monto: 45000, suplidor: 'Distribuidora de gas (ejemplo)', cxp_id: 'PG-311', nota: '', estado: 'activa' }],
+    tanque: [{ periodo: '2026-06', compra_gal: 0, consumo_gal: 28.2, disponible: 871.8 }, { periodo: '2026-07', compra_gal: 0, consumo_gal: 29.6, disponible: 842.2 }, { periodo: '2026-08', compra_gal: 0, consumo_gal: 28.9, disponible: 813.3 },
+      { periodo: '2026-09', compra_gal: 300, consumo_gal: 30.1, disponible: 1083.2 }, { periodo: '2026-10', compra_gal: 0, consumo_gal: 31.4, disponible: 1051.8 }],
+    reporte: { anio: '2026', meses, filas, totales, total: totales.reduce((a, b) => a + b, 0) } };
+}
+
+// ---------------------------------------------------------------- servicio
+async function api(op, datos) {
+  if (DEMO) { if (op !== 'datos') toast('Demostración: no se guarda nada.'); return D || demo(); }
+  const r = await StiliModulos.api('gas', Object.assign({ op, torre: torre(), periodo, suministro_id: sumId }, datos || {}));
+  if (r.aviso) toast(r.aviso);
+  return r;
+}
+async function cargar() {
+  if (!torre()) { $('#contenido').innerHTML = '<div class="card"><h2>Elija la torre</h2><p class="nota">Use el selector de torre de la barra de arriba.</p></div>'; return; }
+  try { D = await api('datos'); sumId = D.suministro ? D.suministro.id : ''; cambios = {}; pintar(); }
+  catch (e) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(/acci[oó]n desconocida/i.test(e.message) ? 'El módulo de gas todavía no está instalado en el servicio.' : e.message) + '</p></div>'; }
+}
+async function hacer(op, datos, boton) {
+  if (boton) { boton.disabled = true; boton.dataset.t = boton.textContent; boton.textContent = 'Un momento…'; }
+  try { const r = await api(op, datos); if (r && r.lecturas) { D = r; sumId = D.suministro ? D.suministro.id : sumId; cambios = {}; } pintar(); return r; }
+  finally { if (boton && document.body.contains(boton)) { boton.disabled = false; boton.textContent = boton.dataset.t; } }
+}
+
+// ---------------------------------------------------------------- pintar
+function pintar() {
+  $('#titulo').textContent = 'Gas · ' + (D.torre || torre());
+  $('#nav').innerHTML = TABS.map(([k, t]) => '<button type="button" role="tab" data-tab="' + k + '" aria-selected="' + (tab === k) + '">' + esc(t) + '</button>').join('');
+  const sums = D.suministros || [];
+  const controles = '<div class="controles no-imprimir"><label>Mes<input type="month" id="periodo" value="' + esc(periodo) + '" max="' + mesActual + '"></label>' +
+    (sums.length ? '<label>Suministro<select id="sum">' + sums.map(s => '<option value="' + esc(s.id) + '"' + (s.id === sumId ? ' selected' : '') + '>' + esc(s.nombre) + (s.activo ? '' : ' (inactivo)') + '</option>').join('') + '</select></label>' : '') +
+    (D.puede_editar ? '<button class="btn chico" data-nuevo-sum>+ Nuevo suministro</button>' : '') + '</div>';
+  const pre = DEMO ? '<div class="aviso-edicion">Demostración con datos de ejemplo.</div>' : '';
+  if (!D.suministro) { $('#contenido').innerHTML = pre + controles + '<div class="card"><h2>Esta torre todavía no tiene suministro de gas</h2><p class="nota">Cree el suministro (el tanque) con su forma de cobro para empezar a registrar lecturas.</p>' + (D.puede_editar ? '<button class="btn primario" data-nuevo-sum>Crear el suministro</button>' : '') + '</div>'; return; }
+  const P = { lecturas: pLecturas, tanque: pTanque, reporte: pReporte, ajustes: pAjustes }[tab] || pLecturas;
+  $('#contenido').innerHTML = pre + controles + P();
+}
+const metodoTxt = s => s.metodo === 'rangos' ? 'por tabla de rangos' : s.metodo === 'disponibilidad' ? 'repartiendo la compra del tanque según el consumo' : 'a ' + dinero(s.precio) + ' por ' + (s.unidad === 'gal' ? 'galón' : 'm³');
+function pLecturas() {
+  const s = D.suministro, L = D.lecturas || [], edit = D.puede_editar && !D.facturado;
+  const leidas = L.filter(l => l.consumo != null).length, total = L.reduce((a, l) => a + (Number(l.consumo) || 0), 0), alertas = L.filter(l => l.alerta && l.alerta.nivel === 'alerta').length;
+  const cobro = Object.values(D.cargos || {}).reduce((a, c) => a + (c.monto || 0), 0);
+  return '<div class="kpis anchos"><div class="kpi"><span>Leídos</span><b>' + leidas + ' / ' + L.length + '</b></div><div class="kpi"><span>Consumo del mes</span><b>' + m3(total) + ' m³</b></div>' +
+    '<div class="kpi ' + (alertas ? 'rojo' : '') + '"><span>Consumo alto</span><b>' + alertas + '</b><small>Más de ' + s.alerta_pct + ' % sobre su promedio de ' + s.alerta_meses + ' meses</small></div>' +
+    '<div class="kpi"><span>A cobrar</span><b>' + dinero(cobro) + '</b><small>' + esc(metodoTxt(s)) + '</small></div>' +
+    '<div class="kpi ' + (D.facturado ? '' : 'ambar') + '"><span>Recibos</span><b>' + (D.facturado ? 'Cobrado' : 'Sin cobrar') + '</b><small>' + (D.facturado ? 'Ya está en recibos emitidos: lecturas bloqueadas' : 'Pase el gas a los recibos cuando termine') + '</small></div></div>' +
+    '<div class="card"><div class="cab"><h2>Lecturas de ' + mesTxt(periodo) + '</h2>' + (edit ? '<div class="fila-acc"><button class="btn" data-importar>Importar de Excel</button><button class="btn primario" data-guardar>Guardar lecturas</button></div>' : '') + '</div>' +
+    '<div class="tabla"><table><thead><tr><th>Apto</th><th>Foto</th><th class="num">Anterior (m³)</th><th class="num">Actual (m³)</th><th class="num">Consumo</th><th>Alerta</th><th class="num">Cargo</th></tr></thead><tbody>' +
+    L.map(l => {
+      const c = (D.cargos || {})[l.apartamento], val = cambios[l.apartamento] !== undefined ? cambios[l.apartamento] : l.lectura;
+      const ia = l.ia && l.ia.lectura != null && String(l.ia.lectura) !== String(val) ? '<div class="ia mini">La IA leyó <b>' + m3(l.ia.lectura) + '</b> (' + esc(l.ia.confianza) + ')' + (edit ? ' <button class="btn chico" data-usar="' + esc(l.apartamento) + '" data-v="' + esc(l.ia.lectura) + '">Usar</button>' : '') + '</div>' : '';
+      const prob = l.problema === 'menor' ? '<div class="alerta-txt">Menor que la anterior</div>' : l.problema === 'sin_anterior' ? '<div class="mini">Primera lectura: falta la anterior</div>' : '';
+      const al = l.alerta ? (l.alerta.nivel === 'alerta' ? '<span class="alerta-txt">⚠ +' + l.alerta.aumento + ' %</span><div class="mini">promedio ' + m3(l.alerta.promedio) + '</div>' : '<span class="ok-txt">Normal</span>') : '';
+      return '<tr><td><b>' + esc(l.apartamento) + '</b>' + (l.fuera_de_lista ? ' <span class="chip ambar">fuera de la lista</span>' : '') + '</td>' +
+        '<td>' + (l.foto_url ? '<a class="btn chico" href="' + esc(l.foto_url) + '" target="_blank" rel="noopener">Ver</a> ' : '') + (edit ? '<label class="btn chico camara">' + (l.foto_url ? 'Otra' : '📷 Foto') + '<input type="file" accept="image/*" capture="environment" data-foto="' + esc(l.apartamento) + '"></label>' : '') + '</td>' +
+        '<td class="num">' + m3(l.anterior) + '</td>' +
+        '<td class="num">' + (edit ? '<input class="lect' + (cambios[l.apartamento] !== undefined ? ' cambio' : '') + '" inputmode="decimal" data-apto="' + esc(l.apartamento) + '" value="' + esc(val) + '" aria-label="Lectura actual de ' + esc(l.apartamento) + '">' : m3(l.lectura)) + ia + '</td>' +
+        '<td class="num">' + m3(l.consumo) + prob + '</td><td>' + al + '</td><td class="num">' + (c ? dinero(c.monto) : '—') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    (edit ? '<div class="acciones-fila"><button class="btn primario" data-guardar>Guardar lecturas</button><button class="btn" data-cobrar>Pasar el gas a los recibos de ' + mesTxt(periodo) + '</button></div><p class="mini">Con la foto, la IA propone el número del contador; usted lo confirma. «Pasar a los recibos» crea el concepto «Consumo de gas» (clase gas, separado de las cuotas) en la Contabilidad de la torre; si lo vuelve a pasar, se actualiza.</p>' : '') + '</div>';
+}
+function pTanque() {
+  const s = D.suministro, T = D.tanque || [], C = D.compras || [];
+  const ult = T[T.length - 1];
+  return (ult ? '<div class="kpis"><div class="kpi ' + (ult.disponible < 0 ? 'rojo' : '') + '"><span>Disponible estimado</span><b>' + m3(ult.disponible) + ' gal</b><small>' + (ult.disponible < 0 ? 'Negativo: faltan compras por registrar o el valor inicial del tanque' : 'Al cierre de ' + mesTxt(ult.periodo)) + '</small></div></div>' : '') +
+    '<div class="card"><h2>Tanque mes a mes</h2>' + (T.length ? '<div class="tabla"><table><thead><tr><th>Mes</th><th class="num">Compra (gal)</th><th class="num">Consumo (gal)</th><th class="num">Disponible (gal)</th></tr></thead><tbody>' +
+      T.map(t => '<tr><td>' + mesTxt(t.periodo) + '</td><td class="num">' + m3(t.compra_gal) + '</td><td class="num">' + m3(t.consumo_gal) + '</td><td class="num ' + (t.disponible < 0 ? 'neg' : '') + '">' + m3(t.disponible) + '</td></tr>').join('') + '</tbody></table></div>' +
+      '<p class="mini">El consumo en galones usa el factor de conversión del suministro (' + esc(s.factor_galon || 0) + ' %).</p>' : '<p class="nota">Escriba en Ajustes el valor inicial del tanque y el mes desde el que se lleva.</p>') + '</div>' +
+    '<div class="card"><h2>Compras de gas</h2>' + (D.puede_editar ? '<form id="f-compra" class="form"><label>Fecha<input type="date" name="fecha" required max="' + hoy.toISOString().slice(0, 10) + '"></label><label>Galones<input name="galones" inputmode="decimal" required></label><label>Monto (RD$)<input name="monto" inputmode="decimal"></label>' +
+      '<label>Suplidor<input name="suplidor"></label><label>Pago en Cuentas por pagar (opcional)<input name="cxp_id" placeholder="PG-…"></label><div class="ancho"><button class="btn primario">Registrar compra</button></div></form>' : '') +
+    (C.length ? '<div class="tabla" style="margin-top:12px"><table><thead><tr><th>Fecha</th><th>Suplidor</th><th class="num">Galones</th><th class="num">Monto</th><th></th></tr></thead><tbody>' + C.map(c => '<tr' + (c.estado === 'anulada' ? ' style="opacity:.5"' : '') + '><td>' + esc(c.fecha) + '</td><td>' + esc(c.suplidor) + (c.cxp_id ? '<br><span class="mini">' + esc(c.cxp_id) + '</span>' : '') + '</td><td class="num">' + m3(c.galones) + '</td><td class="num">' + dinero(c.monto) + '</td><td>' + (c.estado === 'anulada' ? 'Anulada' : D.puede_editar ? '<button class="btn chico" data-anular-compra="' + esc(c.id) + '">Anular</button>' : '') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="nota">Sin compras registradas.</p>') + '</div>';
+}
+function pReporte() {
+  const R = D.reporte; if (!R) return '<div class="card"><p class="nota">Sin datos.</p></div>';
+  return '<div class="card"><div class="cab"><h2>Consumo de gas ' + esc(R.anio) + ' · ' + esc(D.suministro.nombre) + '</h2><div class="fila-acc no-imprimir"><button class="btn" data-csv>Descargar CSV</button><button class="btn" data-imprimir>Imprimir</button></div></div>' +
+    '<div class="tabla"><table class="rep"><thead><tr><th>Apto</th><th></th>' + MES3.map(m => '<th class="num">' + m + '</th>').join('') + '</tr></thead><tbody>' +
+    R.filas.map(f => '<tr><td rowspan="2"><b>' + esc(f.apartamento) + '</b></td><td>Lectura</td>' + f.lecturas.map(v => '<td class="num">' + (v == null ? '' : m3(v)) + '</td>').join('') + '</tr><tr class="sub"><td>Consumo</td>' + f.consumos.map(v => '<td class="num">' + (v == null ? '' : m3(v)) + '</td>').join('') + '</tr>').join('') +
+    '</tbody><tfoot><tr><td colspan="2">Total consumo (m³)</td>' + R.totales.map(v => '<td class="num">' + (v ? m3(v) : '') + '</td>').join('') + '</tr></tfoot></table></div><p class="mini">Total del año: ' + m3(R.total) + ' m³. Sin nombres de residentes.</p></div>';
+}
+function pAjustes(nuevo) {
+  const s = nuevo ? { nombre: '', activo: true, unidad: 'm3', factor_galon: '', metodo: 'precio', precio: '', rangos: [], alerta_meses: 3, alerta_pct: 40, tanque_inicial: '', tanque_desde: '', rubro: 'I1.2' } : D.suministro;
+  const dis = D.puede_editar ? '' : ' disabled';
+  const rango = r => '<div class="rango"><label class="mini">Desde (m³)<input name="r_desde" inputmode="decimal" value="' + esc(r.desde) + '"' + dis + '></label><label class="mini">Hasta (m³, vacío = sin tope)<input name="r_hasta" inputmode="decimal" value="' + esc(r.hasta) + '"' + dis + '></label><label class="mini">Precio (RD$)<input name="r_precio" inputmode="decimal" value="' + esc(r.precio) + '"' + dis + '></label>' + (D.puede_editar ? '<button type="button" class="btn chico" data-quitar-rango>Quitar</button>' : '') + '</div>';
+  return '<div class="card"><h2>' + (nuevo ? 'Nuevo suministro de gas' : 'Ajustes de ' + esc(s.nombre)) + '</h2><form id="f-sum" class="form" data-id="' + (nuevo ? '' : esc(s.id)) + '">' +
+    '<label>Nombre<input name="nombre" required value="' + esc(s.nombre) + '" placeholder="Tanque principal"' + dis + '></label>' +
+    '<label>Forma de cobro<select name="metodo"' + dis + '><option value="precio"' + (s.metodo === 'precio' ? ' selected' : '') + '>Precio fijo por unidad</option><option value="rangos"' + (s.metodo === 'rangos' ? ' selected' : '') + '>Tabla de rangos de consumo</option><option value="disponibilidad"' + (s.metodo === 'disponibilidad' ? ' selected' : '') + '>Repartir la compra del tanque según el consumo</option></select></label>' +
+    '<label>Se cobra en<select name="unidad"' + dis + '><option value="m3"' + (s.unidad !== 'gal' ? ' selected' : '') + '>m³ (lectura del contador)</option><option value="gal"' + (s.unidad === 'gal' ? ' selected' : '') + '>Galones (con el factor de conversión)</option></select></label>' +
+    '<label>Precio por unidad (RD$)<input name="precio" inputmode="decimal" value="' + esc(s.precio) + '"' + dis + '></label>' +
+    '<label>Factor de conversión m³ → galón (%)<input name="factor_galon" inputmode="decimal" value="' + esc(s.factor_galon) + '"' + dis + '></label>' +
+    '<label>Alerta: meses a comparar<input name="alerta_meses" type="number" min="1" max="12" value="' + esc(s.alerta_meses) + '"' + dis + '></label><label>Alerta: % de aumento<input name="alerta_pct" inputmode="decimal" value="' + esc(s.alerta_pct) + '"' + dis + '></label>' +
+    '<label>Tanque: galones al inicio<input name="tanque_inicial" inputmode="decimal" value="' + esc(s.tanque_inicial) + '"' + dis + '></label><label>Tanque: desde el mes<input type="month" name="tanque_desde" value="' + esc(s.tanque_desde) + '"' + dis + '></label>' +
+    '<label>Activo<select name="activo"' + dis + '><option value="si">Sí</option><option value="no"' + (s.activo ? '' : ' selected') + '>No</option></select></label>' +
+    '<div class="ancho"><h3 class="sub">Tabla de rangos (solo para «Tabla de rangos»)</h3><div id="rangos">' + ((s.rangos || []).length ? s.rangos : [{ desde: 0, hasta: '', precio: '' }]).map(rango).join('') + '</div>' +
+    (D.puede_editar ? '<button type="button" class="btn chico" data-agregar-rango>+ Rango</button><p class="mini">Si el consumo de un apartamento no cae en ningún rango, se cobra al precio mayor.</p>' : '') + '</div>' +
+    (D.puede_editar ? '<div class="ancho acciones-fila"><button class="btn primario">Guardar</button>' + (nuevo ? '<button type="button" class="btn" data-cerrar>Cancelar</button>' : '') + '</div>' : '') + '</form></div>';
+}
+
+// ---------------------------------------------------------------- eventos
+const num = v => { const t = String(v == null ? '' : v).replace(/,/g, '').trim(); return t === '' ? '' : Number(t); };
+const leerArchivo = f => new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = mal; r.readAsDataURL(f); });
+/** Achica la foto a 1600 px (la IA no necesita más y sube rápido desde el teléfono). */
+const achicar = f => new Promise(ok => { const img = new Image(); img.onload = () => { const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.85).split(',')[1]); URL.revokeObjectURL(img.src); }; img.onerror = () => leerArchivo(f).then(ok); img.src = URL.createObjectURL(f); });
+window.addEventListener('hashchange', () => { const t = location.hash.slice(1); if (TABS.some(x => x[0] === t)) { tab = t; pintar(); } });
+window.addEventListener('stili:torre', () => cargar());
+document.addEventListener('input', e => { if (e.target.classList.contains('lect')) { cambios[e.target.dataset.apto] = e.target.value; e.target.classList.add('cambio'); } });
+document.addEventListener('change', async e => {
+  if (e.target.id === 'periodo' && e.target.value) { periodo = e.target.value; return cargar(); }
+  if (e.target.id === 'sum') { sumId = e.target.value; return cargar(); }
+  if (e.target.dataset && e.target.dataset.foto && e.target.files[0]) {
+    const apto = e.target.dataset.foto; toast('Subiendo la foto de ' + apto + '…');
+    try {
+      const r = DEMO ? { ia: { lectura: 123.456, confianza: 'media' } } : await StiliModulos.api('gas', { op: 'foto', torre: torre(), periodo, suministro_id: sumId, apartamento: apto, mime: 'image/jpeg', contenido: await achicar(e.target.files[0]) });
+      const l = D.lecturas.find(x => x.apartamento === apto); if (l) { l.ia = r.ia; if (r.foto_url) l.foto_url = r.foto_url; }
+      if (r.ia && r.ia.lectura != null && (cambios[apto] === undefined || cambios[apto] === '') && (!l || l.lectura === '')) cambios[apto] = String(r.ia.lectura);
+      pintar(); toast(r.ia && r.ia.lectura != null ? 'La IA leyó ' + r.ia.lectura + ' en ' + apto + '. Revíselo y guarde.' : 'Foto guardada; la IA no pudo leer el número.');
+    } catch (er) { toast(er.message); }
+  }
+});
+document.addEventListener('click', async e => {
+  const el = e.target.closest('button, [data-tab]'); if (!el) return; const ds = el.dataset;
+  try {
+    if (ds.tab) { tab = ds.tab; history.replaceState(null, '', '#' + tab); return pintar(); }
+    if (ds.cerrar !== undefined) return $('#dlg').close();
+    if (ds.usar) { cambios[ds.usar] = ds.v; return pintar(); }
+    if (ds.nuevoSum !== undefined) { $('#dlg-cuerpo').innerHTML = pAjustes(true); return $('#dlg').showModal(); }
+    if (ds.agregarRango !== undefined) { const c = el.closest('form').querySelector('#rangos'); const tmp = document.createElement('div'); tmp.innerHTML = c.firstElementChild.outerHTML; tmp.querySelectorAll('input').forEach(i => { i.value = ''; }); c.appendChild(tmp.firstElementChild); return; }
+    if (ds.quitarRango !== undefined) { const c = el.closest('#rangos'); if (c.children.length > 1) el.closest('.rango').remove(); else el.closest('.rango').querySelectorAll('input').forEach(i => { i.value = ''; }); return; }
+    if (ds.guardar !== undefined) {
+      const lista = Object.keys(cambios).map(a => ({ apartamento: a, lectura: num(cambios[a]) })).filter(x => x.lectura === '' || x.lectura >= 0);
+      if (!lista.length) return toast('No hay lecturas nuevas.');
+      const r = await hacer('lecturas', { lecturas: lista }, el);
+      if (r && r.resultado && r.resultado.rechazos.length) { $('#dlg-cuerpo').innerHTML = '<h2>Lecturas con problema</h2><ul class="al">' + r.resultado.rechazos.map(x => '<li class="ambar"><b>' + esc(x.apartamento) + '</b>: ' + esc(x.motivo) + '</li>').join('') + '</ul><div class="acciones-fila"><button class="btn" data-cerrar>Entendido</button></div>'; $('#dlg').showModal(); }
+      return;
+    }
+    if (ds.importar !== undefined) { $('#dlg-cuerpo').innerHTML = '<h2>Importar lecturas</h2><p class="mini">Pegue desde Excel dos columnas: apartamento y lectura (una fila por apartamento). También sirve un CSV.</p><form id="f-imp" class="form"><label class="ancho"><textarea name="texto" rows="10" placeholder="A01	666.929&#10;A02	615.919"></textarea></label><label class="ancho">o elija un archivo CSV<input type="file" name="archivo" accept=".csv,text/csv,text/plain"></label><div class="ancho acciones-fila"><button class="btn primario">Importar</button><button type="button" class="btn" data-cerrar>Cancelar</button></div></form>'; return $('#dlg').showModal(); }
+    if (ds.cobrar !== undefined) {
+      if (Object.keys(cambios).length && !confirm('Hay lecturas sin guardar. ¿Pasar a los recibos sin ellas?')) return;
+      try { await hacer('cobrar', {}, el); }
+      catch (er) { if (/Faltan lecturas/.test(er.message) && confirm(er.message + '\n\n¿Cobrar ahora solo a los apartamentos con lectura?')) await hacer('cobrar', { confirmar: true }, el); else throw er; }
+      return;
+    }
+    if (ds.anularCompra) { if (!confirm('¿Anular esta compra?')) return; return await hacer('compra', { datos: { anular: true, id: ds.anularCompra } }, el); }
+    if (ds.imprimir !== undefined) return window.print();
+    if (ds.csv !== undefined) {
+      const R = D.reporte, cel = v => { const t = String(v == null ? '' : v); return /^[=+\-@]/.test(t) ? "'" + t : t; };
+      const filas = [['Apartamento', 'Dato'].concat(MES3)].concat(...R.filas.map(f => [[f.apartamento, 'Lectura'].concat(f.lecturas.map(v => v == null ? '' : v)), [f.apartamento, 'Consumo'].concat(f.consumos.map(v => v == null ? '' : v))])).concat([['Total', 'Consumo'].concat(R.totales)]);
+      const blob = new Blob(['﻿' + filas.map(r => r.map(c => '"' + cel(c).replace(/"/g, '""') + '"').join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'gas-' + (D.torre || 'torre') + '-' + R.anio + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
+    }
+  } catch (er) { toast(er.message); }
+});
+document.addEventListener('submit', async e => {
+  const f = e.target; e.preventDefault(); const b = f.querySelector('button:not([type=button])'), v = k => f.elements[k] ? String(f.elements[k].value).trim() : '';
+  try {
+    if (f.id === 'f-sum') {
+      const desde = f.querySelectorAll('[name=r_desde]'), hasta = f.querySelectorAll('[name=r_hasta]'), precio = f.querySelectorAll('[name=r_precio]');
+      const rangos = Array.from(precio).map((p, i) => ({ desde: num(desde[i].value) || 0, hasta: num(hasta[i].value), precio: num(p.value) })).filter(r => r.precio > 0);
+      const datos = { id: f.dataset.id, nombre: v('nombre'), metodo: v('metodo'), unidad: v('unidad'), precio: num(v('precio')), factor_galon: num(v('factor_galon')), alerta_meses: num(v('alerta_meses')), alerta_pct: num(v('alerta_pct')),
+        tanque_inicial: num(v('tanque_inicial')), tanque_desde: v('tanque_desde'), activo: v('activo'), rangos };
+      await hacer('suministro', { datos }, b); if ($('#dlg').open) $('#dlg').close(); return;
+    }
+    if (f.id === 'f-compra') { await hacer('compra', { datos: { fecha: v('fecha'), galones: num(v('galones')), monto: num(v('monto')), suplidor: v('suplidor'), cxp_id: v('cxp_id') } }, b); return; }
+    if (f.id === 'f-imp') {
+      let texto = v('texto'); const a = f.elements.archivo.files[0]; if (a) texto = await a.text();
+      if (!texto) return toast('Pegue las lecturas o elija un archivo.');
+      const r = await hacer('importar', { texto }, b); $('#dlg').close();
+      if (r && r.resultado && r.resultado.rechazos.length) { $('#dlg-cuerpo').innerHTML = '<h2>Filas con problema</h2><ul class="al">' + r.resultado.rechazos.map(x => '<li class="ambar">' + (x.apartamento ? '<b>' + esc(x.apartamento) + '</b>: ' : '') + esc(x.motivo) + '</li>').join('') + '</ul><div class="acciones-fila"><button class="btn" data-cerrar>Entendido</button></div>'; $('#dlg').showModal(); }
+      return;
+    }
+  } catch (er) { toast(er.message); }
+});
+StiliModulos.montar(document.body, 'gas');
+if (DEMO) { StiliModulos.ponerTorres([{ torre: 'Torre LB3' }, { torre: 'Torre Niza 7' }]); if (!StiliModulos.torre().torre) StiliModulos.fijarTorre({ torre: 'Torre LB3' }, true); periodo = '2026-10'; D = demo(); sumId = D.suministro.id; pintar(); }
+else if (!StiliModulos.leer().sesion) $('#contenido').innerHTML = '<div class="card entrar"><h2>Gas de la torre</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>';
+else cargar();
+</script>
+</body>
+</html>

@@ -20,7 +20,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '3.4';
+  const VERSION_BARRA = '3.5';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -69,7 +69,8 @@
         ct('Cartera y acuerdos', 'cobranza/cartera', 'Por antigüedad y por clase'),
         ct('Seguimiento de cobranza', 'cobranza/seguimiento', 'Llamadas, WhatsApp, promesas de pago'),
         ct('Métricas de cobros', 'cobranza/metricas', 'Contacto, promesas, WhatsApp leído y encuesta'),
-        { t: 'Listado semanal de cuentas por cobrar', d: 'Cargar el listado y ver saldos', href: 'cobros.html', ve: 'cobros' }] },
+        { t: 'Listado semanal de cuentas por cobrar', d: 'Cargar el listado y ver saldos', href: 'cobros.html', ve: 'cobros' },
+        { t: 'Gas: lecturas y consumo', d: 'Foto del contador, alerta de consumo alto, tanque y cobro', href: 'gas.html', ve: 'gas' }] },
       { t: 'Egresos · por pagar', items: [
         { t: 'Buzón de facturas', d: 'Carpeta por torre: se registran solas y se validan con la DGII', href: 'buzon.html', ve: 'cuentas', viejo: 'torres' },
         { t: '1 · Bandeja', d: 'Facturas, nómina y Vigía de pagos', href: 'torres.html?m=finanzas#/cxp/bandeja', ve: 'cuentas', viejo: 'torres' },
@@ -113,6 +114,7 @@
       { t: 'Gestión', items: [
         { t: 'Semáforo de las torres', href: 'presupuesto.html', ve: 'presupuesto' },
         { t: 'Historial de pagos', d: 'Por mes y por suplidor', href: 'torres.html?m=finanzas#/cxp/historial', ve: 'cuentas', viejo: 'torres' },
+        { t: 'Consumo anual de gas', d: 'Lectura y consumo por apartamento', href: 'gas.html#reporte', ve: 'gas' },
         { t: 'KPI de gestoras', d: 'Tareas a tiempo y opinión de sus torres', href: 'opiniones.html#gestoras', ve: 'operaciones', viejo: 'torres' },
         ct('Anulaciones y auditoría', 'control')] },
       { t: 'Personal', items: [
@@ -174,7 +176,7 @@
   // Páginas viejas o internas y su módulo
   // Páginas y claves viejas → su módulo (si la página actual no aparece en ningún menú)
   const DENTRO_DE = { invitados: 'lobby', presupuesto: 'financiero', usuarios: 'ajustes', admin: 'ajustes', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'administrativo', torres: 'administrativo',
-    nomina: 'personal', cobros: 'financiero', contabilidad: 'financiero', empresa: 'financiero', condominios: 'administrativo', operaciones: 'administrativo', finanzas: 'financiero' };
+    nomina: 'personal', cobros: 'financiero', contabilidad: 'financiero', empresa: 'financiero', gas: 'financiero', condominios: 'administrativo', operaciones: 'administrativo', finanzas: 'financiero' };
 
   const CSS = `
 .sm-barra { background: #003A75; color: #fff; border-bottom: 3px solid #DCB40C; font-family: Montserrat, "Segoe UI", system-ui, sans-serif; }
@@ -747,6 +749,6 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     } }, window.STILI_PROTECCION || {});
   const actual = document.currentScript && document.currentScript.src;
   const s = document.createElement('script');
-  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.4') : 'stili-proteccion.js?v=3.4';
+  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.5') : 'stili-proteccion.js?v=3.5';
   (document.head || document.documentElement).appendChild(s);
 })();
