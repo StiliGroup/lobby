@@ -20,7 +20,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '3.2';
+  const VERSION_BARRA = '3.3';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -71,6 +71,7 @@
         ct('Métricas de cobros', 'cobranza/metricas', 'Contacto, promesas, WhatsApp leído y encuesta'),
         { t: 'Listado semanal de cuentas por cobrar', d: 'Cargar el listado y ver saldos', href: 'cobros.html', ve: 'cobros' }] },
       { t: 'Egresos · por pagar', items: [
+        { t: 'Buzón de facturas', d: 'Carpeta por torre: se registran solas y se validan con la DGII', href: 'buzon.html', ve: 'cuentas', viejo: 'torres' },
         { t: '1 · Bandeja', d: 'Facturas, nómina y Vigía de pagos', href: 'torres.html?m=finanzas#/cxp/bandeja', ve: 'cuentas', viejo: 'torres' },
         { t: '2 · Armar y aprobar', d: 'Balance del banco y relación', href: 'torres.html?m=finanzas#/cxp/armar', ve: 'cuentas', viejo: 'torres' },
         { t: '3 · Pagar y confirmar', d: 'Forma de pago y confirmación con el banco', href: 'torres.html?m=finanzas#/cxp/pagar', ve: 'cuentas', viejo: 'torres' },
@@ -740,6 +741,6 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     } }, window.STILI_PROTECCION || {});
   const actual = document.currentScript && document.currentScript.src;
   const s = document.createElement('script');
-  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.2') : 'stili-proteccion.js?v=3.2';
+  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.3') : 'stili-proteccion.js?v=3.3';
   (document.head || document.documentElement).appendChild(s);
 })();

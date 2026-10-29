@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Buzón de facturas · Stili Soft</title>
+<meta name="description" content="Las facturas que se dejan en la carpeta de cada torre se registran solas en Cuentas por Pagar, validadas con la DGII.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css?v=3.0">
+<script src="config.js"></script>
+<script src="stili-modulos.js?v=3.3"></script>
+<style>
+.pasos { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+.al { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.al li { font-size: 12.5px; padding-left: 9px; border-left: 2px solid var(--line); }
+.al li.rojo { border-left-color: var(--crit); color: var(--crit); } .al li.ambar { border-left-color: var(--warn); color: var(--warn); } .al li.azul { border-left-color: var(--navy); }
+.filtros { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.filtros button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 5px 12px; font-weight: 600; cursor: pointer; font-size: 13px; }
+.filtros button[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Cuentas por Pagar</small><b>Buzón de facturas</b></div></div></header>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const dinero = v => 'RD$ ' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fecha = f => { const m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}:\d{2}))?/); return m ? m[3] + '/' + m[2] + '/' + m[1] + (m[4] ? ' ' + m[4] : '') : esc(f); };
+const EST = { registrada: ['Registrada', 'verde'], duplicada: ['Duplicada: no se registró', 'rojo'], problema: ['Revisar', 'ambar'] };
+let D = null, filtro = '';
+const demo = () => ({ carpeta: 'https://drive.google.com/', activo: true, cada_minutos: 10, ultima: '2026-10-28T22:40', en_cola: [{ torre: 'Torre Niza 7', archivos: 2 }],
+  registro: [
+    { fecha: '2026-10-28T22:40', torre: 'Torre Niza 7', archivo: 'Elevadores octubre.pdf', estado: 'registrada', partidas: 'PG-101', detalle: 'PG-101', url: '#' },
+    { fecha: '2026-10-28T22:40', torre: 'Torre Niza 7', archivo: 'foto-ferreteria.jpg', estado: 'registrada', partidas: 'PG-102', detalle: 'PG-102 · 1 alerta(s) roja(s)', url: '#' },
+    { fecha: '2026-10-28T22:30', torre: 'Apex Arroyo Hondo', archivo: 'Elevadores octubre (copia).pdf', estado: 'duplicada', partidas: '', detalle: 'Este mismo archivo ya se registró el 2026-10-28 en Torre Niza 7 (PG-101). No se registró de nuevo.', url: '#' },
+    { fecha: '2026-10-28T22:30', torre: 'Apex Arroyo Hondo', archivo: 'IMG_2231.heic', estado: 'problema', partidas: '', detalle: 'Formato image/heic: use PDF, JPG o PNG.', url: '#' }],
+  fiscal: [
+    { partida_id: 'PG-101', torre: 'Torre Niza 7', ncf: 'B0100000522', tipo_ncf: 'Factura de crédito fiscal', rnc_emisor: '101821256', emisor_dgii: 'ELEVADORES DEL CARIBE SRL', estado_emisor: 'ACTIVO', dgii_ncf: 'valido', itbis: 1800, total: 11800,
+      alertas: [{ nivel: 'verde', texto: 'NCF B0100000522 válido en la DGII.' }] },
+    { partida_id: 'PG-102', torre: 'Torre Niza 7', ncf: 'B0100009999', tipo_ncf: 'Factura de crédito fiscal', rnc_emisor: '131000001', emisor_dgii: 'FERRETERIA OCHOA SRL', estado_emisor: 'ACTIVO', dgii_ncf: 'no_valido', itbis: 300, total: 2300,
+      alertas: [{ nivel: 'azul', texto: 'El nombre del suplidor no venía en la factura: se tomó de la DGII por el RNC (FERRETERIA OCHOA SRL).' }, { nivel: 'rojo', texto: 'La DGII dice que el NCF B0100009999 no es válido para el RNC 131000001.' }, { nivel: 'rojo', texto: 'El ITBIS (300) no es el 18 % ni el 16 % de la base gravada (2000): es 15 %.' }] }] });
+async function cargar(op) {
+  try { D = DEMO ? demo() : await StiliModulos.api('cxp_buzon', { operacion: op || 'datos' }); pintar(); if (op === 'procesar') toast(D.resultado && D.resultado.ocupado ? D.resultado.aviso : (D.resultado && D.resultado.hechos ? D.resultado.hechos.length + ' archivo(s) procesados.' : 'Listo.')); }
+  catch (e) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(e.message) + '</p></div>'; }
+}
+const toast = m => { let el = $('#aviso'); if (!el) { el = document.createElement('div'); el.id = 'aviso'; el.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#13293D;color:#fff;padding:10px 16px;border-radius:10px;z-index:90;font-weight:600;max-width:calc(100% - 32px)'; document.body.appendChild(el); } el.textContent = m; el.hidden = false; setTimeout(() => { el.hidden = true; }, 4000); };
+function pintar() {
+  const fis = {}; (D.fiscal || []).forEach(x => { fis[x.partida_id] = x; });
+  const lista = (D.registro || []).filter(r => !filtro || r.estado === filtro);
+  const cuenta = k => (D.registro || []).filter(r => r.estado === k).length;
+  $('#contenido').innerHTML = (DEMO ? '<div class="aviso-edicion">Demostración con datos de ejemplo.</div>' : '') +
+    '<div class="card"><div class="cab"><h2>Cómo funciona</h2>' + (D.activo ? '<span class="chip verde">Activo · cada ' + D.cada_minutos + ' min</span>' : '<span class="chip rojo">Sin activar</span>') + '</div>' +
+    '<ol class="pasos"><li>Deje la factura (PDF o foto) en la carpeta de la torre: <a href="' + esc(D.carpeta) + '" target="_blank" rel="noopener">abrir el buzón en Google Drive</a>. En la PC se ve como una carpeta más con «Google Drive para escritorio».</li>' +
+    '<li>Cada ' + D.cada_minutos + ' minutos, de día o de noche y aunque la PC esté apagada, el sistema la lee con IA y la registra en Cuentas por Pagar («por relacionar»), con su imagen guardada.</li>' +
+    '<li>La valida: NCF en la DGII, RNC y estado del suplidor, RNC y nombre del condominio, ITBIS separado y bien calculado, vencimiento de la secuencia. Busca duplicados en todas las torres y la IA compara con las parecidas.</li>' +
+    '<li>La guarda en la nube y la saca de la carpeta de la PC. Las alertas quedan en el pago: puede seguir adelante a pesar de ellas.</li></ol>' +
+    '<p class="mini">Última revisión: ' + (D.ultima ? fecha(D.ultima) : '—') + (D.en_cola && D.en_cola.length ? ' · Esperando: ' + D.en_cola.map(x => esc(x.torre) + ' (' + x.archivos + ')').join(', ') : ' · No hay facturas esperando.') + '</p>' +
+    '<div class="acciones-fila"><button class="btn primario" id="b-procesar">Procesar ahora</button></div></div>' +
+    '<div class="card"><h2>Facturas recibidas</h2><div class="filtros">' + [['', 'Todas'], ['registrada', 'Registradas · ' + cuenta('registrada')], ['problema', 'Para revisar · ' + cuenta('problema')], ['duplicada', 'Duplicadas · ' + cuenta('duplicada')]].map(([k, t]) => '<button type="button" data-f="' + k + '" aria-pressed="' + (filtro === k) + '">' + t + '</button>').join('') + '</div>' +
+    (lista.length ? '<div class="tabla"><table><thead><tr><th>Recibida</th><th>Torre</th><th>Archivo</th><th>Estado</th><th>Validación</th></tr></thead><tbody>' + lista.map(r => {
+      const ids = String(r.partidas || '').split(',').filter(Boolean), e = EST[r.estado] || [r.estado, ''];
+      const val = ids.map(id => { const x = fis[id]; if (!x) return '';
+        return '<div><b>' + esc(x.emisor_dgii || '') + '</b> ' + (x.ncf ? '· ' + esc(x.ncf) : '') + ' · ' + dinero(x.total) + (x.itbis ? ' <small>(ITBIS ' + dinero(x.itbis) + ')</small>' : '') +
+          '<ul class="al">' + (x.alertas || []).map(a => '<li class="' + esc(a.nivel) + '">' + esc(a.texto) + '</li>').join('') + '</ul></div>'; }).join('') || (r.estado !== 'registrada' ? '<small>' + esc(r.detalle) + '</small>' : '');
+      return '<tr><td>' + fecha(r.fecha) + '</td><td>' + esc(r.torre) + '</td><td><a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.archivo) + '</a></td><td><span class="chip ' + e[1] + '">' + esc(e[0]) + '</span></td><td>' + val +
+        (ids.length ? '<a class="btn chico" href="torres.html?m=finanzas' + (DEMO ? '&demo=1' : '') + '#/cxp/bandeja">Ver en Cuentas por Pagar</a>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<p class="nota">Todavía no hay facturas.</p>') + '</div>';
+}
+document.addEventListener('click', e => {
+  const f = e.target.closest('[data-f]'); if (f) { filtro = f.dataset.f; pintar(); }
+  if (e.target.id === 'b-procesar') { e.target.disabled = true; e.target.textContent = 'Procesando…'; cargar('procesar'); }
+});
+if (!DEMO && !StiliModulos.leer().sesion) { StiliModulos.montar(document.body, 'finanzas'); $('#contenido').innerHTML = '<div class="card entrar"><h2>Buzón de facturas</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>'; }
+else { StiliModulos.montar(document.body, 'finanzas'); cargar(); }
+</script>
+</body>
+</html>
