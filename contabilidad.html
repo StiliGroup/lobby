@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
 <link rel="stylesheet" href="stili-estilo.css?v=3.0">
 <script src="config.js"></script>
-<script src="stili-modulos.js?v=3.4.3"></script>
+<script src="stili-modulos.js?v=3.5"></script>
 <script src="stili-contabilidad.js?v=3.2"></script>
 <style>
 .ctb-cab { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -321,9 +321,9 @@ document.addEventListener('submit', async e => {
 });
 document.addEventListener('click', async e => {
   if (e.target.closest('[data-copiar-mes]')) {
-    const ant = conceptosMes(K.sumarMeses(S.periodo, -1)).filter(k => k.tipo !== 'extraordinaria');
+    const ant = conceptosMes(K.sumarMeses(S.periodo, -1)).filter(k => k.tipo !== 'extraordinaria' && !/^gas:/.test(k.parametro || ''));   // v3.5 · el gas se pasa cada mes desde Gas, con sus lecturas
     for (const k of ant) await enviar('ctb_guardar', { tabla: 'conceptos', operacion: 'crear', datos: { periodo: S.periodo, nombre: k.nombre, rubro: k.rubro, tipo: k.tipo, clase: k.clase || '', reparto: k.reparto, monto: k.monto, parametro: k.parametro, precio: k.precio, montos: k.montos, lecturas: k.reparto === 'medidor' ? Object.fromEntries(Object.entries(k.lecturas || {}).map(([a, l]) => [a, { anterior: l.actual, actual: '' }])) : {} } });
-    toast('Se copiaron ' + ant.length + ' conceptos. Las lecturas de medidor empiezan desde la lectura anterior.');
+    toast('Se copiaron ' + ant.length + ' conceptos. Las lecturas de medidor empiezan desde la lectura anterior.' + (conceptosMes(K.sumarMeses(S.periodo, -1)).some(k => /^gas:/.test(k.parametro || '')) ? ' El gas no se copia: se pasa desde la pantalla Gas con las lecturas del mes.' : ''));
   }
   const m = e.target.closest('[data-montos]');
   if (m) {
