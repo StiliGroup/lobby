@@ -12,8 +12,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
 <link rel="stylesheet" href="stili-estilo.css?v=3.0">
 <script src="config.js"></script>
-<script src="stili-modulos.js?v=3.1"></script>
-<script src="stili-contabilidad.js?v=3.0"></script>
+<script src="stili-modulos.js?v=3.2"></script>
+<script src="stili-contabilidad.js?v=3.2"></script>
 <style>
 .ctb-cab { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .ctb-cab select, .ctb-cab input { font: inherit; padding: 8px 10px; border-radius: 9px; border: 0; background: #fff; color: #13293D; max-width: 100%; }
@@ -38,6 +38,7 @@ td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: t
 .grid-aptos label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
 .grid-aptos input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); font: inherit; }
 .chk { display: flex; gap: 6px; align-items: center; font-weight: 600; }
+.clases-sel { display: flex; flex-wrap: wrap; gap: 8px 16px; } .clases-sel label { display: flex; gap: 6px; align-items: center; font-weight: 600; font-size: 13px; } .clases-sel input { width: auto; }
 tr.sel td { background: var(--azul-suave); }
 .pegar { cursor: pointer; } .pegar:hover td { background: var(--panel-2); }
 .kpi small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
@@ -198,23 +199,24 @@ const CSS_IMPRESION = 'body{font-family:Montserrat,Segoe UI,Arial,sans-serif;col
   'table{width:100%;border-collapse:collapse;margin:6px 0}th,td{padding:6px 8px;border-bottom:1px solid #d6dde4;text-align:left}th{font-size:11px;text-transform:uppercase;color:#5A6B78}.num{text-align:right;white-space:nowrap}' +
   '.cab{display:flex;justify-content:space-between;border-bottom:3px solid #DCB40C;padding-bottom:10px;margin-bottom:14px}.tot td{font-weight:700;border-top:2px solid #13293D}.pie{color:#5A6B78;font-size:11px;margin-top:24px}.salto{page-break-after:always}.caja{border:1px solid #d6dde4;border-radius:8px;padding:10px 12px;margin-top:10px}';
 function htmlRecibo(r) {
-  const c = cfg(), ec = K.estadoCuenta(r.apartamento, S.D.recibos, S.D.cobros);
+  const c = cfg(), ec = edoCuenta(r.apartamento);
   const otros = ec.pendientes.filter(x => x.id !== r.id), deudaPrev = otros.reduce((s, x) => s + K.c(x.saldo), 0);
+  const prevClase = {}; ec.partidas.filter(p => p.recibo_id !== r.id).forEach(p => { prevClase[p.clase] = (prevClase[p.clase] || 0) + K.c(p.saldo); });
   const link = K.enlacePago(c, Object.assign({}, r, { saldo: (ec.pendientes.find(x => x.id === r.id) || r).saldo }), S.torre);
   return '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Recibo de mantenimiento · ' + esc(mesTxt(r.periodo)) + '</div></div><div style="text-align:right"><b>' + esc(r.numero) + '</b><br>Apartamento <b>' + esc(r.apartamento) + '</b>' + (r.ncf ? '<br>NCF ' + esc(r.ncf) : '') + '</div></div>' +
     '<table><tr><td>Emisión</td><td>' + fecha(r.emision) + '</td><td>Vence</td><td><b>' + fecha(r.vence) + '</b></td></tr></table>' +
-    '<table><thead><tr><th>Concepto</th><th>Rubro</th><th class="num">Monto</th></tr></thead><tbody>' + (r.lineas || []).map(l => '<tr><td>' + esc(l.concepto) + '</td><td>' + esc(nomRubro(l.rubro)) + '</td><td class="num">' + dinero(l.monto) + '</td></tr>').join('') +
-    '<tr class="tot"><td colspan="2">Total del recibo</td><td class="num">' + dinero(r.total) + '</td></tr>' + (deudaPrev ? '<tr><td colspan="2">Saldo pendiente de meses anteriores</td><td class="num">' + dinero(K.p(deudaPrev)) + '</td></tr>' : '') +
+    '<table><thead><tr><th>Concepto</th><th>Clase</th><th class="num">Monto</th></tr></thead><tbody>' + K.lineasDe(r).map(l => '<tr><td>' + esc(l.concepto) + '</td><td>' + esc(K.nombreClase(K.claseDe(l))) + '</td><td class="num">' + dinero(l.monto) + '</td></tr>').join('') +
+    '<tr class="tot"><td colspan="2">Total del recibo</td><td class="num">' + dinero(r.total) + '</td></tr>' + (deudaPrev ? Object.keys(prevClase).map(k => '<tr><td colspan="2">Pendiente de meses anteriores · ' + esc(K.nombreClase(k).toLowerCase()) + '</td><td class="num">' + dinero(K.p(prevClase[k])) + '</td></tr>').join('') : '') +
     (ec.a_favor ? '<tr><td colspan="2">Saldo a favor</td><td class="num">−' + dinero(ec.a_favor) + '</td></tr>' : '') + '</tbody></table>' +
-    (Number(c.pp_porcentaje) > 0 && r.tipo === 'ordinaria' ? '<div class="caja">Pagando el total a más tardar el ' + fecha(K.conDia(r.periodo, c.pp_dia)) + ' recibe ' + esc(c.pp_porcentaje) + ' % de descuento: paga ' + dinero(K.montoProntoPago(r, c)) + '.</div>' : '') +
+    (Number(c.pp_porcentaje) > 0 && K.descuentoProntoPago(Object.assign({}, r, { pagado: 0, pagado_cobros: 0 }), r.emision, c) > 0 ? '<div class="caja">Pagando el total a más tardar el ' + fecha(K.conDia(r.periodo, c.pp_dia)) + ' recibe ' + esc(c.pp_porcentaje) + ' % de descuento sobre la cuota ordinaria: paga ' + dinero(K.montoProntoPago(r, c)) + '.</div>' : '') +
     (link ? '<div class="caja">Pague en línea: ' + esc(link) + '</div>' : '') +
     (S.D.codigo_qr ? '<div class="caja">¿Ya pagó por transferencia? Avise y suba el comprobante en ' + esc(location.origin + location.pathname.replace(/[^/]*$/, '') + 'pago.html?c=' + S.D.codigo_qr) + '</div>' : '');
 }
 function htmlConstancia(k) {
   return '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Constancia de pago</div></div><div style="text-align:right">Apartamento <b>' + esc(k.apartamento) + '</b><br>' + fecha(k.fecha) + '</div></div>' +
     '<table><tr><td>Monto recibido</td><td class="num"><b>' + dinero(k.monto) + '</b></td></tr><tr><td>Forma de pago</td><td class="num">' + esc(k.forma || '') + (k.referencia ? ' · ref. ' + esc(k.referencia) : '') + '</td></tr>' +
-    '<tr><td>Cuenta</td><td class="num">' + esc(nomCuenta(k.cuenta_id)) + '</td></tr></table><h2>Aplicado a</h2><table><thead><tr><th>Recibo</th><th class="num">Pagado</th><th class="num">Descuento</th></tr></thead><tbody>' +
-    (k.aplicaciones || []).map(x => '<tr><td>' + esc(x.numero || x.recibo_id) + '</td><td class="num">' + dinero(x.monto) + '</td><td class="num">' + (x.descuento ? dinero(x.descuento) : '') + '</td></tr>').join('') + '</tbody></table>' +
+    '<tr><td>Cuenta</td><td class="num">' + esc(nomCuenta(k.cuenta_id)) + '</td></tr></table><h2>Aplicado a</h2><table><thead><tr><th>Clase</th><th>Concepto</th><th>Recibo</th><th class="num">Pagado</th><th class="num">Descuento</th></tr></thead><tbody>' +
+    K.aplicacionesPorLinea([k], S.D.recibos, cfg()).map(x => { const r = S.D.recibos.find(y => y.id === x.recibo_id) || {}, l = K.lineasDe(r)[x.linea] || {}; return '<tr><td>' + esc(K.nombreClase(x.clase)) + '</td><td>' + esc(l.concepto || '') + ' · ' + esc(mesTxt(r.periodo)) + '</td><td>' + esc(r.numero || x.recibo_id) + '</td><td class="num">' + dinero(x.monto) + '</td><td class="num">' + (Number(x.descuento) ? dinero(x.descuento) : '') + '</td></tr>'; }).join('') + '</tbody></table>' +
     (Number(k.a_favor) > 0 ? '<div class="caja">Queda a su favor ' + dinero(k.a_favor) + ', que se aplicará a su próximo recibo.</div>' : '');
 }
 document.addEventListener('click', e => {
@@ -277,13 +279,13 @@ function cuotasArmar() {
   return '<div class="card"><div class="cab"><h2>Conceptos de ' + esc(mesTxt(per)) + '</h2>' + (puede() && !ks.length && ant.length ? '<button class="btn" data-copiar-mes>Copiar el mes anterior (' + ant.length + ')</button>' : '') + '</div>' +
     tabla(['Concepto', 'Rubro', 'Tipo', 'Reparto', '$Total del mes', ''], ks.map(k => {
       const rep = K.repartir(k, S.D.aptos, valoresParam()), tot = Object.values(rep).reduce((s, v) => s + K.c(v), 0);
-      return '<tr><td><b>' + esc(k.nombre) + '</b></td><td>' + esc(nomRubro(k.rubro)) + '</td><td>' + (k.tipo === 'extraordinaria' ? '<span class="chip ambar">Extraordinaria</span>' : 'Ordinaria') + '</td><td>' + describirReparto(k) + '</td><td class="num">' + din0(K.p(tot)) + '</td><td>' +
+      return '<tr><td><b>' + esc(k.nombre) + '</b></td><td>' + esc(nomRubro(k.rubro)) + '</td><td>' + chipClase(K.claseDe(k)) + '</td><td>' + describirReparto(k) + '</td><td class="num">' + din0(K.p(tot)) + '</td><td>' +
         (puede() && !emitidos ? (k.reparto === 'unidad' || k.reparto === 'medidor' ? '<button class="btn" data-montos="' + esc(k.id) + '">' + (k.reparto === 'medidor' ? 'Lecturas' : 'Montos') + '</button> ' : '') + '<button class="btn" data-anular="conceptos|' + esc(k.id) + '" data-titulo="Quitar el concepto ' + esc(k.nombre) + '">Quitar</button>' : '') + '</td></tr>';
     }), 'Todavía no hay conceptos para este mes.') +
     (emitidos ? '<p class="nota">Los recibos ordinarios de este mes ya se generaron. Para cambiar un concepto, anule primero los recibos del mes.</p>' : '') + '</div>' +
     (puede() && !emitidos ? '<form class="card" id="f-concepto"><h2>Agregar concepto</h2><div class="form">' +
       '<label>Nombre<input name="nombre" required placeholder="Mantenimiento, Gas, Cuota de pintura…"></label><label>Rubro<select name="rubro" required>' + opcRubros('ingreso') + '</select></label>' +
-      '<label>Tipo<select name="tipo"><option value="ordinaria">Ordinaria (todos los meses)</option><option value="extraordinaria">Extraordinaria (aprobada por la Junta)</option></select></label>' +
+      '<label>Clase<select name="clase">' + K.CLASES.map(([k, n]) => '<option value="' + k + '">' + esc(n) + (k === 'extraordinaria' ? ' (aprobada por la Junta)' : '') + '</option>').join('') + '</select></label>' +
       '<label>Reparto<select name="reparto" id="sel-reparto"><option value="igual">Igual para todos</option><option value="parametro">Un total por m² o porcentaje</option><option value="unidad">Un monto distinto por apartamento</option><option value="medidor">Por medidor (lectura × precio)</option></select></label>' +
       '<label data-ver="igual parametro">Monto (RD$)<input name="monto" inputmode="decimal" placeholder="0.00"></label>' +
       '<label data-ver="parametro" hidden>Repartir según<select name="parametro">' + (params.length ? params.map(p => '<option value="' + esc(p.id) + '">' + esc(p.nombre) + '</option>').join('') : '<option value="">Cree el parámetro en Configuración</option>') + '</select></label>' +
@@ -294,8 +296,8 @@ function cuotasArmar() {
 }
 function valoresParam() { const v = {}; (S.D.parametros || []).forEach(p => { v[p.id] = p.valores || {}; }); return v; }
 document.addEventListener('change', e => {
-  if (e.target.id === 'sel-reparto' || (e.target.name === 'tipo' && e.target.form && e.target.form.id === 'f-concepto')) {
-    const f = $('#f-concepto'), r = f.reparto.value, extra = f.tipo.value === 'extraordinaria';
+  if (e.target.id === 'sel-reparto' || (e.target.name === 'clase' && e.target.form && e.target.form.id === 'f-concepto')) {
+    const f = $('#f-concepto'), r = f.reparto.value, extra = f.clase.value === 'extraordinaria';
     f.querySelectorAll('[data-ver]').forEach(l => { const v = l.dataset.ver.split(' '); l.hidden = !(v.indexOf(r) >= 0 || (v.indexOf('extra') >= 0 && extra)); });
   }
 });
@@ -306,11 +308,12 @@ document.addEventListener('submit', async e => {
   if ((f.reparto === 'igual' || f.reparto === 'parametro') && !(monto > 0)) return toast('Escriba el monto.', true);
   if (f.reparto === 'parametro' && !f.parametro) return toast('Cree primero el parámetro (m² o porcentaje) en Configuración.', true);
   if (f.reparto === 'medidor' && !(precio > 0)) return toast('Escriba el precio por unidad.', true);
+  f.tipo = f.clase === 'extraordinaria' ? 'extraordinaria' : 'ordinaria';
   const n = f.tipo === 'extraordinaria' ? meses : 1;
   const partes = n > 1 && (f.reparto === 'parametro' || f.reparto === 'igual') ? K.planCuotas(monto, n, S.periodo + '-01').map(q => q.monto) : null;
   for (let i = 0; i < n; i++) {
     const per = K.sumarMeses(S.periodo, i);
-    const ok = await enviar('ctb_guardar', { tabla: 'conceptos', operacion: 'crear', datos: { periodo: per, nombre: f.nombre.trim() + (n > 1 ? ' (' + (i + 1) + ' de ' + n + ')' : ''), rubro: f.rubro, tipo: f.tipo, reparto: f.reparto,
+    const ok = await enviar('ctb_guardar', { tabla: 'conceptos', operacion: 'crear', datos: { periodo: per, nombre: f.nombre.trim() + (n > 1 ? ' (' + (i + 1) + ' de ' + n + ')' : ''), rubro: f.rubro, tipo: f.tipo, clase: f.clase, reparto: f.reparto,
       monto: partes ? partes[i] : monto, parametro: f.parametro || '', precio, montos: {}, lecturas: {} } });
     if (!ok) return;
   }
@@ -319,7 +322,7 @@ document.addEventListener('submit', async e => {
 document.addEventListener('click', async e => {
   if (e.target.closest('[data-copiar-mes]')) {
     const ant = conceptosMes(K.sumarMeses(S.periodo, -1)).filter(k => k.tipo !== 'extraordinaria');
-    for (const k of ant) await enviar('ctb_guardar', { tabla: 'conceptos', operacion: 'crear', datos: { periodo: S.periodo, nombre: k.nombre, rubro: k.rubro, tipo: k.tipo, reparto: k.reparto, monto: k.monto, parametro: k.parametro, precio: k.precio, montos: k.montos, lecturas: k.reparto === 'medidor' ? Object.fromEntries(Object.entries(k.lecturas || {}).map(([a, l]) => [a, { anterior: l.actual, actual: '' }])) : {} } });
+    for (const k of ant) await enviar('ctb_guardar', { tabla: 'conceptos', operacion: 'crear', datos: { periodo: S.periodo, nombre: k.nombre, rubro: k.rubro, tipo: k.tipo, clase: k.clase || '', reparto: k.reparto, monto: k.monto, parametro: k.parametro, precio: k.precio, montos: k.montos, lecturas: k.reparto === 'medidor' ? Object.fromEntries(Object.entries(k.lecturas || {}).map(([a, l]) => [a, { anterior: l.actual, actual: '' }])) : {} } });
     toast('Se copiaron ' + ant.length + ' conceptos. Las lecturas de medidor empiezan desde la lectura anterior.');
   }
   const m = e.target.closest('[data-montos]');
@@ -409,26 +412,37 @@ function vCobros() {
   return subtabs('cobros', [['cobrar', 'Cobrar'], ['avisos', 'Avisos de pago', n], ['sin', 'Depósitos sin identificar', s], ['otros', 'Otros ingresos'], ['historial', 'Historial']]) +
     ({ cobrar: cobrosCobrar, avisos: cobrosAvisos, sin: cobrosSin, otros: cobrosOtros, historial: cobrosHistorial }[sub])();
 }
+// v3.2 · clases: chip con su color
+const CL_COLOR = { ordinaria: 'azul', extraordinaria: 'ambar', fondo_reserva: 'verde', reserva_area: '', gas: 'ambar', multa: 'rojo', mora: 'rojo', otro: '' };
+const chipClase = k => '<span class="chip ' + (CL_COLOR[k] || '') + '">' + esc(K.nombreClase(k)) + '</span>';
+const edoCuenta = apto => K.estadoCuenta(apto, S.D.recibos, S.D.cobros, null, cfg());
 function cobrosCobrar() {
   const k = S.cobro || { apartamento: S.apto, fecha: hoy(), monto: '', forma: 'transferencia', cuenta_id: (cuentasAct().find(c => c.tipo === 'banco') || {}).id || '', referencia: '', origen: 'directo', origen_id: '', marcados: null };
   S.cobro = k;
-  const apto = k.apartamento, ec = apto ? K.estadoCuenta(apto, S.D.recibos, S.D.cobros) : null;
+  const apto = k.apartamento, e = apto ? edoCuenta(apto) : null;
   const monto = Number(String(k.monto || '').replace(/,/g, '')) || 0;
-  const pend = ec ? ec.pendientes : [], marcados = k.marcados || pend.map(r => r.id);
-  const ap = monto > 0 && ec ? K.aplicarCobro({ monto, fecha: k.fecha, pendientes: pend, config: cfg(), orden: marcados }) : null;
-  const origenTxt = k.origen === 'notificado' ? 'Aprobando un aviso de pago del residente.' : k.origen === 'sin_identificar' ? 'Identificando un depósito: el dinero ya está en la cuenta.' : '';
+  const ps = e ? e.partidas : [], marcados = k.marcados || [];
+  // sin marcar = orden de ley (art. 1256); marcado = lo que el residente dijo que paga (art. 1253)
+  const ap = monto > 0 && e ? K.aplicarCobro({ monto, fecha: k.fecha, pendientes: e.pendientes, config: cfg(), orden: marcados }) : null;
+  const notif = k.origen === 'notificado' ? S.D.notificados.find(n => n.id === k.origen_id) : null;
+  const origenTxt = k.origen === 'notificado' ? 'Aprobando un aviso de pago del residente' + (notif && notif.canal === 'bot' ? ' (por el Bot de Cobros)' : '') + '.' + (notif && (notif.destino || []).length ? ' El residente dijo qué paga: ya está marcado.' : '') : k.origen === 'sin_identificar' ? 'Identificando un depósito: el dinero ya está en la cuenta.' : '';
+  const aplicadoPor = {}; (ap ? ap.aplicaciones : []).forEach(x => { aplicadoPor[x.recibo_id + '#' + x.linea] = x; });
+  const resumen = {}; (ap ? ap.aplicaciones : []).forEach(x => { resumen[x.clase] = (resumen[x.clase] || 0) + K.c(x.monto); });
   return '<form class="card" id="f-cobro"><h2>Registrar un cobro</h2>' + (origenTxt ? '<div class="aviso-edicion" style="margin-bottom:10px">' + origenTxt + ' <button type="button" class="btn" data-cobro-limpiar>Cancelar</button></div>' : '') +
     '<div class="form"><label>Apartamento<select name="apartamento" required>' + opcAptos(apto) + '</select></label><label>Fecha del pago<input type="date" name="fecha" required value="' + esc(k.fecha) + '"></label>' +
     '<label>Monto recibido (RD$)<input name="monto" inputmode="decimal" required value="' + esc(k.monto) + '"' + (k.origen === 'sin_identificar' ? ' readonly' : '') + '></label>' +
     '<label>Forma<select name="forma">' + ['transferencia', 'depósito', 'cheque', 'efectivo', 'tarjeta'].map(x => '<option' + (x === k.forma ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label>' +
     (k.origen === 'sin_identificar' ? '' : '<label>Cuenta donde entró<select name="cuenta_id" required>' + opcCuentas(k.cuenta_id) + '</select></label>') + '<label>Referencia<input name="referencia" value="' + esc(k.referencia) + '"></label></div>' +
-    (ec ? '<h2 style="margin-top:16px">Recibos pendientes del apto. ' + esc(apto) + '</h2>' + tabla(['', 'Recibo', 'Mes', 'Vence', '$Saldo', '$Se aplica', '$Descuento'], pend.map(r => {
-      const x = ap && ap.aplicaciones.find(y => y.recibo_id === r.id);
-      return '<tr><td><input type="checkbox" data-marcar="' + esc(r.id) + '"' + (marcados.indexOf(r.id) >= 0 ? ' checked' : '') + ' aria-label="Aplicar a ' + esc(r.numero) + '"></td><td>' + esc(r.numero) + '</td><td>' + esc(mesTxt(r.periodo)) + (r.tipo !== 'ordinaria' ? ' · ' + esc(r.tipo) : '') + '</td><td class="' + (r.vence < hoy() ? 'rojo-t' : '') + '">' + fecha(r.vence) + '</td><td class="num">' + dinero(r.saldo) + '</td><td class="num"><b>' + (x ? dinero(x.monto) : '') + '</b></td><td class="num verde-t">' + (x && x.descuento ? dinero(x.descuento) : '') + '</td></tr>';
-    }), 'Este apartamento no tiene recibos pendientes. Lo que pague quedará a su favor.') +
-      '<div class="formula" style="margin-top:10px"><span>Deuda pendiente</span><b>' + dinero(ec.deuda) + '</b><span>Saldo a favor actual</span><b>' + dinero(ec.a_favor) + '</b>' +
-      (ap ? '<span>Se aplica a recibos</span><b>' + dinero(K.p(ap.aplicaciones.reduce((s, x) => s + K.c(x.monto), 0))) + '</b>' + (ap.descuento ? '<span>Descuento por pronto pago</span><b class="verde-t">' + dinero(ap.descuento) + '</b>' : '') + '<span class="tot">Queda a favor</span><b class="tot">' + dinero(ap.a_favor) + '</b>' : '') + '</div>' : '') +
-    (puede() ? '<div class="acciones-fila"><button class="btn primario" type="submit"' + (ap ? '' : ' disabled') + '>Registrar el cobro</button></div>' : '') + '</form>';
+    (e ? '<h2 style="margin-top:16px">Qué paga el apto. ' + esc(apto) + '</h2><p class="mini">Cada cargo es de una sola clase y el pago se aplica cargo por cargo: nada se mezcla. Si el residente dijo qué paga, márquelo (art. 1253 del Código Civil). Si no marca nada, se aplica a lo vencido más antiguo (art. 1256).</p>' +
+      tabla(['', 'Clase', 'Concepto', 'Mes', 'Vence', '$Pendiente', '$Se aplica', '$Descuento'], ps.map(p => {
+        const x = aplicadoPor[p.key];
+        return '<tr><td><input type="checkbox" data-marcar="' + esc(p.key) + '"' + (marcados.indexOf(p.key) >= 0 ? ' checked' : '') + ' aria-label="Pagar ' + esc(p.concepto) + '"></td><td>' + chipClase(p.clase) + '</td><td>' + esc(p.concepto) + '<br><small class="nota">' + esc(p.numero || '') + '</small></td><td>' + esc(mesTxt(p.periodo)) + '</td><td class="' + (p.vence < hoy() ? 'rojo-t' : '') + '">' + fecha(p.vence) + '</td><td class="num">' + dinero(p.saldo) + '</td><td class="num"><b>' + (x ? dinero(x.monto) : '') + '</b></td><td class="num verde-t">' + (x && x.descuento ? dinero(x.descuento) : '') + '</td></tr>';
+      }), 'Este apartamento no tiene cargos pendientes. Lo que pague quedará a su favor.') +
+      (marcados.length ? '<p class="mini">Marcados ' + marcados.length + ': se aplica solo a eso. <button type="button" class="btn" data-desmarcar>Quitar las marcas (orden de ley)</button></p>' : '') +
+      '<div class="formula" style="margin-top:10px"><span>Deuda pendiente</span><b>' + dinero(e.deuda) + '</b><span>Saldo a favor actual</span><b>' + dinero(e.a_favor) + '</b>' +
+      Object.keys(resumen).map(c => '<span>Se aplica a ' + esc(K.nombreClase(c).toLowerCase()) + '</span><b>' + dinero(K.p(resumen[c])) + '</b>').join('') +
+      (ap ? (ap.descuento ? '<span>Descuento por pronto pago</span><b class="verde-t">' + dinero(ap.descuento) + '</b>' : '') + '<span class="tot">Queda a favor</span><b class="tot">' + dinero(ap.a_favor) + '</b>' : '') + '</div>' : '') +
+    (puede() ? '<div class="acciones-fila"><button class="btn primario" type="submit"' + (ap ? '' : ' disabled') + '>Registrar el cobro</button>' + (S.D.correo_cupo !== undefined && cfg().recibo_auto !== 'no' ? '<span class="mini">El recibo sale solo por correo, Telegram y WhatsApp.</span>' : '') + '</div>' : '') + '</form>';
 }
 document.addEventListener('input', e => {
   const f = e.target.form; if (!f || f.id !== 'f-cobro') return;
@@ -438,37 +452,48 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const f = e.target.form;
   if (f && f.id === 'f-cobro') {
-    if (e.target.dataset.marcar) { const id = e.target.dataset.marcar; const ec = K.estadoCuenta(S.cobro.apartamento, S.D.recibos, S.D.cobros); const m = S.cobro.marcados || ec.pendientes.map(r => r.id); S.cobro.marcados = e.target.checked ? m.concat([id]) : m.filter(x => x !== id); pintar(); return; }
+    if (e.target.dataset.marcar) { const key = e.target.dataset.marcar, m = S.cobro.marcados || []; S.cobro.marcados = e.target.checked ? m.concat([key]) : m.filter(x => x !== key); pintar(); return; }
     S.cobro[e.target.name] = e.target.value; if (e.target.name === 'apartamento') { S.cobro.marcados = null; S.apto = e.target.value; } pintar();
   }
 });
-document.addEventListener('click', e => { if (e.target.closest('[data-cobro-limpiar]')) { S.cobro = null; pintar(); } });
+document.addEventListener('click', e => { if (e.target.closest('[data-cobro-limpiar]')) { S.cobro = null; pintar(); } if (e.target.closest('[data-desmarcar]')) { S.cobro.marcados = null; pintar(); } });
+function avisoEnvio(r) {
+  if (!r) return '';
+  if (r.error) return '<p class="rojo-t">No se pudo enviar el recibo: ' + esc(r.error) + '</p>';
+  const NOM = { correo: 'correo', telegram: 'Telegram', whatsapp: 'WhatsApp' }, EST = { enviado: 'enviado', pendiente: 'en cola', manual: 'listo para enviar', fallido: 'falló', entregado: 'entregado' };
+  return '<p>Recibo: ' + (r.canales && r.canales.length ? r.canales.map(c => NOM[c.canal] + ' ' + (EST[c.estado] || c.estado)).join(' · ') : esc(r.aviso || 'sin canal registrado')) + '.</p>' +
+    (r.whatsapp ? '<a class="btn" href="' + esc(r.whatsapp) + '" target="_blank" rel="noopener" data-wa-abrir>Enviar por WhatsApp</a> ' : '');
+}
 document.addEventListener('submit', async e => {
   if (e.target.id !== 'f-cobro') return; e.preventDefault();
-  const k = S.cobro, ec = K.estadoCuenta(k.apartamento, S.D.recibos, S.D.cobros), monto = Number(String(k.monto).replace(/,/g, ''));
-  const ap = K.aplicarCobro({ monto, fecha: k.fecha, pendientes: ec.pendientes, config: cfg(), orden: k.marcados || ec.pendientes.map(r => r.id) });
+  const k = S.cobro, x = edoCuenta(k.apartamento), monto = Number(String(k.monto).replace(/,/g, ''));
+  const ap = K.aplicarCobro({ monto, fecha: k.fecha, pendientes: x.pendientes, config: cfg(), orden: k.marcados || [] });
   const vig = K.vigiaCobros(Object.assign({}, S.D, { cobros: S.D.cobros.concat([{ id: 'nuevo', apartamento: k.apartamento, fecha: k.fecha, monto, referencia: k.referencia, origen: k.origen }]) }), hoy()).filter(a => a.regla === 'C1' && (a.ids || []).indexOf('nuevo') >= 0);
   if (vig.length && !confirm(vig[0].texto + '\n\n¿Registrarlo de todos modos?')) return;
-  {
-    const ok = await enviar('ctb_cobrar', { cobro: { apartamento: k.apartamento, fecha: k.fecha, monto, forma: k.forma, cuenta_id: k.cuenta_id, referencia: k.referencia, origen: k.origen, origen_id: k.origen_id, aplicaciones: ap.aplicaciones } }, 'Cobro registrado.');
-    if (!ok) return;
-    const nuevo = S.D.cobros.filter(x => x.apartamento === k.apartamento).slice(-1)[0];
-    S.cobro = null; pintar();
-    if (nuevo) dialogo('<h2>Cobro registrado</h2><p>' + dinero(nuevo.monto) + ' del apto. ' + esc(nuevo.apartamento) + '.' + (Number(nuevo.a_favor) ? ' Queda a favor ' + dinero(nuevo.a_favor) + '.' : '') + '</p><button class="btn primario" data-constancia="' + esc(nuevo.id) + '">Imprimir la constancia</button>');
-  }
+  const r = await enviar('ctb_cobrar', { cobro: { apartamento: k.apartamento, fecha: k.fecha, monto, forma: k.forma, cuenta_id: k.cuenta_id, referencia: k.referencia, origen: k.origen, origen_id: k.origen_id, aplicaciones: ap.aplicaciones } }, 'Cobro registrado.');
+  if (!r) return;
+  const nuevo = S.D.cobros.filter(y => y.apartamento === k.apartamento).slice(-1)[0];
+  S.cobro = null; pintar();
+  if (nuevo) dialogo('<h2>Cobro registrado</h2><p>' + dinero(nuevo.monto) + ' del apto. ' + esc(nuevo.apartamento) + '.' + (Number(nuevo.a_favor) ? ' Queda a favor ' + dinero(nuevo.a_favor) + '.' : '') + '</p>' + avisoEnvio(r.envio_recibo) + '<button class="btn primario" data-constancia="' + esc(nuevo.id) + '">Imprimir la constancia</button>');
 });
+/** v3.2 · lo que el residente dijo que paga en su aviso (art. 1253); sin elección = orden de ley. */
+function queAvisa(n) {
+  const ps = edoCuenta(n.apartamento).partidas, d = (n.destino || []).map(k => ps.find(p => p.key === k)).filter(Boolean);
+  return d.length ? d.map(p => chipClase(p.clase) + ' <small>' + esc(mesTxt(p.periodo)) + '</small>').join('<br>') : '<small class="nota">Lo vencido más antiguo</small>';
+}
 function cobrosAvisos() {
   const pend = S.D.notificados.filter(x => x.estado === 'pendiente'), otros = S.D.notificados.filter(x => x.estado !== 'pendiente').slice(-30).reverse();
   const enlace = S.D.codigo_qr ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'pago.html?c=' + S.D.codigo_qr : '';
   return '<div class="card"><h2>Avisos de pago por revisar</h2><p class="nota">El residente avisa que pagó y sube el comprobante. Compárelo con el banco: «Aprobar» lo registra como cobro; «Rechazar» le explica el motivo.</p>' +
-    tabla(['Recibido', 'Apto.', 'Fecha del pago', '$Monto', 'Banco · ref.', 'Comprobante', ''], pend.map(n => '<tr><td>' + fecha(n.fecha_aviso) + '</td><td><b>' + esc(n.apartamento) + '</b>' + (n.nombre ? '<br><small>' + esc(n.nombre) + '</small>' : '') + '</td><td>' + fecha(n.fecha) + '</td><td class="num">' + dinero(n.monto) + '</td><td>' + esc(n.banco) + (n.referencia ? ' · ' + esc(n.referencia) : '') + '</td><td>' +
+    tabla(['Recibido', 'Apto.', 'Fecha del pago', '$Monto', 'Banco · ref.', 'Qué paga', 'Comprobante', ''], pend.map(n => '<tr><td>' + fecha(n.fecha_aviso) + '<br><small>' + esc({ bot: '🤖 Bot de Cobros', qr: 'Código QR', portal: 'Portal' }[n.canal] || n.canal || '') + '</small></td><td><b>' + esc(n.apartamento) + '</b>' + (n.nombre ? '<br><small>' + esc(n.nombre) + '</small>' : '') + '</td><td>' + fecha(n.fecha) + '</td><td class="num">' + dinero(n.monto) + '</td><td>' + esc(n.banco) + (n.referencia ? ' · ' + esc(n.referencia) : '') + '</td><td>' + queAvisa(n) + '</td><td>' +
       (n.comprobante_url ? '<a href="' + esc(n.comprobante_url) + '" target="_blank" rel="noopener">Ver</a>' : '<span class="nota">Sin archivo</span>') + '</td><td>' + (puede() ? '<button class="btn primario" data-aprobar-aviso="' + esc(n.id) + '">Aprobar</button> <button class="btn" data-rechazar-aviso="' + esc(n.id) + '">Rechazar</button>' : '') + '</td></tr>'), 'No hay avisos pendientes.') + '</div>' +
     '<div class="card"><h2>Para los residentes</h2>' + (enlace ? '<p>Enlace para avisar un pago (el mismo código QR del lobby de la torre): <a href="' + esc(enlace) + '" target="_blank" rel="noopener">' + esc(enlace) + '</a></p>' : '<p class="nota">La torre todavía no tiene código QR. Créelo en Condominios › Códigos QR del lobby; sirve para la encuesta y para avisar pagos.</p>') + '</div>' +
     (otros.length ? '<div class="card"><h2>Revisados</h2>' + tabla(['Apto.', 'Fecha', '$Monto', 'Estado', 'Revisó'], otros.map(n => '<tr><td>' + esc(n.apartamento) + '</td><td>' + fecha(n.fecha) + '</td><td class="num">' + dinero(n.monto) + '</td><td><span class="chip ' + (n.estado === 'aprobado' ? 'verde' : 'rojo') + '">' + esc(n.estado) + '</span>' + (n.motivo ? '<br><small>' + esc(n.motivo) + '</small>' : '') + '</td><td>' + esc(n.revisado_por) + '</td></tr>'), '') + '</div>' : '');
 }
 document.addEventListener('click', async e => {
   const a = e.target.closest('[data-aprobar-aviso]');
-  if (a) { const n = S.D.notificados.find(x => x.id === a.dataset.aprobarAviso); S.cobro = { apartamento: n.apartamento, fecha: n.fecha, monto: String(n.monto), forma: 'transferencia', cuenta_id: (cuentasAct().find(c => c.tipo === 'banco') || {}).id || '', referencia: n.referencia, origen: 'notificado', origen_id: n.id, marcados: null }; S.sub.cobros = 'cobrar'; pintar(); }
+  if (a) { const n = S.D.notificados.find(x => x.id === a.dataset.aprobarAviso); const validas = edoCuenta(n.apartamento).partidas.map(p => p.key), dest = (n.destino || []).filter(k => validas.indexOf(k) >= 0);
+    S.cobro = { apartamento: n.apartamento, fecha: n.fecha, monto: String(n.monto), forma: 'transferencia', cuenta_id: (cuentasAct().find(c => c.tipo === 'banco') || {}).id || '', referencia: n.referencia, origen: 'notificado', origen_id: n.id, marcados: dest.length ? dest : null }; S.sub.cobros = 'cobrar'; ponerHash(); pintar(); }
   const r = e.target.closest('[data-rechazar-aviso]');
   if (r) { const m = await pedirMotivo('Rechazar el aviso de pago'); if (m) await enviar('ctb_notificado_rechazar', { id: r.dataset.rechazarAviso, motivo: m }, 'Aviso rechazado.'); }
 });
@@ -512,48 +537,209 @@ function cobrosHistorial() {
     (k.estado === 'anulado' ? '<span class="chip rojo">Anulado</span>' : (k.origen !== 'cruce' ? '<button class="btn" data-constancia="' + esc(k.id) + '">Constancia</button> ' : '') + (puede() ? '<button class="btn" data-anular="cobros|' + esc(k.id) + '" data-titulo="Anular el cobro del apto. ' + esc(k.apartamento) + '">Anular</button>' : '')) + '</td></tr>'), 'No hay cobros en este mes.') + '</div>';
 }
 
-// ================================================================== COBRANZA
+// ================================================================== COBRANZA (v3.2 · seguimiento, métricas, contactos y mensajes)
+const NOM_CANAL = Object.fromEntries(K.CANALES), NOM_RES = Object.fromEntries(K.RESULTADOS.map(x => [x[0], x[1]]));
+const EST_MSJ = { pendiente: ['En cola', ''], manual: ['Por enviar a mano', 'ambar'], enviado: ['Enviado', 'azul'], entregado: ['Entregado · sin leer', 'azul'], leido: ['Leído', 'verde'], respondido: ['Respondió', 'verde'], fallido: ['Falló', 'rojo'] };
+const contactoDe = a => (S.D.contactos || []).filter(c => c.apartamento === a).slice(-1)[0] || null;
+const enBot = a => (S.D.bot && S.D.bot.vinculos || []).some(v => v.apartamento === a);
+const telWa = t => { let d = String(t || '').replace(/\D/g, ''); if (d.length === 10) d = '1' + d; return d.length >= 11 ? d : ''; };
 function vCobranza() {
   if (S.apto && S.sub.cobranza === 'apto') return cobranzaApto();
-  const ant = K.antiguedad(S.D.recibos, S.D.cobros, hoy());
-  const gest = {}; S.D.gestiones.forEach(g => { (gest[g.apartamento] = gest[g.apartamento] || []).push(g); });
-  const acu = {}; S.D.acuerdos.filter(a => a.estado === 'vigente').forEach(a => { acu[a.apartamento] = K.estadoAcuerdo(a, S.D.cobros, hoy()); });
-  return '<div class="card"><div class="cab"><h2>Cartera por antigüedad</h2><span class="nota">al ' + fecha(hoy()) + '</span></div>' +
-    tabla(['Apto.'].concat(K.TRAMOS.map(([, t]) => '$' + t), ['$Total', 'Seguimiento', '']), ant.filas.map(f => {
-      const g = (gest[f.apartamento] || []).slice(-1)[0], a = acu[f.apartamento];
-      return '<tr class="pegar" data-ver-apto="' + esc(f.apartamento) + '"><td><b>' + esc(f.apartamento) + '</b></td>' + K.TRAMOS.map(([k]) => '<td class="num ' + (k === 'mas' && f[k] ? 'rojo-t' : '') + '">' + (f[k] ? din0(f[k]) : '') + '</td>').join('') + '<td class="num"><b>' + din0(f.total) + '</b></td><td>' +
-        (a ? '<span class="chip ' + (a.estado === 'incumplido' ? 'rojo' : 'verde') + '">Acuerdo ' + esc(a.estado) + '</span> ' : '') + (g ? '<small>' + esc(g.tipo) + ' · ' + fecha(g.fecha) + '</small>' : '<small class="nota">Sin gestiones</small>') + '</td><td><button class="btn" data-ver-apto="' + esc(f.apartamento) + '">Abrir</button></td></tr>';
-    }), 'Ningún apartamento tiene deuda.', ant.filas.length ? '<tfoot><tr><td><b>Total</b></td>' + K.TRAMOS.map(([k]) => '<td class="num"><b>' + din0(ant.total[k]) + '</b></td>').join('') + '<td class="num"><b>' + din0(ant.total.total) + '</b></td><td></td><td></td></tr></tfoot>' : '') +
-    '<p class="mini">Días contados desde el vencimiento de cada recibo. La lista muestra el apartamento, no el nombre del residente.</p></div>';
+  const sub = subAct('cobranza', 'cartera');
+  const porEnviar = (S.D.mensajes || []).filter(m => m.estado === 'manual').length, hoyP = agendaHoy().length;
+  return subtabs('cobranza', [['cartera', 'Cartera'], ['seguimiento', 'Seguimiento', hoyP], ['metricas', 'Métricas y encuesta'], ['contactos', 'Contactos y bot'], ['mensajes', 'Mensajes', porEnviar]]) +
+    ({ cartera: cobranzaCartera, seguimiento: cobranzaSeguimiento, metricas: cobranzaMetricas, contactos: cobranzaContactos, mensajes: cobranzaMensajes }[sub] || cobranzaCartera)();
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-ver-apto]'); if (b) { S.apto = b.dataset.verApto; S.sub.cobranza = 'apto'; pintar(); window.scrollTo(0, 0); } if (e.target.closest('[data-volver-cartera]')) { S.sub.cobranza = 'lista'; pintar(); } });
+function filtroClases() {
+  const sel = S.clasesCartera || [];
+  return '<div class="sub" role="group" aria-label="Clases">' + '<button type="button" data-clase-cartera="" aria-pressed="' + (!sel.length) + '">Todas</button>' + K.CLASES.map(([k, n]) => '<button type="button" data-clase-cartera="' + k + '" aria-pressed="' + (sel.indexOf(k) >= 0) + '">' + esc(n) + '</button>').join('') + '</div>';
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-clase-cartera]'); if (!b) return; const k = b.dataset.claseCartera, s = S.clasesCartera || [];
+  S.clasesCartera = !k ? [] : s.indexOf(k) >= 0 ? s.filter(x => x !== k) : s.concat([k]); pintar(); });
+function cobranzaCartera() {
+  const cl = S.clasesCartera || [], ant = K.antiguedad(S.D.recibos, S.D.cobros, hoy(), cl, cfg());
+  const gest = {}; S.D.gestiones.filter(g => g.estado !== 'anulado').forEach(g => { (gest[g.apartamento] = gest[g.apartamento] || []).push(g); });
+  const acu = {}; S.D.acuerdos.filter(a => a.estado === 'vigente').forEach(a => { acu[a.apartamento] = K.estadoAcuerdo(a, S.D.cobros, hoy()); });
+  return '<div class="card"><div class="cab"><h2>Cartera por antigüedad · ' + esc(cl.length ? cl.map(K.nombreClase).join(', ') : 'todas las clases') + '</h2><span class="nota">al ' + fecha(hoy()) + '</span></div>' + filtroClases() +
+    tabla(['Apto.'].concat(K.TRAMOS.map(([, t]) => '$' + t), ['$Total', 'Último seguimiento', '']), ant.filas.map(f => {
+      const g = (gest[f.apartamento] || []).slice(-1)[0], a = acu[f.apartamento];
+      return '<tr class="pegar" data-ver-apto="' + esc(f.apartamento) + '"><td><b>' + esc(f.apartamento) + '</b>' + (enBot(f.apartamento) ? ' <span title="En el Bot de Cobros">🤖</span>' : '') + '</td>' + K.TRAMOS.map(([k]) => '<td class="num ' + (k === 'mas' && f[k] ? 'rojo-t' : '') + '">' + (f[k] ? din0(f[k]) : '') + '</td>').join('') + '<td class="num"><b>' + din0(f.total) + '</b></td><td>' +
+        (a ? '<span class="chip ' + (a.estado === 'incumplido' ? 'rojo' : 'verde') + '">Acuerdo ' + esc(a.estado) + '</span> ' : '') + (g ? '<small>' + esc(NOM_CANAL[K.canalDe(g)] || g.tipo) + (g.resultado ? ' · ' + esc(NOM_RES[g.resultado] || g.resultado) : '') + ' · ' + fecha(g.fecha) + '</small>' : '<small class="nota">Sin gestiones</small>') + '</td><td><button class="btn" data-ver-apto="' + esc(f.apartamento) + '">Abrir</button></td></tr>';
+    }), 'Ningún apartamento tiene deuda' + (cl.length ? ' en esas clases.' : '.'), ant.filas.length ? '<tfoot><tr><td><b>Total</b></td>' + K.TRAMOS.map(([k]) => '<td class="num"><b>' + din0(ant.total[k]) + '</b></td>').join('') + '<td class="num"><b>' + din0(ant.total.total) + '</b></td><td></td><td></td></tr></tfoot>' : '') +
+    '<p class="mini">Días contados desde el vencimiento de cada cargo. Cada clase se cuenta por separado. Para más filtros use Reportes › Reporte a la medida.</p></div>';
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-ver-apto]'); if (b) { S.apto = b.dataset.verApto; if (S.sub.cobranza !== 'apto') S.subAntes = S.sub.cobranza; S.sec = 'cobranza'; S.sub.cobranza = 'apto'; pintar(); window.scrollTo(0, 0); } if (e.target.closest('[data-volver-cartera]')) { S.sub.cobranza = S.subAntes || 'cartera'; pintar(); } });
+
+// ---------------------------------------------------------------- seguimiento: agenda del día
+function agendaHoy() {
+  const h = hoy(), out = [];
+  S.D.gestiones.filter(g => g.estado !== 'anulado').forEach(g => {
+    if (g.promesa_fecha) { const st = K.estadoPromesa(g, S.D.cobros, h); if (st === 'pendiente' && g.promesa_fecha <= h) out.push({ tipo: 'promesa', g, txt: 'Prometió pagar ' + (Number(g.promesa_monto) ? dinero(g.promesa_monto) + ' ' : '') + 'el ' + fecha(g.promesa_fecha) }); if (st === 'incumplida' && K.dias(g.promesa_fecha, h) <= 10) out.push({ tipo: 'incumplida', g, txt: 'No cumplió la promesa del ' + fecha(g.promesa_fecha) }); }
+    if (g.proxima && g.proxima <= h && !S.D.gestiones.some(x => x.apartamento === g.apartamento && x.estado !== 'anulado' && String(x.fecha).slice(0, 10) >= g.proxima && x.id !== g.id)) out.push({ tipo: 'proxima', g, txt: 'Seguimiento para el ' + fecha(g.proxima) });
+  });
+  const vistos = new Set(); return out.filter(x => { const k = x.tipo + x.g.apartamento; if (vistos.has(k)) return false; vistos.add(k); return true; });
+}
+function cobranzaSeguimiento() {
+  const ag = agendaHoy(), rec = S.D.gestiones.filter(g => g.estado !== 'anulado').slice(-40).reverse();
+  return '<div class="dos"><div class="card"><h2>Para hoy</h2>' + (ag.length ? '<ul class="alertas">' + ag.map(x => '<li class="' + (x.tipo === 'incumplida' ? 'rojo' : x.tipo === 'promesa' ? 'ambar' : '') + '"><b>Apto. ' + esc(x.g.apartamento) + '</b> · ' + esc(x.txt) + ' <button class="btn" data-ver-apto="' + esc(x.g.apartamento) + '">Abrir</button></li>').join('') + '</ul>' : '<p class="nota">No hay promesas ni seguimientos para hoy.</p>') + '</div>' +
+    (puede() ? formGestion('') : '<div class="card"><p class="nota">Su usuario puede consultar.</p></div>') + '</div>' +
+    '<div class="card"><h2>Últimas gestiones</h2>' + tabla(['Fecha', 'Apto.', 'Canal', 'Resultado', 'Duración', 'Promesa', 'Nota', 'Quién', ''], rec.map(g => {
+      const st = g.promesa_fecha ? K.estadoPromesa(g, S.D.cobros, hoy()) : '';
+      return '<tr><td>' + fecha(g.fecha) + ' <small>' + esc(String(g.fecha).slice(11, 16)) + '</small></td><td><b>' + esc(g.apartamento) + '</b></td><td>' + esc(NOM_CANAL[K.canalDe(g)] || g.tipo) + (g.direccion === 'entrante' ? ' <small>(entrante)</small>' : '') + '</td><td>' + esc(NOM_RES[g.resultado] || g.resultado || '—') + '</td><td class="num">' + (Number(g.duracion_seg) ? Math.round(g.duracion_seg / 60 * 10) / 10 + ' min' : '') + '</td><td>' +
+        (g.promesa_fecha ? fecha(g.promesa_fecha) + (Number(g.promesa_monto) ? ' · ' + din0(g.promesa_monto) : '') + ' <span class="chip ' + (st === 'cumplida' ? 'verde' : st === 'incumplida' ? 'rojo' : 'azul') + '">' + esc(st) + '</span>' : '') + '</td><td>' + esc(g.nota) + (g.encuesta_id ? ' <small title="Se envió la encuesta">📝</small>' : '') + '</td><td>' + esc(g.creado_por) + '</td><td>' + (puede() ? '<button class="btn" data-anular-gestion="' + esc(g.id) + '">Anular</button>' : '') + '</td></tr>';
+    }), 'Todavía no hay gestiones.') + '</div>';
+}
+function formGestion(apto) {
+  return '<form class="card" id="f-gestion"><h2>Anotar una gestión</h2><div class="form">' + (apto ? '<input type="hidden" name="apartamento" value="' + esc(apto) + '">' : '<label>Apartamento<select name="apartamento" required>' + opcAptos('') + '</select></label>') +
+    '<label>Canal<select name="canal">' + K.CANALES.map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('') + '</select></label>' +
+    '<label>Resultado<select name="resultado" required><option value="">Elegir…</option>' + K.RESULTADOS.map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('') + '</select></label>' +
+    '<label>Duración (minutos)<input name="minutos" inputmode="decimal" placeholder="Solo llamadas"></label>' +
+    '<label>Prometió pagar el<input type="date" name="promesa_fecha"></label><label>Monto prometido (RD$)<input name="promesa_monto" inputmode="decimal"></label>' +
+    '<label>Próximo seguimiento<input type="date" name="proxima"></label><label class="ancho">Nota<textarea name="nota" placeholder="Qué se habló o se acordó"></textarea></label>' +
+    '<label class="chk ancho"><input type="checkbox" name="enviar_encuesta" checked> Enviar la encuesta de satisfacción (si habló con el residente)</label></div>' +
+    '<div class="acciones-fila"><button class="btn primario" type="submit">Anotar</button></div></form>';
+}
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-gestion') return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target));
+  if (f.resultado === 'promesa' && !f.promesa_fecha) return toast('Escriba la fecha en que prometió pagar.', true);
+  const g = { apartamento: f.apartamento, canal: f.canal, resultado: f.resultado, duracion_seg: Math.round((Number(String(f.minutos || '').replace(',', '.')) || 0) * 60), promesa_fecha: f.resultado === 'promesa' ? f.promesa_fecha : '',
+    promesa_monto: f.resultado === 'promesa' ? K.r2(String(f.promesa_monto || '0').replace(/,/g, '')) : '', proxima: f.proxima, nota: f.nota, enviar_encuesta: !!f.enviar_encuesta };
+  const r = await enviar('ctb_gestion', { gestion: g }, 'Gestión anotada.');
+  if (r && r.encuesta) {
+    const x = r.encuesta;
+    if (x.whatsapp) dialogo('<h2>Encuesta de satisfacción</h2><p>Envíela por WhatsApp con un toque. El residente la responde en 30 segundos.</p><a class="btn primario" href="' + esc(x.whatsapp) + '" target="_blank" rel="noopener">Enviar por WhatsApp</a>');
+    else if (x.aviso) toast(x.aviso, x.estado === 'sin_canal');
+    else toast('Encuesta enviada (' + esc(x.estado) + ').');
+  }
+});
+document.addEventListener('click', async e => { const b = e.target.closest('[data-anular-gestion]'); if (!b) return; const m = await pedirMotivo('Anular la gestión'); if (m) await enviar('ctb_gestion_anular', { id: b.dataset.anularGestion, motivo: m }, 'Gestión anulada.'); });
+
+// ---------------------------------------------------------------- métricas del equipo y de la encuesta
+function cobranzaMetricas() {
+  const r = S.rangoMet || { desde: new Date(Date.parse(hoy()) - 30 * 864e5).toISOString().slice(0, 10), hasta: hoy() };   // por defecto, los últimos 30 días
+  const M = K.metricasCobranza(S.D, r.desde, r.hasta, hoy()), T = M.totales, W = M.whatsapp, E = M.encuesta;
+  const em = K.reporteMedida(datos(), { tipo: 'cobrado', desde: r.desde, hasta: r.hasta }).resumen;
+  const kp = (t, v, s, cls) => '<div class="kpi ' + (cls || '') + '"><span>' + esc(t) + '</span><b>' + v + '</b>' + (s ? '<small>' + s + '</small>' : '') + '</div>';
+  const pc = v => v === null || v === undefined ? '—' : v + ' %';
+  const filaG = g => '<tr><td><b>' + esc(g.nombre) + '</b></td><td class="num">' + g.gestiones + '</td><td class="num">' + g.llamadas + '</td><td class="num">' + pc(g.tasa_contacto) + '</td><td class="num">' + g.promesas + '</td><td class="num">' + pc(g.tasa_cumplimiento) + '</td><td class="num">' + din0(g.recuperado) + '</td></tr>';
+  const encG = (E.por_gestor || []).reduce((o, x) => { o[x.gestor] = x; return o; }, {});
+  return '<form class="card" id="f-rango-met"><div class="form"><label>Desde<input type="date" name="desde" value="' + esc(r.desde) + '"></label><label>Hasta<input type="date" name="hasta" value="' + esc(r.hasta) + '"></label><div><button class="btn" type="submit">Ver</button></div></div></form>' +
+    '<div class="card"><h2>Cobros del periodo</h2><div class="kpis anchos">' + kp('Cobrado', din0(em.total), 'de ' + din0(em.emitido) + ' emitido') + kp('Efectividad', pc(em.efectividad), 'cobrado ÷ emitido', em.efectividad !== null && em.efectividad < 80 ? 'ambar' : '') +
+      kp('Gestiones', T.gestiones, T.aptos + ' aptos. · ' + T.llamadas + ' llamadas (' + T.minutos + ' min)') + kp('Contacto', pc(T.tasa_contacto), T.contactos + ' veces habló con el residente') +
+      kp('Promesas', T.promesas, T.cumplidas + ' cumplidas · ' + T.incumplidas + ' incumplidas') + kp('Cumplimiento', pc(T.tasa_cumplimiento), 'de las promesas ya vencidas', T.tasa_cumplimiento !== null && T.tasa_cumplimiento < 60 ? 'rojo' : '') +
+      kp('Recuperado', din0(T.recuperado), 'pagos en los 7 días después de una gestión') + '</div></div>' +
+    '<div class="dos"><div class="card"><h2>WhatsApp</h2>' + (S.D.wa_api ? '' : '<p class="aviso-edicion">Sin la API de WhatsApp Business, el sistema no puede saber si un mensaje se leyó. Los enviados a mano se marcan en Mensajes. Al contratar la API, se cuenta solo.</p>') +
+      '<div class="kpis">' + kp('Enviados', W.total, W.manuales + ' a mano · ' + W.con_estado + ' con estado') + kp('Leídos', W.leidos, pc(W.tasa_lectura) + ' de los entregados') + kp('Sin leer', W.sin_leer, 'entregados y no abiertos', W.sin_leer ? 'ambar' : '') +
+      kp('Respondieron', W.respondidos, pc(W.tasa_respuesta) + ' de los leídos') + kp('Fallidos', W.fallidos, '', W.fallidos ? 'rojo' : '') + kp('Tiempo a leer', W.minutos_a_leer === null ? '—' : W.minutos_a_leer + ' min', 'mediana') + '</div>' +
+      (M.mensajes.length ? '<p class="mini" style="margin-top:8px">Otros canales: ' + M.mensajes.filter(x => x.canal !== 'whatsapp').map(x => esc(NOM_CANAL[x.canal] || x.canal) + ' ' + x.total + (x.fallidos ? ' (' + x.fallidos + ' fallidos)' : '')).join(' · ') + '</p>' : '') + '</div>' +
+      '<div class="card"><h2>Encuesta de satisfacción de cobros</h2><div class="kpis">' + kp('CSAT', E.csat === null ? '—' : E.csat + ' / 5', pc(E.satisfechos) + ' satisfechos (4 y 5)', E.csat !== null && E.csat < 3.5 ? 'rojo' : '') +
+      kp('NPS', E.nps === null ? '—' : E.nps, 'recomendaría (−100 a 100)') + kp('Respuesta', pc(E.tasa_respuesta), E.respondidas + ' de ' + E.enviadas) + kp('Claridad', E.claridad === null ? '—' : E.claridad + ' / 5', 'le explicaron su saldo') +
+      kp('Trato', E.trato === null ? '—' : E.trato + ' / 5', 'amabilidad') + kp('Resuelto', pc(E.resuelto), 'quedó resuelto') + '</div>' +
+      (E.comentarios.length ? '<h3 style="margin-top:12px">Comentarios</h3><ul class="alertas">' + E.comentarios.slice(0, 8).map(c => '<li class="' + (Number(c.csat) <= 2 ? 'rojo' : '') + '">' + '★'.repeat(Number(c.csat) || 0) + ' · ' + esc(c.texto) + ' <small>(' + esc(c.gestor || '') + ')</small></li>').join('') + '</ul>' : '') + '</div></div>' +
+    '<div class="card"><h2>Por gestor</h2>' + tabla(['Gestor', '$Gestiones', '$Llamadas', '$Contacto', '$Promesas', '$Cumplidas', '$Recuperado', '$CSAT', '$Encuestas'], M.por_gestor.map(g => filaG(g).replace('</tr>', '<td class="num">' + (encG[g.clave] && encG[g.clave].csat !== null ? encG[g.clave].csat : '—') + '</td><td class="num">' + (encG[g.clave] ? encG[g.clave].respondidas + '/' + encG[g.clave].enviadas : '—') + '</td></tr>')), 'Sin gestiones en el periodo.') + '</div>' +
+    '<div class="dos"><div class="card"><h2>Por canal</h2>' + tabla(['Canal', '$Gestiones', '$Llamadas', '$Contacto', '$Promesas', '$Cumplidas', '$Recuperado'], M.por_canal.map(filaG), '—') + '</div>' +
+      '<div class="card"><h2>Por resultado</h2>' + tabla(['Resultado', '$Gestiones'], M.por_resultado.map(g => '<tr><td>' + esc(g.nombre) + '</td><td class="num">' + g.gestiones + '</td></tr>'), '—') + '</div></div>';
+}
+document.addEventListener('submit', e => { if (e.target.id !== 'f-rango-met') return; e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); if (f.desde && f.hasta && f.desde <= f.hasta) { S.rangoMet = f; pintar(); } else toast('Revise las fechas.', true); });
+
+// ---------------------------------------------------------------- contactos y bot
+function cobranzaContactos() {
+  const aptos = S.D.aptos || [], q = (S.filtroCon || '').toLowerCase();
+  const bot = S.D.bot || {};
+  return '<div class="card"><div class="cab"><h2>Contactos de cobro</h2>' + (puede() ? '<button class="btn" data-importar-contactos>Traer de Apartamentos y encuestas</button>' : '') + '</div>' +
+    '<p class="mini">Teléfono y correo para enviar recibos, recordatorios y la encuesta. Uso interno: no se comparten.' + (S.D.correo_cupo !== null && S.D.correo_cupo !== undefined ? ' Correos disponibles hoy: <b>' + S.D.correo_cupo + '</b>.' : '') + '</p>' +
+    '<input type="search" id="buscar-con" placeholder="Buscar apartamento o nombre" value="' + esc(S.filtroCon || '') + '" style="max-width:320px;margin-bottom:8px">' +
+    tabla(['Apto.', 'Nombre', 'Teléfono', 'Correo', 'Bot', ''], aptos.filter(a => { const c = contactoDe(a); return !q || a.toLowerCase().includes(q) || (c && String(c.nombre).toLowerCase().includes(q)); }).map(a => {
+      const c = contactoDe(a) || {};
+      return '<tr><td><b>' + esc(a) + '</b></td><td>' + esc(c.nombre || '') + '</td><td>' + esc(c.telefono || '') + (c.acepta_whatsapp === 'no' ? ' <small class="nota">(sin WhatsApp)</small>' : '') + '</td><td>' + esc(c.correo || '') + (c.acepta_correo === 'no' ? ' <small class="nota">(no acepta)</small>' : '') + '</td><td>' + (enBot(a) ? '<span class="chip verde">Vinculado</span>' : '<span class="nota">—</span>') + '</td><td>' +
+        (puede() ? '<button class="btn" data-editar-contacto="' + esc(a) + '">Editar</button> ' + (enBot(a) ? '<button class="btn" data-desvincular="' + esc(a) + '">Quitar del bot</button>' : '<button class="btn" data-invitar-bot="' + esc(a) + '"' + (bot.usuario ? '' : ' disabled title="Falta configurar el Bot de Cobros"') + '>Invitar al bot</button>') : '') + '</td></tr>';
+    }), 'No hay apartamentos en la torre.') + '</div>' +
+    '<div class="card"><h2>Bot de Cobros en Telegram</h2>' + (bot.usuario ? '<p>El residente vinculado ve su saldo por clase, envía su comprobante eligiendo qué paga, pide su recibo y escribe a cobros. Bot: <b>@' + esc(String(bot.usuario).replace(/^@/, '')) + '</b>. Vinculados: <b>' + (bot.vinculos || []).length + '</b> de ' + aptos.length + ' apartamentos.</p>'
+      : '<p class="nota">El Bot de Cobros todavía no está instalado. Cuando se instale, aquí se invita a cada apartamento con un enlace de un solo uso.</p>') + '</div>';
+}
+document.addEventListener('input', e => { if (e.target.id !== 'buscar-con') return; S.filtroCon = e.target.value; clearTimeout(S.tCon); S.tCon = setTimeout(() => { pintar(); const el = $('#buscar-con'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 250); });
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-importar-contactos]')) { await enviar('ctb_contactos_importar', {}); return; }
+  const ed = e.target.closest('[data-editar-contacto]');
+  if (ed) { const a = ed.dataset.editarContacto, c = contactoDe(a) || {};
+    dialogo('<h2>Contacto del apto. ' + esc(a) + '</h2><form id="f-contacto" class="form"><input type="hidden" name="apartamento" value="' + esc(a) + '"><label class="ancho">Nombre<input name="nombre" value="' + esc(c.nombre || '') + '"></label>' +
+      '<label>Teléfono<input name="telefono" inputmode="tel" value="' + esc(c.telefono || '') + '" placeholder="809-555-1234"></label><label>Correo<input name="correo" type="email" value="' + esc(c.correo || '') + '"></label>' +
+      '<label class="chk"><input type="checkbox" name="acepta_whatsapp"' + (c.acepta_whatsapp === 'no' ? '' : ' checked') + '> Acepta WhatsApp</label><label class="chk"><input type="checkbox" name="acepta_correo"' + (c.acepta_correo === 'no' ? '' : ' checked') + '> Acepta correo</label>' +
+      '<div class="ancho"><button class="btn primario" type="submit">Guardar</button></div></form>'); return; }
+  const inv = e.target.closest('[data-invitar-bot]');
+  if (inv) { try { const r = await api('ctb_bot_invitar', { torre: S.torre, apartamento: inv.dataset.invitarBot });
+    dialogo('<h2>Invitación al Bot de Cobros</h2><p>Enlace de un solo uso para el apto. ' + esc(inv.dataset.invitarBot) + ' (vence en 7 días):</p><p><code style="word-break:break-all">' + esc(r.enlace) + '</code></p><a class="btn primario" href="' + esc(r.whatsapp) + '" target="_blank" rel="noopener">Enviar por WhatsApp</a> <button class="btn" data-copiar="' + esc(r.texto) + '">Copiar el mensaje</button>'); }
+    catch (er) { toast(er.message, true); } return; }
+  const dv = e.target.closest('[data-desvincular]'); if (dv && confirm('¿Quitar el apto. ' + dv.dataset.desvincular + ' del Bot de Cobros?')) { await enviar('ctb_bot_desvincular', { apartamento: dv.dataset.desvincular }, 'Desvinculado.'); return; }
+  const cp = e.target.closest('[data-copiar]'); if (cp) { try { await navigator.clipboard.writeText(cp.dataset.copiar); toast('Copiado.'); } catch (er) { toast('No se pudo copiar.', true); } }
+});
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-contacto') return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target)); f.acepta_whatsapp = f.acepta_whatsapp ? 'si' : 'no'; f.acepta_correo = f.acepta_correo ? 'si' : 'no';
+  const r = await enviar('ctb_contacto', { contacto: f }, 'Contacto guardado.'); if (r) $('#dlg').close();
+});
+
+// ---------------------------------------------------------------- mensajes (WhatsApp a mano, estados, recibos)
+function cobranzaMensajes() {
+  const ms = (S.D.mensajes || []).slice().reverse(), manual = ms.filter(m => m.estado === 'manual');
+  const TIPO = { recibo: 'Recibo', encuesta: 'Encuesta', recordatorio: 'Recordatorio', libre: 'Mensaje' };
+  const fila = m => '<tr><td>' + fecha(m.creado_en) + ' <small>' + esc(String(m.creado_en).slice(11, 16)) + '</small></td><td><b>' + esc(m.apartamento) + '</b></td><td>' + esc(NOM_CANAL[m.canal] || m.canal) + '</td><td>' + esc(TIPO[m.tipo] || m.tipo) + '</td><td><span class="chip ' + (EST_MSJ[m.estado] || ['', ''])[1] + '">' + esc((EST_MSJ[m.estado] || [m.estado])[0]) + '</span>' + (m.error ? '<br><small class="rojo-t">' + esc(m.error) + '</small>' : '') + '</td><td><small>' + esc(String(m.texto).slice(0, 90)) + (String(m.texto).length > 90 ? '…' : '') + '</small></td><td>' +
+    (puede() && m.canal === 'whatsapp' && !S.D.wa_api ? (m.estado === 'manual' ? '<a class="btn primario" href="https://wa.me/' + esc(telWa(m.destino)) + '?text=' + encodeURIComponent(m.texto) + '" target="_blank" rel="noopener" data-wa-enviado="' + esc(m.id) + '">Abrir WhatsApp</a>' :
+      ['enviado', 'entregado'].indexOf(m.estado) >= 0 ? '<button class="btn" data-msj-estado="' + esc(m.id) + '|leido">Leído</button> <button class="btn" data-msj-estado="' + esc(m.id) + '|respondido">Respondió</button>' : m.estado === 'leido' ? '<button class="btn" data-msj-estado="' + esc(m.id) + '|respondido">Respondió</button>' : '') +
+      (['manual', 'enviado', 'entregado'].indexOf(m.estado) >= 0 ? ' <button class="btn" data-msj-estado="' + esc(m.id) + '|fallido">Falló</button>' : '') : '') +
+    (puede() && m.tipo === 'recibo' && m.estado === 'fallido' && m.cobro_id ? '<button class="btn" data-reenviar-recibo="' + esc(m.cobro_id) + '">Reenviar</button>' : '') + '</td></tr>';
+  return (manual.length ? '<div class="card"><h2>WhatsApp por enviar (' + manual.length + ')</h2><p class="mini">Toque «Abrir WhatsApp»: el mensaje ya está escrito. Al volver, márquelo cuando lo lea o responda.</p>' + tabla(['Creado', 'Apto.', 'Canal', 'Tipo', 'Estado', 'Mensaje', ''], manual.map(fila), '') + '</div>' : '') +
+    '<div class="card"><h2>Todos los mensajes</h2>' + tabla(['Creado', 'Apto.', 'Canal', 'Tipo', 'Estado', 'Mensaje', ''], ms.slice(0, 200).map(fila), 'Todavía no hay mensajes. Los recibos, encuestas y recordatorios aparecen aquí.') + '</div>';
+}
+document.addEventListener('click', async e => {
+  const w = e.target.closest('[data-wa-enviado]'); if (w) { setTimeout(() => enviar('ctb_mensaje_estado', { id: w.dataset.waEnviado, estado: 'enviado' }), 400); return; }
+  const s = e.target.closest('[data-msj-estado]'); if (s) { const [id, est] = s.dataset.msjEstado.split('|'); await enviar('ctb_mensaje_estado', { id, estado: est }); return; }
+  const rr = e.target.closest('[data-reenviar-recibo]'); if (rr) { const r = await enviar('ctb_recibo_reenviar', { cobro_id: rr.dataset.reenviarRecibo }); if (r) dialogo('<h2>Recibo reenviado</h2>' + avisoEnvio(r.envio_recibo)); }
+});
+
+// ---------------------------------------------------------------- un apartamento
+function textoRecordatorio(a) {
+  const e = edoCuenta(a), c = cfg();
+  return 'Saludos. ' + S.torre + ', apto. ' + a + '. Le recordamos su saldo pendiente: ' + e.por_clase.map(x => K.nombreClase(x.clase) + ' ' + dinero(x.deuda)).join(', ') + '. Total ' + dinero(e.deuda) + '.' +
+    (S.D.codigo_qr ? ' Si ya pagó, avise aquí: ' + location.origin + location.pathname.replace(/[^/]*$/, '') + 'pago.html?c=' + S.D.codigo_qr : '') + ' Gracias.';
+}
 function cobranzaApto() {
-  const a = S.apto, ec = K.estadoCuenta(a, S.D.recibos, S.D.cobros);
-  const gs = S.D.gestiones.filter(g => g.apartamento === a).slice().reverse(), acs = S.D.acuerdos.filter(x => x.apartamento === a).slice().reverse();
-  return '<div class="card resumen"><div><h1>Apto. ' + esc(a) + '</h1><p class="nota" style="margin:0">Debe ' + dinero(ec.deuda) + (ec.a_favor ? ' · a favor ' + dinero(ec.a_favor) : '') + '</p></div><div class="acciones"><button class="btn" data-volver-cartera>← Cartera</button><button class="btn" data-imprimir-ec>Imprimir estado de cuenta</button>' +
-    (puede() ? '<button class="btn primario" data-cobrar-apto>Cobrar</button>' : '') + '</div></div>' +
-    '<div class="dos"><div class="card"><h2>Gestiones de cobro</h2>' + (puede() ? '<form id="f-gestion" class="form"><label>Tipo<select name="tipo"><option>llamada</option><option>mensaje</option><option>correo</option><option>visita</option><option>carta</option></select></label><label>Próxima gestión<input type="date" name="proxima"></label><label class="ancho">Nota<textarea name="nota" required placeholder="Qué se habló o se acordó"></textarea></label><div class="ancho"><button class="btn primario" type="submit">Anotar</button></div></form>' : '') +
-    (gs.length ? '<ul class="alertas" style="margin-top:12px">' + gs.map(g => '<li><b>' + esc(g.tipo) + '</b> · ' + fecha(g.fecha) + ' · ' + esc(g.creado_por) + '<br>' + esc(g.nota) + (g.proxima ? '<br><small>Próxima: ' + fecha(g.proxima) + '</small>' : '') + '</li>').join('') + '</ul>' : '<p class="nota">Sin gestiones todavía.</p>') + '</div>' +
+  const a = S.apto, e = edoCuenta(a), c = contactoDe(a) || {};
+  const gs = S.D.gestiones.filter(g => g.apartamento === a && g.estado !== 'anulado').slice().reverse(), acs = S.D.acuerdos.filter(x => x.apartamento === a).slice().reverse();
+  const ms = (S.D.mensajes || []).filter(m => m.apartamento === a).slice(-8).reverse();
+  return '<div class="card resumen"><div><h1>Apto. ' + esc(a) + '</h1><p class="nota" style="margin:0">Debe ' + dinero(e.deuda) + (e.a_favor ? ' · a favor ' + dinero(e.a_favor) : '') + (c.nombre ? ' · ' + esc(c.nombre) : '') + (c.telefono ? ' · ' + esc(c.telefono) : '') + (enBot(a) ? ' · 🤖 en el bot' : '') + '</p></div><div class="acciones"><button class="btn" data-volver-cartera>← Volver</button><button class="btn" data-imprimir-ec>Imprimir estado de cuenta</button>' +
+    (puede() ? (c.telefono ? '<button class="btn" data-recordar="whatsapp">Recordatorio por WhatsApp</button>' : '') + (c.correo ? '<button class="btn" data-recordar="correo">Por correo</button>' : '') + (enBot(a) ? '<button class="btn" data-recordar="telegram">Por Telegram</button>' : '') + '<button class="btn primario" data-cobrar-apto>Cobrar</button>' : '') + '</div></div>' +
+    '<div class="card"><h2>Lo que debe, por clase</h2>' + tabla(['Clase', '$Pendiente', '$Vencido', '$Cargos'], e.por_clase.map(x => '<tr><td>' + chipClase(x.clase) + '</td><td class="num"><b>' + dinero(x.deuda) + '</b></td><td class="num ' + (x.vencido ? 'rojo-t' : '') + '">' + dinero(x.vencido) + '</td><td class="num">' + x.partidas + '</td></tr>'), 'Sin saldo pendiente.') + '</div>' +
+    '<div class="dos">' + (puede() ? formGestion(a) : '') + '<div class="card"><h2>Gestiones</h2>' + (gs.length ? '<ul class="alertas">' + gs.map(g => { const st = g.promesa_fecha ? K.estadoPromesa(g, S.D.cobros, hoy()) : '';
+      return '<li class="' + (st === 'incumplida' ? 'rojo' : '') + '"><b>' + esc(NOM_CANAL[K.canalDe(g)] || g.tipo) + '</b> · ' + esc(NOM_RES[g.resultado] || g.resultado || '') + ' · ' + fecha(g.fecha) + ' · ' + esc(g.creado_por) + (g.nota ? '<br>' + esc(g.nota) : '') +
+        (g.promesa_fecha ? '<br><small>Promesa: ' + fecha(g.promesa_fecha) + (Number(g.promesa_monto) ? ' · ' + dinero(g.promesa_monto) : '') + ' · ' + esc(st) + '</small>' : '') + (g.proxima ? '<br><small>Seguimiento: ' + fecha(g.proxima) + '</small>' : '') + '</li>'; }).join('') + '</ul>' : '<p class="nota">Sin gestiones todavía.</p>') +
+      (ms.length ? '<h3 style="margin-top:12px">Mensajes</h3><ul class="alertas">' + ms.map(m => '<li>' + esc(NOM_CANAL[m.canal] || m.canal) + ' · ' + esc(m.tipo) + ' · <span class="chip ' + (EST_MSJ[m.estado] || ['', ''])[1] + '">' + esc((EST_MSJ[m.estado] || [m.estado])[0]) + '</span> · ' + fecha(m.creado_en) + '</li>').join('') + '</ul>' : '') + '</div></div>' +
     '<div class="card"><h2>Acuerdos de pago</h2>' + acs.map(x => { const st = K.estadoAcuerdo(x, S.D.cobros, hoy()); return '<div class="caja" style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px"><b>' + dinero(x.total) + ' en ' + plural((x.cuotas || []).length, 'cuota', 'cuotas') + '</b> desde ' + fecha(x.fecha) + ' <span class="chip ' + (st.estado === 'incumplido' ? 'rojo' : st.estado === 'cumplido' ? 'verde' : st.estado === 'anulado' ? '' : 'azul') + '">' + esc(st.estado) + '</span>' +
       (st.estado === 'incumplido' ? '<br><small class="rojo-t">Atraso de ' + dinero(st.atraso) + ' desde el ' + fecha(st.desde) + '</small>' : st.pagado !== undefined ? '<br><small>Pagado ' + dinero(st.pagado) + ' de ' + dinero(st.total) + (st.proxima ? ' · próxima cuota ' + fecha(st.proxima) : '') + '</small>' : '') +
       '<table style="margin-top:6px"><tbody>' + (x.cuotas || []).map(q => '<tr><td>' + fecha(q.vence) + '</td><td class="num">' + dinero(q.monto) + '</td></tr>').join('') + '</tbody></table>' + (puede() && x.estado === 'vigente' ? '<button class="btn" data-anular="acuerdos|' + esc(x.id) + '" data-titulo="Anular el acuerdo">Anular</button>' : '') + '</div>'; }).join('') +
-    (puede() && ec.deuda > 0 && !acs.some(x => x.estado === 'vigente') ? '<form id="f-acuerdo" class="form"><label>Monto del acuerdo<input name="total" inputmode="decimal" value="' + esc(ec.deuda) + '"></label><label>Cuotas<input type="number" name="n" min="1" max="24" value="3"></label><label>Primera cuota<input type="date" name="primera" required value="' + K.conDia(K.sumarMeses(hoy().slice(0, 7), 1), 15) + '"></label><label class="ancho">Nota<input name="nota" placeholder="Condiciones acordadas"></label><div class="ancho"><button class="btn primario" type="submit">Crear el acuerdo</button></div></form>' : (acs.length ? '' : '<p class="nota">Sin acuerdos.</p>')) + '</div></div>' +
-    '<div class="card"><h2>Estado de cuenta</h2>' + tabla(['Fecha', 'Detalle', '$Cargo', '$Abono', '$Saldo'], ec.movimientos.map(m => '<tr><td>' + fecha(m.fecha) + '</td><td>' + esc(m.detalle) + '</td><td class="num">' + (m.cargo ? dinero(m.cargo) : '') + '</td><td class="num">' + (m.abono ? dinero(m.abono) : '') + '</td><td class="num">' + dinero(m.saldo) + '</td></tr>'), 'Sin movimientos.') + '</div>';
+    (puede() && e.deuda > 0 && !acs.some(x => x.estado === 'vigente') ? '<form id="f-acuerdo" class="form"><label>Monto del acuerdo<input name="total" inputmode="decimal" value="' + esc(e.deuda) + '"></label><label>Cuotas<input type="number" name="n" min="1" max="24" value="3"></label><label>Primera cuota<input type="date" name="primera" required value="' + K.conDia(K.sumarMeses(hoy().slice(0, 7), 1), 15) + '"></label><label class="ancho">Nota<input name="nota" placeholder="Condiciones acordadas"></label><div class="ancho"><button class="btn primario" type="submit">Crear el acuerdo</button></div></form>' : (acs.length ? '' : '<p class="nota">Sin acuerdos.</p>')) + '</div>' +
+    '<div class="card"><h2>Estado de cuenta</h2>' + tabla(['Fecha', 'Detalle', '$Cargo', '$Abono', '$Saldo'], e.movimientos.map(m => '<tr><td>' + fecha(m.fecha) + '</td><td>' + esc(m.detalle) + '</td><td class="num">' + (m.cargo ? dinero(m.cargo) : '') + '</td><td class="num">' + (m.abono ? dinero(m.abono) : '') + '</td><td class="num">' + dinero(m.saldo) + '</td></tr>'), 'Sin movimientos.') + '</div>';
 }
 document.addEventListener('submit', async e => {
-  if (e.target.id === 'f-gestion') { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); await enviar('ctb_guardar', { tabla: 'gestiones', operacion: 'crear', datos: Object.assign(f, { apartamento: S.apto, fecha: hoy() }) }, 'Gestión anotada.'); }
   if (e.target.id === 'f-acuerdo') { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), total = K.r2(String(f.total).replace(/,/g, ''));
     if (!(total > 0)) return toast('Escriba el monto.', true);
-    const recibosAcuerdo = K.estadoCuenta(S.apto, S.D.recibos, S.D.cobros).pendientes.map(r => r.id);
+    const recibosAcuerdo = edoCuenta(S.apto).pendientes.map(r => r.id);
     await enviar('ctb_guardar', { tabla: 'acuerdos', operacion: 'crear', datos: { apartamento: S.apto, fecha: hoy(), total, cuotas: K.planCuotas(total, Number(f.n) || 1, f.primera), recibos: recibosAcuerdo, nota: f.nota } }, 'Acuerdo creado.'); }
 });
-document.addEventListener('click', e => {
-  if (e.target.closest('[data-cobrar-apto]')) { S.cobro = null; S.sec = 'cobros'; S.sub.cobros = 'cobrar'; history.replaceState(null, '', '#cobros'); pintar(); S.cobro.apartamento = S.apto; pintar(); }
+document.addEventListener('click', async e => {
+  const rc = e.target.closest('[data-recordar]');
+  if (rc) { const canal = rc.dataset.recordar, texto = textoRecordatorio(S.apto);
+    const r = await enviar('ctb_mensaje', { apartamento: S.apto, canal, tipo: 'recordatorio', texto }, canal === 'whatsapp' && !S.D.wa_api ? '' : 'Recordatorio enviado.');
+    if (r && r.envio && r.envio.whatsapp) window.open(r.envio.whatsapp, '_blank', 'noopener');
+    return; }
+  if (e.target.closest('[data-cobrar-apto]')) { const a = S.apto; S.cobro = null; S.sec = 'cobros'; S.sub.cobros = 'cobrar'; ponerHash(); pintar(); S.cobro.apartamento = a; pintar(); }
   if (e.target.closest('[data-imprimir-ec]')) {
-    const ec = K.estadoCuenta(S.apto, S.D.recibos, S.D.cobros);
+    const x = edoCuenta(S.apto);
     imprimir('Estado de cuenta ' + S.apto, '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>Estado de cuenta</div></div><div style="text-align:right">Apartamento <b>' + esc(S.apto) + '</b><br>al ' + fecha(hoy()) + '</div></div>' +
-      '<table><thead><tr><th>Fecha</th><th>Detalle</th><th class="num">Cargo</th><th class="num">Abono</th><th class="num">Saldo</th></tr></thead><tbody>' + ec.movimientos.map(m => '<tr><td>' + fecha(m.fecha) + '</td><td>' + esc(m.detalle) + '</td><td class="num">' + (m.cargo ? dinero(m.cargo) : '') + '</td><td class="num">' + (m.abono ? dinero(m.abono) : '') + '</td><td class="num">' + dinero(m.saldo) + '</td></tr>').join('') +
-      '</tbody></table><div class="caja">Deuda pendiente <b>' + dinero(ec.deuda) + '</b>' + (ec.a_favor ? ' · saldo a favor ' + dinero(ec.a_favor) : '') + '</div>');
+      '<h2>Pendiente por clase</h2><table><tbody>' + (x.por_clase.length ? x.por_clase.map(c => '<tr><td>' + esc(c.nombre) + '</td><td class="num">' + dinero(c.deuda) + '</td><td class="num">vencido ' + dinero(c.vencido) + '</td></tr>').join('') : '<tr><td>Sin saldo pendiente</td></tr>') + '</tbody></table>' +
+      '<h2>Movimientos</h2><table><thead><tr><th>Fecha</th><th>Detalle</th><th class="num">Cargo</th><th class="num">Abono</th><th class="num">Saldo</th></tr></thead><tbody>' + x.movimientos.map(m => '<tr><td>' + fecha(m.fecha) + '</td><td>' + esc(m.detalle) + '</td><td class="num">' + (m.cargo ? dinero(m.cargo) : '') + '</td><td class="num">' + (m.abono ? dinero(m.abono) : '') + '</td><td class="num">' + dinero(m.saldo) + '</td></tr>').join('') +
+      '</tbody></table><div class="caja">Deuda pendiente <b>' + dinero(x.deuda) + '</b>' + (x.a_favor ? ' · saldo a favor ' + dinero(x.a_favor) : '') + '</div>');
   }
 });
 
@@ -760,8 +946,8 @@ function htmlConciliaciones(per) {
 // ================================================================== REPORTES
 function vReportes() {
   const sub = subAct('reportes', 'liquidacion');
-  return subtabs('reportes', [['liquidacion', 'Liquidación mensual'], ['junta', 'Informe a la Junta'], ['rubros', 'Ingresos y egresos'], ['presupuesto', 'Presupuesto vs. real'], ['cuotas', 'Cuotas vs. cobros'], ['proveedores', 'Estado por proveedor'], ['registro', 'Registro de ventas y compras']]) +
-    ({ liquidacion: repLiquidacion, junta: repJunta, rubros: repRubros, presupuesto: repPresupuesto, cuotas: repCuotas, proveedores: repProveedores, registro: repRegistro }[sub])();
+  return subtabs('reportes', [['liquidacion', 'Liquidación mensual'], ['junta', 'Informe a la Junta'], ['rubros', 'Ingresos y egresos'], ['presupuesto', 'Presupuesto vs. real'], ['cuotas', 'Cuotas vs. cobros'], ['proveedores', 'Estado por proveedor'], ['registro', 'Registro de ventas y compras'], ['medida', 'Reporte a la medida']]) +
+    ({ liquidacion: repLiquidacion, junta: repJunta, rubros: repRubros, presupuesto: repPresupuesto, cuotas: repCuotas, proveedores: repProveedores, registro: repRegistro, medida: repMedida }[sub] || repLiquidacion)();
 }
 function htmlLiquidacion(per) {
   const L = K.liquidacion(datos(), per), c = cfg();
@@ -842,6 +1028,70 @@ function repRegistro() {
   return '<div class="card"><h2>Registro de ventas (cobros) · ' + esc(mesTxt(S.periodo)) + '</h2>' + tabla(['Fecha', 'Cliente', 'Detalle', 'Documento', '$Monto'], t(v), 'Sin cobros.') + '</div><div class="card"><h2>Registro de compras (pagos)</h2>' + tabla(['Fecha', 'Proveedor', 'Detalle', 'Documento', '$Monto'], t(c), 'Sin pagos.') + '</div>';
 }
 
+// ---------------------------------------------------------------- v3.2 · reporte a la medida
+const TIPOS_MEDIDA = [['morosidad', 'Morosidad (lo vencido)'], ['saldos', 'Saldos pendientes'], ['emitido', 'Emitido (facturado)'], ['cobrado', 'Cobrado']];
+function filtrosMedida() {
+  return S.medida = S.medida || { tipo: 'morosidad', clases: ['ordinaria'], corte: hoy(), desde: K.inicioDe(S.periodo), hasta: K.finDe(S.periodo), agrupar: 'apartamento', alcance: 'torre', tramo_min: 1 };
+}
+function celdaMedida(f, col) { const v = f[col[0]]; return col[2] === 'num' ? (col[0] === 'total' || K.TRAMOS.some(t => t[0] === col[0]) ? (v ? din0(v) : '') : esc(v)) : esc(v); }
+function tablaMedidaHtml(r, conTorre) {
+  const cols = (conTorre ? [['torre', 'Torre']] : []).concat(r.columnas || []);
+  return '<table><thead><tr>' + cols.map(c => '<th' + (c[2] === 'num' ? ' class="num"' : '') + '>' + esc(c[1]) + '</th>').join('') + '</tr></thead><tbody>' + (r.filas || []).map(f => '<tr>' + cols.map(c => '<td' + (c[2] === 'num' ? ' class="num"' : '') + '>' + celdaMedida(f, c) + '</td>').join('') + '</tr>').join('') +
+    '</tbody><tfoot><tr>' + cols.map((c, i) => '<td' + (c[2] === 'num' ? ' class="num"' : '') + '><b>' + (i === 0 ? 'Total' : r.total && r.total[c[0]] !== undefined ? (c[0] === 'total' || K.TRAMOS.some(t => t[0] === c[0]) ? din0(r.total[c[0]]) : esc(r.total[c[0]])) : '') + '</b></td>').join('') + '</tr></tfoot></table>';
+}
+function resumenMedida(r) {
+  const s = r.resumen || {};
+  if (r.tipo === 'morosidad' || r.tipo === 'saldos') return '<div class="kpis"><div class="kpi rojo"><span>' + (r.tipo === 'morosidad' ? 'Vencido' : 'Pendiente') + '</span><b>' + din0(s.total) + '</b><small>al ' + fecha(s.corte) + '</small></div>' +
+    '<div class="kpi"><span>Apartamentos</span><b>' + (s.apartamentos || 0) + '</b><small>de ' + (s.de_apartamentos || '—') + (s.pct_apartamentos !== null && s.pct_apartamentos !== undefined ? ' · ' + s.pct_apartamentos + ' %' : '') + '</small></div>' +
+    (s.indice !== null && s.indice !== undefined ? '<div class="kpi"><span>Índice de morosidad</span><b>' + s.indice + ' %</b><small>de lo emitido en 12 meses</small></div>' : '') + '</div>';
+  return '<div class="kpis"><div class="kpi"><span>' + (r.tipo === 'emitido' ? 'Emitido' : 'Cobrado') + '</span><b>' + din0(s.total) + '</b><small>' + fecha(s.desde) + ' al ' + fecha(s.hasta) + '</small></div>' +
+    (s.efectividad !== undefined ? '<div class="kpi"><span>Efectividad</span><b>' + (s.efectividad === null ? '—' : s.efectividad + ' %') + '</b><small>de ' + din0(s.emitido) + ' emitido</small></div>' : '') + '</div>';
+}
+function repMedida() {
+  const f = filtrosMedida(), fechas = f.tipo === 'morosidad' || f.tipo === 'saldos';
+  let cuerpo;
+  if (f.alcance === 'todas') {
+    const g = S.medidaGlobal;
+    cuerpo = !g ? '<p class="nota">Toque «Ver» para calcular el reporte de todas sus torres.</p>' : '<h3>' + esc(g.titulo) + ' · todas las torres</h3><div class="kpis"><div class="kpi"><span>Total</span><b>' + din0(g.total) + '</b><small>' + g.torres.length + ' torres</small></div></div>' +
+      '<div class="tabla"><table><thead><tr><th>Torre</th><th class="num">Total</th>' + (fechas ? '<th class="num">Aptos.</th><th class="num">% de aptos.</th><th class="num">Índice</th>' : '') + '</tr></thead><tbody>' +
+      g.torres.slice().sort((a, b) => b.total - a.total).map(t => '<tr><td><b>' + esc(t.torre) + '</b></td><td class="num">' + din0(t.total) + '</td>' + (fechas ? '<td class="num">' + (t.resumen.apartamentos || 0) + '</td><td class="num">' + (t.resumen.pct_apartamentos === null ? '—' : t.resumen.pct_apartamentos + ' %') + '</td><td class="num">' + (t.resumen.indice === null ? '—' : t.resumen.indice + ' %') + '</td>' : '') + '</tr>').join('') + '</tbody></table></div>';
+  } else {
+    const r = K.reporteMedida(datos(), f); S.medidaUltimo = r;
+    cuerpo = '<h3>' + esc(r.titulo) + '</h3>' + resumenMedida(r) + '<div class="tabla" style="margin-top:10px">' + tablaMedidaHtml(r) + '</div>';
+  }
+  return '<form class="card" id="f-medida"><div class="cab"><h2>Reporte a la medida</h2><span><button class="btn" type="button" data-medida-csv>Descargar CSV</button> <button class="btn" type="button" data-medida-print>Imprimir</button></span></div>' +
+    '<p class="mini">Elija qué quiere ver y de qué clases. Ejemplo: morosidad solo de cuotas ordinarias. Cada clase se cuenta por separado.</p><div class="form">' +
+    '<label>Reporte<select name="tipo">' + TIPOS_MEDIDA.map(([k, n]) => '<option value="' + k + '"' + (k === f.tipo ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' +
+    (fechas ? '<label>Al<input type="date" name="corte" value="' + esc(f.corte) + '"></label>' + (f.tipo === 'morosidad' ? '<label>Con más de (días vencido)<input type="number" name="tramo_min" min="1" max="720" value="' + esc(f.tramo_min || 1) + '"></label>' : '')
+      : '<label>Desde<input type="date" name="desde" value="' + esc(f.desde) + '"></label><label>Hasta<input type="date" name="hasta" value="' + esc(f.hasta) + '"></label>') +
+    '<label>Agrupar por<select name="agrupar">' + [['apartamento', 'Apartamento'], ['clase', 'Clase'], ['periodo', 'Mes']].map(([k, n]) => '<option value="' + k + '"' + (k === f.agrupar ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>' +
+    '<label>Alcance<select name="alcance"><option value="torre"' + (f.alcance !== 'todas' ? ' selected' : '') + '>Esta torre</option><option value="todas"' + (f.alcance === 'todas' ? ' selected' : '') + '>Todas mis torres</option></select></label>' +
+    '<fieldset class="ancho" style="border:0;padding:0;margin:0"><legend class="mini">Clases (sin marcar = todas)</legend><div class="clases-sel">' + K.CLASES.map(([k, n]) => '<label><input type="checkbox" name="clase" value="' + k + '"' + (f.clases.indexOf(k) >= 0 ? ' checked' : '') + '> ' + esc(n) + '</label>').join('') + '</div></fieldset>' +
+    '</div><div class="acciones-fila"><button class="btn primario" type="submit">Ver</button></div></form><div class="card">' + cuerpo + '</div>';
+}
+document.addEventListener('change', e => { const f = e.target.form; if (!f || f.id !== 'f-medida') return; leerMedida(f); if (S.medida.alcance !== 'todas') pintar(); else if (e.target.name === 'tipo' || e.target.name === 'alcance') pintar(); });
+function leerMedida(f) { const fd = new FormData(f), m = filtrosMedida(); ['tipo', 'corte', 'desde', 'hasta', 'agrupar', 'alcance', 'tramo_min'].forEach(k => { if (fd.has(k)) m[k] = fd.get(k); }); m.clases = fd.getAll('clase'); S.medidaGlobal = null; }
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'f-medida') return; e.preventDefault(); leerMedida(e.target);
+  if (S.medida.alcance === 'todas') { try { S.medidaGlobal = await api('ctb_reporte', { filtros: S.medida }); } catch (er) { return toast(er.message, true); } }
+  pintar();
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-medida-print]')) {
+    if (S.medida && S.medida.alcance === 'todas') { const g = S.medidaGlobal; if (!g) return toast('Toque «Ver» primero.', true);
+      return imprimir(g.titulo, '<div class="cab"><div><h1>Stili Group</h1><div>' + esc(g.titulo) + ' · todas las torres</div></div></div><table><thead><tr><th>Torre</th><th class="num">Total</th></tr></thead><tbody>' + g.torres.map(t => '<tr><td>' + esc(t.torre) + '</td><td class="num">' + dinero(t.total) + '</td></tr>').join('') + '</tbody><tfoot><tr><td><b>Total</b></td><td class="num"><b>' + dinero(g.total) + '</b></td></tr></tfoot></table>'); }
+    const r = S.medidaUltimo; if (!r) return;
+    imprimir(r.titulo, '<div class="cab"><div><h1>' + esc(S.torre) + '</h1><div>' + esc(r.titulo) + '</div></div></div>' + resumenMedida(r).replace(/<div class="kpi[^"]*"><span>([^<]*)<\/span><b>([^<]*)<\/b><small>([^<]*)<\/small><\/div>/g, '<p>$1: <b>$2</b> ($3)</p>').replace(/<\/?div[^>]*>/g, '') + tablaMedidaHtml(r));
+  }
+  if (e.target.closest('[data-medida-csv]')) {
+    let filas;
+    if (S.medida && S.medida.alcance === 'todas') { const g = S.medidaGlobal; if (!g) return toast('Toque «Ver» primero.', true); filas = [['Torre', 'Total']].concat(g.torres.map(t => [t.torre, t.total])); }
+    else { const r = S.medidaUltimo; if (!r) return; filas = [r.columnas.map(c => c[1])].concat(r.filas.map(f => r.columnas.map(c => f[c[0]]))); }
+    const csv = filas.map(l => l.map(v => { let t = String(v === undefined || v === null ? '' : v); if (/^[=+\-@]/.test(t) && isNaN(Number(t))) t = "'" + t; return /[",;\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })), a = document.createElement('a'); a.href = url; a.download = 'Reporte ' + (S.medida.tipo) + ' ' + hoy() + '.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+});
+
 // ================================================================== CONTABILIDAD FORMAL
 function htmlEstados() {
   const fin = K.finDe(S.periodo), anio = S.periodo.slice(0, 4), B = K.balances(datos(), fin, anio + '-01-01');
@@ -889,6 +1139,13 @@ function cfgReglas() {
     '<h2 style="margin-top:16px">Junta, caja y honorarios</h2><div class="form">' + campo('umbral_junta', 'Pagos desde este monto pasan por la Junta (RD$; 0 = no)', ' inputmode="decimal"') + campo('junta_nombre', 'Presidente de la Junta') + campo('junta_contacto', 'Contacto de la Junta (teléfono o correo)') +
     campo('colchon_caja', 'Avisar si la caja proyectada baja de (RD$)', ' inputmode="decimal"') + campo('honorario_monto', 'Honorarios mensuales de Stili (RD$)', ' inputmode="decimal"') + campo('honorario_dia', 'Día de vencimiento de los honorarios', ' type="number" min="1" max="31"') +
     campo('fondo_reserva_pct', 'Fondo de reserva según el reglamento (% de lo cobrado; 0 = no)', ' inputmode="decimal"') + '</div>' +
+    '<h2 style="margin-top:16px">Cobros separados por clase</h2><div class="form">' +
+    '<label class="ancho">Orden para aplicar un pago cuando el residente no dice qué paga (solo desempata cargos con el mismo vencimiento)<input name="orden_clases" value="' + esc(c.orden_clases) + '"' + dis + '></label>' +
+    '<label class="ancho">La mora se calcula sobre<input name="mora_clases" value="' + esc(c.mora_clases) + '"' + dis + '></label>' +
+    campo('encuesta_dias', 'Encuesta de satisfacción: máximo una cada (días)', ' type="number" min="1" max="365"') +
+    '<label class="ancho">Cómo pagar (lo ve el residente en el Bot de Cobros)<input name="banco_cuenta_texto" value="' + esc(c.banco_cuenta_texto || '') + '" placeholder="Transferencia a Banco … cuenta … a nombre del Condominio …"' + dis + '></label>' +
+    '<label>Recibo automático al aplicar un pago<select name="recibo_auto"' + dis + '><option value="si"' + (c.recibo_auto !== 'no' ? ' selected' : '') + '>Sí: correo, Telegram y WhatsApp</option><option value="no"' + (c.recibo_auto === 'no' ? ' selected' : '') + '>No</option></select></label></div>' +
+    '<p class="mini">Clases: ' + K.CLASES.map(([k, n]) => k + ' (' + esc(n.toLowerCase()) + ')').join(', ') + '. Ley: el residente puede decir qué deuda paga (art. 1253 del Código Civil); si no lo dice, el pago va a lo vencido y, entre lo vencido, a lo más antiguo (art. 1256). El orden de clases lo fija la Junta o el reglamento.</p>' +
     '<h2 style="margin-top:16px">Pago en línea</h2><div class="form"><label class="ancho">Enlace de la pasarela (use {recibo}, {monto} y {torre})<input name="pasarela_url" value="' + esc(c.pasarela_url) + '" placeholder="https://…?ref={recibo}&monto={monto}"' + dis + '></label></div>' +
     '<p class="mini">El pago en línea necesita contratar una pasarela (Azul, CardNet u otra). Con el enlace puesto, cada recibo muestra «Pague en línea»; para que el cobro se registre solo, la pasarela debe avisar al servicio con la clave CTB_CLAVE_PASARELA.</p>' +
     '<p class="mini">Fiscal: la DGII indicó (consulta del 09-oct-2023) que el condominio debe emitir comprobante fiscal por las cuotas, sin precisar el tipo; el recibo tiene un campo NCF para cuando Contabilidad lo defina. Las retenciones de ISR e ITBIS a proveedores no se calculan hasta confirmarlas con la DGII.</p>' +
@@ -899,6 +1156,9 @@ document.addEventListener('submit', async e => {
   const f = Object.fromEntries(new FormData(e.target));
   ['pp_porcentaje', 'mora_valor', 'umbral_junta', 'colchon_caja', 'honorario_monto', 'fondo_reserva_pct'].forEach(k => { f[k] = String(f[k] || '0').replace(/,/g, ''); if (isNaN(Number(f[k]))) f[k] = '0'; });
   if (Number(f.pp_porcentaje) > 50 || Number(f.fondo_reserva_pct) > 50) return toast('Revise los porcentajes: parecen demasiado altos.', true);
+  const claves = K.CLASES.map(x => x[0]), lista = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+  if (lista(f.orden_clases).some(k => claves.indexOf(k) < 0) || lista(f.mora_clases).some(k => claves.indexOf(k) < 0)) return toast('Use solo estas clases, separadas por comas: ' + claves.join(', '), true);
+  if (lista(f.mora_clases).indexOf('mora') >= 0) return toast('No se cobra mora sobre la mora.', true);
   await enviar('ctb_guardar', { tabla: 'config', datos: f }, 'Reglas guardadas.');
 });
 function cfgRubros() {
@@ -980,7 +1240,10 @@ const Demo = (() => {
   // cuotas, recibos y cobros de 4 meses (los morosos: 3B y 5A; 6B dejó de pagar)
   let serie = 1;
   meses.forEach((per, mi) => {
-    D.conceptos.push({ id: id('CON'), periodo: per, nombre: 'Mantenimiento', rubro: 'I1.1', reparto: 'parametro', parametro: 'PAR-1', monto: 228000, tipo: 'ordinaria', estado: 'activo' });
+    D.conceptos.push({ id: id('CON'), periodo: per, nombre: 'Mantenimiento', rubro: 'I1.1', reparto: 'parametro', parametro: 'PAR-1', monto: 228000, tipo: 'ordinaria', clase: 'ordinaria', estado: 'activo' });
+    D.conceptos.push({ id: id('CON'), periodo: per, nombre: 'Fondo de reserva', rubro: 'I4.1', reparto: 'igual', monto: 500, tipo: 'ordinaria', clase: 'fondo_reserva', estado: 'activo' });
+    if (mi >= 1) D.conceptos.push({ id: id('CON'), periodo: per, nombre: 'Impermeabilización del techo (' + mi + ' de 3)', rubro: 'I2.1', reparto: 'igual', monto: 3000, tipo: 'extraordinaria', clase: 'extraordinaria', estado: 'activo' });
+    D.conceptos.push({ id: id('CON'), periodo: per, nombre: 'Consumo de gas', rubro: 'I1.2', reparto: 'medidor', precio: 145, lecturas: Object.fromEntries(aptos.map((a, i) => [a, { anterior: 100 + mi * 9 + i, actual: 100 + (mi + 1) * 9 + i + (i % 4) }])), tipo: 'ordinaria', clase: 'gas', estado: 'activo' });
     if (mi === 3) return; // el mes actual queda para generar en la demostración
     const prev = K.armarRecibos({ periodo: per, conceptos: D.conceptos, aptos, valores: { 'PAR-1': D.parametros[0].valores }, config: D.config, emision: per + '-01' });
     prev.forEach(r => { r.id = id('REC'); r.numero = 'R' + String(serie++).padStart(6, '0'); r.estado = 'emitido'; D.recibos.push(r); });
@@ -1015,7 +1278,30 @@ const Demo = (() => {
   D.extracto.push({ id: 'EXT-D', cuenta_id: 'CTA-1', fecha: per2 + '-27', descripcion: 'Depósito en efectivo', referencia: 'DEP7781', monto: 8150, estado: 'pendiente' });
   D.sin_identificar.push({ id: id('SIN'), fecha: per0 + '-02', monto: 7900, cuenta_id: 'CTA-1', referencia: 'TRF 99812', descripcion: 'Transferencia sin concepto', estado: 'pendiente' });
   D.notificados.push({ id: id('NOT'), fecha: per0 + '-06', fecha_aviso: per0 + '-06', apartamento: '5A', monto: 8540, banco: 'Popular', referencia: '771234', nombre: 'Residente 5A', comprobante_url: '', canal: 'qr', estado: 'pendiente' });
-  D.gestiones.push({ id: id('GES'), fecha: K.sumarMeses(per0, -1) + '-20', apartamento: '3B', tipo: 'llamada', nota: 'Dice que paga a fin de mes.', creado_por: 'Gestora', estado: 'activo' });
+  // v3.2 · aviso por el bot: el residente del 6B dijo que paga la extraordinaria y el fondo del mes pasado
+  { const ps6 = K.estadoCuenta('6B', D.recibos, D.cobros, null, D.config).partidas.filter(p => p.periodo === meses[2] && (p.clase === 'extraordinaria' || p.clase === 'fondo_reserva'));
+    D.notificados.push({ id: id('NOT'), fecha: hoyD, fecha_aviso: hoyD, apartamento: '6B', monto: K.p(ps6.reduce((t, p) => t + K.c(p.saldo), 0)), banco: 'BHD', referencia: '55120', nombre: 'Residente 6B', comprobante_url: '', canal: 'bot', estado: 'pendiente', destino: ps6.map(p => p.key), chat_id: '1' }); }
+  // v3.2 · contactos, bot, gestiones, mensajes y encuestas de ejemplo (sin nombres reales)
+  D.contactos = aptos.slice(0, 10).map((a, i) => ({ id: 'CON-' + a, apartamento: a, nombre: 'Residente ' + a, telefono: '809-555-' + String(1000 + i * 37).slice(-4), correo: i % 3 ? 'residente' + a.toLowerCase() + '@correo.com' : '', acepta_whatsapp: 'si', acepta_correo: 'si', origen: 'encuesta' }));
+  D.bot = { usuario: 'StiliCobrosBot', activo: true, vinculos: [{ apartamento: '6B', nombre: 'Residente 6B', vinculado_en: K.sumarMeses(per0, -1) + '-02T10:00' }, { apartamento: '1A', nombre: 'Residente 1A', vinculado_en: K.sumarMeses(per0, -1) + '-05T10:00' }] };
+  D.wa_api = false; D.correo_cupo = 87;
+  const dAnt = K.sumarMeses(per0, -1), dHoy = d => per0 + '-' + String(d).padStart(2, '0');
+  const G = (f, a, canal, resultado, extra) => D.gestiones.push(Object.assign({ id: id('GES'), fecha: f, apartamento: a, tipo: canal, canal, resultado, creado_por: ['Mildred Pérez', 'Reyna Martínez'][D.gestiones.length % 2], estado: 'activa', nota: '' }, extra || {}));
+  G(dAnt + '-20T10:15', '3B', 'llamada', 'promesa', { duracion_seg: 240, promesa_fecha: dAnt + '-28', promesa_monto: 15000, nota: 'Dice que paga a fin de mes.', encuesta_id: 'ENC-1' });
+  G(dAnt + '-22T09:40', '5A', 'llamada', 'no_contesta', { proxima: dAnt + '-25' });
+  G(dAnt + '-25T11:05', '5A', 'whatsapp', 'enviado', { nota: 'Recordatorio con el saldo por clase.', mensaje_id: 'MSJ-1' });
+  G(dAnt + '-26T16:20', '5A', 'llamada', 'promesa', { duracion_seg: 180, promesa_fecha: hoyD > dHoy(3) ? dHoy(3) : hoyD, promesa_monto: 8540, nota: 'Va a transferir.', encuesta_id: 'ENC-2' });
+  G(dAnt + '-27T10:00', '6B', 'llamada', 'disputa', { duracion_seg: 420, nota: 'No está de acuerdo con el gas; se revisa la lectura.', proxima: hoyD });
+  G(dHoy(1) + 'T09:10', '4A', 'correo', 'enviado', { nota: 'Estado de cuenta enviado.' });
+  G(dHoy(1) + 'T15:30', '6B', 'telegram', 'contactado', { direccion: 'entrante', creado_por: 'Bot de Cobros', nota: 'Quiero un acuerdo para el gas.' });
+  D.mensajes = [
+    { id: 'MSJ-1', apartamento: '5A', canal: 'whatsapp', tipo: 'recordatorio', destino: '18095551148', texto: 'Saldo pendiente…', estado: 'leido', creado_en: dAnt + '-25T11:05', enviado_en: dAnt + '-25T11:05', leido_en: dAnt + '-25T12:40' },
+    { id: 'MSJ-2', apartamento: '3B', canal: 'whatsapp', tipo: 'encuesta', destino: '18095551111', texto: '¿Nos regala 30 segundos?', estado: 'entregado', creado_en: dAnt + '-20T10:20', enviado_en: dAnt + '-20T10:20' },
+    { id: 'MSJ-3', apartamento: '1A', canal: 'telegram', tipo: 'recibo', destino: '1', texto: 'Recibimos su pago', estado: 'entregado', creado_en: dAnt + '-04T09:00', enviado_en: dAnt + '-04T09:01' },
+    { id: 'MSJ-4', apartamento: '2A', canal: 'correo', tipo: 'recibo', destino: 'residente2a@correo.com', texto: 'Recibimos su pago', estado: 'enviado', creado_en: dAnt + '-12T09:00', enviado_en: dAnt + '-12T09:00' },
+    { id: 'MSJ-5', apartamento: '5A', canal: 'whatsapp', tipo: 'encuesta', destino: '18095551148', texto: 'Saludos. Gracias por atender a Stili Group. ¿Nos regala 30 segundos para decirnos cómo le atendimos en cobros? https://stiligroup.github.io/lobby/encuesta-cobros.html?demo=1', estado: 'manual', creado_en: dAnt + '-26T16:25' }];
+  D.encuestas = [{ id: 'ENC-1', apartamento: '3B', gestor: 'Mildred Pérez', canal: 'whatsapp', enviada_en: dAnt + '-20T10:20', respondida_en: dAnt + '-20T18:02', csat: 4, claridad: 5, trato: 4, resuelto: 'si', nps: 8, comentario: 'Me explicaron bien lo que debo.' },
+    { id: 'ENC-2', apartamento: '5A', gestor: 'Reyna Martínez', canal: 'whatsapp', enviada_en: dAnt + '-26T16:25', respondida_en: '', csat: '', nps: '' }];
   const deuda3B = K.estadoCuenta('3B', D.recibos, D.cobros).deuda;
   D.acuerdos.push({ id: id('ACU'), fecha: K.sumarMeses(per0, -1) + '-01', apartamento: '3B', total: deuda3B, cuotas: K.planCuotas(deuda3B, 3, K.sumarMeses(per0, -1) + '-10'), estado: 'vigente', nota: 'Tres pagos mensuales' });
   D.aprobaciones.push({ id: id('APR'), cxp_id: D.pagos[D.pagos.length - 2].id, suplidor: 'Generadores del Caribe', monto: 86500, estado: 'pendiente', pedida_por: 'Contabilidad' });
@@ -1050,23 +1336,51 @@ const Demo = (() => {
       q.recibos.forEach(r => { abierto(r.emision); if ((r.tipo === 'ordinaria' || r.tipo === 'mora') && D.recibos.some(x => K.activo(x) && x.apartamento === r.apartamento && x.periodo === q.periodo && x.tipo === r.tipo)) err('El apto. ' + r.apartamento + ' ya tiene recibo de ' + q.periodo + '.');
         const o = Object.assign({ id: id('REC'), numero: (D.config.serie_prefijo || 'R') + String(s++).padStart(6, '0'), periodo: q.periodo, estado: 'emitido' }, r); D.recibos.push(o); mapa[r.apartamento + '|' + r.tipo] = o; });
       D.config.serie_siguiente = String(s); serie = s;
-      (q.cruces || []).forEach(k => { const disp = K.aFavor(D.cobros)[k.apartamento] || 0; const aps = k.aplicaciones.map(x => { const r = mapa[k.apartamento + '|' + x.tipo]; return r ? { recibo_id: r.id, numero: r.numero, monto: Math.min(x.monto, disp), descuento: 0 } : null; }).filter(Boolean);
-        const usado = aps.reduce((t, x) => t + K.c(x.monto), 0); if (usado > 0) D.cobros.push({ id: id('COB'), fecha: k.fecha, apartamento: k.apartamento, monto: K.p(usado), forma: 'anticipo', origen: 'cruce', aplicaciones: aps, a_favor: 0, descuento: 0, estado: 'activo' }); });
+      (q.cruces || []).forEach(k => { const disp = K.aFavor(D.cobros)[k.apartamento] || 0, pedido = k.aplicaciones.reduce((t, x) => t + Math.max(0, Number(x.monto) || 0), 0), nuevos = Object.values(mapa).filter(r => r.apartamento === k.apartamento);
+        const cr = nuevos.length && disp > 0 ? K.cruzarAnticipo({ apartamento: k.apartamento, disponible: Math.min(disp, pedido), pendientes: K.conSaldo(nuevos, []), fecha: k.fecha, config: D.config }) : null;
+        if (cr) D.cobros.push(Object.assign({ id: id('COB'), estado: 'activo' }, cr)); });
       return clonar();
     },
     ctb_cobrar: q => {
       const k = q.cobro; abierto(k.fecha);
       if (!(k.monto > 0)) err('El monto debe ser mayor que cero.');
-      const sald = K.conSaldo(D.recibos, D.cobros); let suma = 0;
-      k.aplicaciones.forEach(x => { const r = sald.find(y => y.id === x.recibo_id); if (K.c(x.monto) + K.c(x.descuento || 0) > K.c(r.saldo)) err('El recibo ' + r.numero + ' solo tiene ' + r.saldo + ' pendiente.'); suma += K.c(x.monto); });
+      const sald = K.conSaldo(D.recibos, D.cobros, null, D.config); let suma = 0; const usado = {};
+      k.aplicaciones.forEach(x => { const r = sald.find(y => y.id === x.recibo_id), l = r && r.lineas[x.linea]; if (!l) err('Cada monto aplicado debe decir a qué línea del recibo va.');
+        const key = x.recibo_id + '#' + x.linea; usado[key] = (usado[key] || 0) + K.c(x.monto) + K.c(x.descuento || 0); if (usado[key] > K.c(l.saldo)) err('«' + l.concepto + '» del recibo ' + r.numero + ' solo tiene ' + l.saldo + ' pendiente.'); suma += K.c(x.monto); });
       let cuenta = k.cuenta_id;
       if (k.origen === 'sin_identificar') { const s = D.sin_identificar.find(x => x.id === k.origen_id); s.estado = 'identificado'; cuenta = s.cuenta_id; }
       const nuevo = { id: id('COB'), fecha: k.fecha, apartamento: k.apartamento, monto: k.monto, forma: k.forma, cuenta_id: cuenta, referencia: k.referencia, origen: k.origen, origen_id: k.origen_id, aplicaciones: k.aplicaciones, descuento: K.p(k.aplicaciones.reduce((t, x) => t + K.c(x.descuento || 0), 0)), a_favor: K.p(K.c(k.monto) - suma), estado: 'activo' };
       D.cobros.push(nuevo);
       if (k.origen === 'sin_identificar') D.sin_identificar.find(x => x.id === k.origen_id).cobro_id = nuevo.id;
       if (k.origen === 'notificado') Object.assign(D.notificados.find(x => x.id === k.origen_id), { estado: 'aprobado', cobro_id: nuevo.id, revisado_por: 'Demostración' });
-      return clonar();
+      // v3.2 · recibo automático (en la demostración no sale nada)
+      const c = D.contactos.find(x => x.apartamento === k.apartamento) || {}, canales = [];
+      if (D.bot.vinculos.some(v => v.apartamento === k.apartamento)) canales.push({ canal: 'telegram', estado: 'pendiente' });
+      if (c.telefono) { canales.push({ canal: 'whatsapp', estado: 'manual' }); D.mensajes.push({ id: id('MSJ'), apartamento: k.apartamento, canal: 'whatsapp', tipo: 'recibo', destino: c.telefono, texto: 'Recibimos su pago de ' + dinero(k.monto) + '. Constancia ' + nuevo.id + '.', estado: 'manual', cobro_id: nuevo.id, creado_en: new Date().toISOString().slice(0, 16) }); }
+      if (c.correo) canales.push({ canal: 'correo', estado: 'enviado' });
+      const r = clonar(); r.envio_recibo = { canales, whatsapp: c.telefono ? 'https://wa.me/1' + c.telefono.replace(/\D/g, '') + '?text=' + encodeURIComponent('Recibimos su pago de ' + dinero(k.monto) + '. Constancia ' + nuevo.id + '. Gracias.') : '', aviso: canales.length ? '' : 'El apto. no tiene teléfono, correo ni Telegram registrados.' };
+      return r;
     },
+    // v3.2 · cobros
+    ctb_gestion: q => { const g = q.gestion; if (!g.resultado) err('Elija el resultado de la gestión.'); if (g.resultado === 'promesa' && !g.promesa_fecha) err('La fecha prometida no es válida (use el calendario).');
+      const o = Object.assign({ id: id('GES'), fecha: new Date().toISOString().slice(0, 16), tipo: g.canal, creado_por: 'Demostración', estado: 'activa' }, g); delete o.enviar_encuesta; let enc = null;
+      if (g.enviar_encuesta && K.esContacto(g.resultado)) { if (D.encuestas.some(e => e.apartamento === g.apartamento && Date.now() - Date.parse(e.enviada_en) < 30 * 864e5)) enc = { estado: 'omitida', aviso: 'No se envió la encuesta: el apto. ' + g.apartamento + ' ya recibió una en los últimos 30 días.' };
+        else { const e = { id: id('ENC'), apartamento: g.apartamento, gestor: 'Demostración', canal: 'whatsapp', enviada_en: new Date().toISOString().slice(0, 16) }; D.encuestas.push(e); o.encuesta_id = e.id; const c = D.contactos.find(x => x.apartamento === g.apartamento);
+          const txt = 'Saludos. ¿Nos regala 30 segundos para decirnos cómo le atendimos en cobros? ' + location.href.replace(/contabilidad\.html.*$/, 'encuesta-cobros.html?demo=1');
+          D.mensajes.push({ id: id('MSJ'), apartamento: g.apartamento, canal: 'whatsapp', tipo: 'encuesta', destino: c ? c.telefono : '', texto: txt, estado: c ? 'manual' : 'pendiente', creado_en: new Date().toISOString().slice(0, 16) });
+          enc = c ? { estado: 'manual', whatsapp: 'https://wa.me/1' + c.telefono.replace(/\D/g, '') + '?text=' + encodeURIComponent(txt) } : { estado: 'sin_canal', aviso: 'El apto. no tiene teléfono registrado.' }; } }
+      D.gestiones.push(o); const r = clonar(); r.encuesta = enc; return r; },
+    ctb_gestion_anular: q => { D.gestiones.find(g => g.id === q.id).estado = 'anulado'; return clonar(); },
+    ctb_contacto: q => { const c = q.contacto; if (c.telefono && String(c.telefono).replace(/\D/g, '').length !== 10) err('El teléfono debe tener 10 dígitos (809, 829 u 849).'); const x = D.contactos.find(y => y.apartamento === c.apartamento); if (x) Object.assign(x, c); else D.contactos.push(Object.assign({ id: id('CON') }, c)); return clonar(); },
+    ctb_contactos_importar: () => { const r = clonar(); r.aviso = 'No había contactos nuevos para traer.'; return r; },
+    ctb_mensaje: q => { const c = D.contactos.find(x => x.apartamento === q.apartamento) || {}; const m = { id: id('MSJ'), apartamento: q.apartamento, canal: q.canal, tipo: q.tipo, destino: q.canal === 'whatsapp' ? c.telefono : c.correo, texto: q.texto, estado: q.canal === 'whatsapp' ? 'manual' : q.canal === 'telegram' ? 'pendiente' : 'enviado', creado_en: new Date().toISOString().slice(0, 16) };
+      D.mensajes.push(m); D.gestiones.push({ id: id('GES'), fecha: m.creado_en, apartamento: q.apartamento, tipo: q.canal, canal: q.canal, resultado: 'enviado', nota: q.texto.slice(0, 120), creado_por: 'Demostración', estado: 'activa' });
+      const r = clonar(); r.envio = { estado: m.estado, whatsapp: q.canal === 'whatsapp' && c.telefono ? 'https://wa.me/1' + c.telefono.replace(/\D/g, '') + '?text=' + encodeURIComponent(q.texto) : '' }; return r; },
+    ctb_mensaje_estado: q => { const m = D.mensajes.find(x => x.id === q.id); m.estado = q.estado; const h = new Date().toISOString().slice(0, 16); if (q.estado === 'enviado') m.enviado_en = h; if (q.estado === 'leido') m.leido_en = h; if (q.estado === 'respondido') m.respondido_en = h; return clonar(); },
+    ctb_recibo_reenviar: () => { const r = clonar(); r.envio_recibo = { canales: [{ canal: 'correo', estado: 'enviado' }] }; return r; },
+    ctb_bot_invitar: q => { const enlace = 'https://t.me/StiliCobrosBot?start=cDEMO' + q.apartamento; const texto = 'Saludos. Consulte su saldo, envíe su comprobante y pida su recibo por Telegram: ' + enlace; return { enlace, texto, whatsapp: 'https://wa.me/?text=' + encodeURIComponent(texto) }; },
+    ctb_bot_desvincular: q => { D.bot.vinculos = D.bot.vinculos.filter(v => v.apartamento !== q.apartamento); return clonar(); },
+    ctb_reporte: q => { const r = K.reporteMedida(D, q.filtros); return { titulo: r.titulo, total: r.resumen.total, torres: [{ torre: T, total: r.resumen.total, resumen: r.resumen }, { torre: 'Torre Niza 7 (ejemplo)', total: K.r2(r.resumen.total * 1.7), resumen: Object.assign({}, r.resumen, { apartamentos: 9, pct_apartamentos: 22.5, indice: 9.4 }) }] }; },
     ctb_notificado_rechazar: q => { Object.assign(D.notificados.find(x => x.id === q.id), { estado: 'rechazado', motivo: q.motivo, revisado_por: 'Demostración' }); return clonar(); },
     ctb_extracto: q => { let nuevos = 0; q.movimientos.forEach(m => { if (!D.extracto.some(x => x.cuenta_id === q.cuenta_id && x.fecha === m.fecha && x.monto === m.monto && x.referencia === m.referencia)) { D.extracto.push(Object.assign({ id: id('MOV'), cuenta_id: q.cuenta_id, estado: 'pendiente' }, m)); nuevos++; } }); const r = clonar(); r.aviso = nuevos + ' movimientos nuevos.'; return r; },
     ctb_conciliar: q => { abierto(q.periodo + '-01');

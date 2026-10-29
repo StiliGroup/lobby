@@ -20,7 +20,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '3.1';
+  const VERSION_BARRA = '3.2';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -66,7 +66,9 @@
       { t: 'Ingresos', items: [
         ct('Cuotas y recibos', 'cuotas', 'Conceptos del mes, reparto y recibos'),
         ct('Cobros', 'cobros', 'Cobrar, avisos y depósitos sin identificar'),
-        ct('Cobranza y acuerdos', 'cobranza', 'Cartera por antigüedad y seguimiento'),
+        ct('Cartera y acuerdos', 'cobranza/cartera', 'Por antigüedad y por clase'),
+        ct('Seguimiento de cobranza', 'cobranza/seguimiento', 'Llamadas, WhatsApp, promesas de pago'),
+        ct('Métricas de cobros', 'cobranza/metricas', 'Contacto, promesas, WhatsApp leído y encuesta'),
         { t: 'Listado semanal de cuentas por cobrar', d: 'Cargar el listado y ver saldos', href: 'cobros.html', ve: 'cobros' }] },
       { t: 'Egresos · por pagar', items: [
         { t: '1 · Bandeja', d: 'Facturas, nómina y Vigía de pagos', href: 'torres.html?m=finanzas#/cxp/bandeja', ve: 'cuentas', viejo: 'torres' },
@@ -95,7 +97,8 @@
         ct('Presupuesto contra lo real', 'reportes/presupuesto'),
         ct('Cuotas contra cobros', 'reportes/cuotas'),
         ct('Estado por proveedor', 'reportes/proveedores'),
-        ct('Registro de ventas y compras', 'reportes/registro')] },
+        ct('Registro de ventas y compras', 'reportes/registro'),
+        ct('Reporte a la medida', 'reportes/medida', 'Por clase: p. ej. morosidad solo de ordinarias')] },
       { t: 'Estados financieros', items: [
         ct('Balance y estado de resultados', 'formal/estados'),
         ct('Libro diario', 'formal/diario', 'CSV para el contador'),
@@ -110,7 +113,9 @@
     { k: 'comunicaciones', t: 'Comunicaciones', ve: 'torres', grupos: [
       { t: 'Residentes', items: [
         { t: 'Reclamaciones y comunicados', href: 'torres.html?m=operaciones#/reclamaciones', ve: 'operaciones', viejo: 'torres' },
-        ct('Avisos de pago de residentes', 'cobros/avisos', 'Comprobantes que suben por el QR'),
+        ct('Avisos de pago de residentes', 'cobros/avisos', 'Comprobantes del QR y del Bot de Cobros'),
+        ct('Mensajes de WhatsApp y recibos', 'cobranza/mensajes', 'Por enviar, leídos y sin leer'),
+        ct('Bot de Cobros y contactos', 'cobranza/contactos', 'Invitar residentes al bot de Telegram'),
         { t: 'Opinión de los clientes', d: 'Encuesta por QR y comentarios', href: 'opiniones.html', ve: 'torres' },
         { t: 'Códigos QR del lobby', d: 'Un cartel por torre para imprimir', href: 'opiniones.html#qr', ve: 'torres' }] },
       { t: 'Junta Directiva', items: [
@@ -247,7 +252,7 @@
 .sm-torre-lista p { margin: 8px 10px; font-size: 13px; color: #5A6B78; }
 .sm-cajon .sm-buscar { margin: 8px 0 4px; font-size: 16px; }
 .sm-cajon [hidden] { display: none !important; }
-@media (max-width: 640px) { .sm-torre-btn { max-width: 60vw; } .sm-migas span:not(:last-child) { display: none; } .sm-migas span + span::before { display: none; } }
+@media (max-width: 640px) { .sm-torre { max-width: 58%; } .sm-torre-btn { max-width: 100%; } .sm-migas { flex: 1 1 0; } .sm-migas span:not(:last-child) { display: none; } .sm-migas span + span::before { display: none; } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sm-torre-btn { background: #13222F; border-color: #26394A; color: #E6EEF2; } :root:not([data-theme="light"]) .sm-torre-btn span { color: #D9B45E; }
   :root:not([data-theme="light"]) .sm-torre-menu { background: #13222F; color: #E6EEF2; } :root:not([data-theme="light"]) .sm-torre-lista button { color: #E6EEF2; }
   :root:not([data-theme="light"]) .sm-torre-lista button:hover { background: #1E3346; } :root:not([data-theme="light"]) .sm-torre-lista button[aria-selected="true"] { background: #33291A; color: #fff; }
@@ -735,6 +740,6 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     } }, window.STILI_PROTECCION || {});
   const actual = document.currentScript && document.currentScript.src;
   const s = document.createElement('script');
-  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.1') : 'stili-proteccion.js?v=3.1';
+  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.2') : 'stili-proteccion.js?v=3.2';
   (document.head || document.documentElement).appendChild(s);
 })();

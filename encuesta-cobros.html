@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>¿Cómo le atendimos? · Stili Group</title>
+<meta name="theme-color" content="#003A75">
+<meta name="robots" content="noindex">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+<script src="config.js"></script>
+<style>
+/* v3.2 · Encuesta de satisfacción del departamento de cobros: llega por WhatsApp, Telegram o correo después de hablar con el residente. */
+:root { --bg: #F3F5F9; --panel: #FFFFFF; --fg: #13293D; --muted: #5A6B78; --line: #DCE3EC; --azul: #003A75; --oro: #DCB40C; --ok: #1E7D4F; --ok-s: #E3F3EA; --crit: #B3261E; --sel: #E3E8F4; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0C1822; --panel: #13222F; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A; --azul: #6E9BD6; --ok: #4CC08A; --ok-s: #143024; --crit: #F07C73; --sel: #1E3346; } }
+* { box-sizing: border-box; } [hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Montserrat, "Segoe UI", system-ui, sans-serif; }
+button, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--oro); outline-offset: 2px; }
+.top { background: #003A75; color: #fff; border-bottom: 3px solid var(--oro); }
+.top .in, main { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.top .in { padding-block: 18px; }
+.top small { color: var(--oro); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.top h1 { margin: 2px 0; font-size: 21px; } .top p { margin: 0; font-size: 13.5px; color: #DCE6F2; }
+main { padding-block: 16px 56px; }
+form { display: grid; gap: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+fieldset { border: 0; margin: 0; padding: 0; }
+legend { font-weight: 700; font-size: 14.5px; margin-bottom: 8px; padding: 0; }
+.escala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.escala.diez { grid-template-columns: repeat(11, 1fr); gap: 4px; }
+.escala label { display: block; }
+.escala input { position: absolute; opacity: 0; pointer-events: none; }
+.escala span { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 48px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 15px; text-align: center; }
+.escala.cinco span small { font-weight: 500; font-size: 10.5px; color: var(--muted); }
+.escala input:checked + span { background: var(--azul); border-color: var(--azul); color: #fff; }
+.escala input:checked + span small { color: #DCE6F2; }
+.escala input:focus-visible + span { outline: 3px solid var(--oro); outline-offset: 2px; }
+.extremos { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.sino { display: flex; gap: 8px; } .sino label { flex: 1; }
+textarea { width: 100%; min-height: 80px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--panel); font-size: 16px; }
+.btn { border: 0; background: var(--azul); color: #fff; border-radius: 10px; padding: 13px 18px; font-weight: 700; font-size: 16px; cursor: pointer; }
+.btn:disabled { opacity: .6; }
+.error { color: var(--crit); font-size: 13px; font-weight: 600; border-left: 2px solid var(--crit); padding-left: 9px; }
+.listo { background: var(--ok-s); color: var(--ok); border-radius: 12px; padding: 22px; text-align: center; }
+.listo h2 { margin: 0 0 4px; font-size: 19px; }
+.demo { color: #8A5300; font-size: 12px; font-weight: 600; border-left: 2px solid #C98A00; padding-left: 9px; margin-bottom: 10px; }
+.priv { font-size: 12.5px; color: var(--muted); margin: 0; }
+@media (max-width: 400px) { .escala.diez span { min-height: 40px; font-size: 13px; } }
+</style>
+</head>
+<body>
+<header class="top"><div class="in"><small>Stili Group · Cobros</small><h1>¿Cómo le atendimos?</h1><p id="sub">Cargando…</p></div></header>
+<main>
+  <p class="demo" id="demo" hidden>Demostración: nada se envía.</p>
+  <p class="error" id="sin" hidden></p>
+  <form id="f" hidden novalidate>
+    <fieldset><legend>1. En general, ¿qué tan satisfecho quedó con la atención?</legend>
+      <div class="escala cinco" role="radiogroup">
+        <label><input type="radio" name="csat" value="1"><span>1<small>Muy mal</small></span></label><label><input type="radio" name="csat" value="2"><span>2<small>Mal</small></span></label>
+        <label><input type="radio" name="csat" value="3"><span>3<small>Regular</small></span></label><label><input type="radio" name="csat" value="4"><span>4<small>Bien</small></span></label>
+        <label><input type="radio" name="csat" value="5"><span>5<small>Muy bien</small></span></label></div></fieldset>
+    <fieldset><legend>2. ¿Le explicaron claro su saldo y qué estaba pagando?</legend>
+      <div class="escala cinco"><label><input type="radio" name="claridad" value="1"><span>1</span></label><label><input type="radio" name="claridad" value="2"><span>2</span></label><label><input type="radio" name="claridad" value="3"><span>3</span></label><label><input type="radio" name="claridad" value="4"><span>4</span></label><label><input type="radio" name="claridad" value="5"><span>5</span></label></div>
+      <div class="extremos"><span>Nada claro</span><span>Muy claro</span></div></fieldset>
+    <fieldset><legend>3. ¿El trato fue amable y respetuoso?</legend>
+      <div class="escala cinco"><label><input type="radio" name="trato" value="1"><span>1</span></label><label><input type="radio" name="trato" value="2"><span>2</span></label><label><input type="radio" name="trato" value="3"><span>3</span></label><label><input type="radio" name="trato" value="4"><span>4</span></label><label><input type="radio" name="trato" value="5"><span>5</span></label></div>
+      <div class="extremos"><span>Nada</span><span>Mucho</span></div></fieldset>
+    <fieldset><legend>4. ¿Quedó resuelto lo que necesitaba?</legend>
+      <div class="sino escala"><label><input type="radio" name="resuelto" value="si"><span>Sí</span></label><label><input type="radio" name="resuelto" value="no"><span>No</span></label></div></fieldset>
+    <fieldset><legend>5. Del 0 al 10, ¿recomendaría la administración de Stili a un vecino?</legend>
+      <div class="escala diez" id="nps"></div><div class="extremos"><span>Nada probable</span><span>Muy probable</span></div></fieldset>
+    <fieldset><legend>6. ¿Algo que debamos mejorar? (opcional)</legend><textarea name="comentario" maxlength="600" placeholder="Su comentario"></textarea></fieldset>
+    <p class="priv">Su respuesta se usa solo para medir y mejorar la atención del departamento de cobros.</p>
+    <p class="error" id="err" hidden></p>
+    <button class="btn" type="submit">Enviar</button>
+  </form>
+  <div class="listo" id="ok" hidden><h2>¡Gracias!</h2><p id="ok-txt">Su opinión nos ayuda a atenderle mejor.</p></div>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const Q = new URLSearchParams(location.search), T = (Q.get('t') || '').trim(), DEMO = Q.has('demo') || !(window.STILI && window.STILI.servicio);
+$('#nps').innerHTML = Array.from({ length: 11 }, (_, i) => '<label><input type="radio" name="nps" value="' + i + '"><span>' + i + '</span></label>').join('');
+async function api(accion, datos) {
+  if (DEMO) return accion === 'ctb_encuesta_info' ? { torre: 'Torre Demo Prime', respondida: false } : { ok: true, mensaje: '¡Gracias! Su opinión nos ayuda a atenderle mejor.' };
+  const r = await fetch(window.STILI.servicio, { method: 'POST', body: JSON.stringify(Object.assign({ accion }, datos)) });
+  const j = await r.json(); if (!j.ok) throw new Error(/acci[oó]n desconocida/i.test(j.error || '') ? 'Esta encuesta todavía no está activa.' : (j.error || 'No se pudo enviar.')); return j;
+}
+const fallo = t => { $('#sub').textContent = ''; $('#sin').textContent = t; $('#sin').hidden = false; };
+(async () => {
+  if (DEMO) $('#demo').hidden = false;
+  if (!T && !DEMO) return fallo('Este enlace no está completo. Use el enlace que le enviamos.');
+  try {
+    const i = await api('ctb_encuesta_info', { t: T });
+    if (i.respondida) { $('#sub').textContent = i.torre; $('#ok').hidden = false; $('#ok-txt').textContent = 'Esta encuesta ya se respondió. ¡Gracias!'; return; }
+    if (i.vencida) return fallo('Este enlace venció.');
+    $('#sub').textContent = i.torre + ' · 30 segundos, 6 preguntas.'; $('#f').hidden = false;
+  } catch (e) { fallo(e.message); }
+})();
+$('#f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target, fd = new FormData(f), err = $('#err'); err.hidden = true;
+  if (!fd.get('csat')) { err.textContent = 'Responda la primera pregunta (de 1 a 5).'; err.hidden = false; return; }
+  const b = f.querySelector('button'); b.disabled = true; b.textContent = 'Enviando…';
+  try {
+    const r = await api('ctb_encuesta_responder', { t: T, respuesta: { csat: fd.get('csat'), claridad: fd.get('claridad') || '', trato: fd.get('trato') || '', resuelto: fd.get('resuelto') || '', nps: fd.get('nps') === null ? '' : fd.get('nps'), comentario: fd.get('comentario') || '' } });
+    f.hidden = true; $('#ok-txt').textContent = r.mensaje || '¡Gracias!'; $('#ok').hidden = false; window.scrollTo(0, 0);
+  } catch (er) { err.textContent = er.message; err.hidden = false; b.disabled = false; b.textContent = 'Enviar'; }
+});
+</script>
+</body>
+</html>

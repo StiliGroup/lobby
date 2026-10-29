@@ -29,7 +29,8 @@ const recibos = num.recibos.map((r, i) => Object.assign(r, { id: 'r' + i }));
 const cfg = { pp_porcentaje: 10, pp_dia: 5, vence_dia: 15 };
 let pend = K.conSaldo(recibos, []);
 let a = K.aplicarCobro({ monto: 4770, fecha: '2026-09-04', pendientes: pend.filter(r => r.apartamento === '1A'), config: cfg });
-igual([a.aplicaciones[0].monto, a.aplicaciones[0].descuento, a.a_favor], [4770, 530, 0], 'pronto pago 10 % cubre el recibo');
+// v3.2 · el pronto pago es solo sobre la cuota ordinaria (5,000 → 500 de descuento); el gas (300) es otra clase y se paga aparte
+igual(a.aplicaciones.map(x => [x.clase, x.monto, x.descuento]).concat([a.a_favor]), [['ordinaria', 4500, 500], ['gas', 270, 0], 0], 'pronto pago 10 % sobre la ordinaria; el resto va al gas');
 a = K.aplicarCobro({ monto: 4770, fecha: '2026-09-10', pendientes: pend.filter(r => r.apartamento === '1A'), config: cfg });
 igual([a.aplicaciones[0].monto, a.aplicaciones[0].descuento], [4770, 0], 'fuera de plazo: abono parcial sin descuento');
 a = K.aplicarCobro({ monto: 6000, fecha: '2026-09-20', pendientes: pend.filter(r => r.apartamento === '1B'), config: cfg });
@@ -53,7 +54,9 @@ const ant = K.antiguedad(todos, cobros2, '2026-12-01');
 const fila2A = ant.filas.find(f => f.apartamento === '2A');
 igual([fila2A.d90, fila2A.d60, fila2A.d30, fila2A.total], [5000, 5000, 0, 10000], 'antigüedad 2A: septiembre 77 días (61–90), octubre 47 (31–60)');
 const mora = K.calcularMora({ recibos: todos, cobros: cobros2, config: { mora_tipo: 'porcentaje', mora_valor: 2, mora_dias_gracia: 10 }, periodo: '2026-11', fecha: '2026-11-01' });
-igual(mora.map(m => [m.apartamento, m.total]), [['1A', 206], ['1B', 80], ['2A', 200]], 'mora 2 % sobre todo lo vencido después de 10 días de gracia');
+// v3.2 · la mora se calcula sobre ordinaria y extraordinaria (no sobre el gas del 1A)
+igual(mora.map(m => [m.apartamento, m.total]), [['1A', 200], ['1B', 80], ['2A', 200]], 'mora 2 % sobre lo vencido de ordinaria/extraordinaria después de 10 días de gracia');
+igual(K.calcularMora({ recibos: todos, cobros: cobros2, config: { mora_tipo: 'porcentaje', mora_valor: 2, mora_dias_gracia: 10, mora_clases: 'ordinaria,extraordinaria,gas' }, periodo: '2026-11', fecha: '2026-11-01' })[0].total, 206, 'mora sobre el gas si la torre lo dice');
 igual(K.calcularMora({ recibos: todos.concat([Object.assign({}, mora[0], { id: 'm1' })]), cobros: cobros2, config: { mora_tipo: 'fijo', mora_valor: 500 }, periodo: '2026-11', fecha: '2026-11-01' }).map(m => m.apartamento), ['1B', '2A'], 'mora fija: no repite al 1A que ya tiene mora en el mes');
 
 // 6 · libro, conciliación
@@ -130,6 +133,60 @@ const acuR = { apartamento: '2A', fecha: '2026-10-01', recibos: ['rX'], cuotas: 
 igual(K.estadoAcuerdo(acuR, [{ apartamento: '2A', fecha: '2026-10-05', monto: 5000, aplicaciones: [{ recibo_id: 'rOtro', monto: 5000 }] }], '2026-11-05').estado, 'incumplido', 'acuerdo no cuenta el pago de la cuota corriente');
 const Dpre = { cuentas: [{ id: 'b', tipo: 'banco', saldo_inicial: 1000, fecha_inicial: '2026-09-01' }], ingresos: [{ id: 'i', fecha: '2026-08-15', monto: 300, cuenta_id: 'b', rubro: 'I2.5' }], rubros: K.rubrosBase() };
 igual([K.saldoCuenta('b', Dpre), K.balances(Dpre, '2026-12-31').filas.find(f => f.cuenta === '1102').saldo], [1000, 1000], 'movimiento previo al saldo inicial: libro y cuenta 1102 coinciden');
+
+// 13 · v3.2 · cobros segregados por clase
+{
+  const cf = { vence_dia: 10 };
+  const rA = { id: 'A1', numero: 'R1', periodo: '2026-08', apartamento: '5B', emision: '2026-08-01', vence: '2026-08-10', tipo: 'ordinaria', total: 9000,
+    lineas: [{ concepto: 'Mantenimiento', rubro: 'I1.1', tipo: 'ordinaria', monto: 6000 }, { concepto: 'Extraordinaria techo (1 de 3)', rubro: 'I2.1', tipo: 'extraordinaria', monto: 2000 }, { concepto: 'Fondo de reserva', rubro: 'I4.1', monto: 1000 }] };
+  const rB = { id: 'B1', numero: 'R2', periodo: '2026-09', apartamento: '5B', emision: '2026-09-01', vence: '2026-09-10', tipo: 'ordinaria', total: 6500,
+    lineas: [{ concepto: 'Mantenimiento', rubro: 'I1.1', monto: 6000 }, { concepto: 'Multa por ruido', rubro: 'I2.3', monto: 500 }] };
+  const rM = { id: 'M1', numero: 'R3', periodo: '2026-09', apartamento: '5B', emision: '2026-09-15', vence: '2026-09-10', tipo: 'mora', total: 120, lineas: [{ concepto: 'Mora', rubro: 'I2.4', tipo: 'mora', monto: 120 }] };
+  const rs = [rA, rB, rM];
+  igual(K.conSaldo(rs, [])[0].lineas.map(l => l.clase), ['ordinaria', 'extraordinaria', 'fondo_reserva'], 'cada línea con su clase');
+  // sin declarar qué paga (art. 1256): lo vencido más antiguo primero; con el mismo vencimiento, el orden de clases (la mora al final)
+  let ap = K.aplicarCobro({ monto: 10000, fecha: '2026-10-01', pendientes: K.conSaldo(rs, []), config: cf });
+  igual(ap.aplicaciones.map(x => [x.recibo_id, x.clase, x.monto]), [['A1', 'ordinaria', 6000], ['A1', 'extraordinaria', 2000], ['A1', 'fondo_reserva', 1000], ['B1', 'ordinaria', 1000]], 'orden legal: agosto completo y luego la ordinaria de septiembre');
+  // el residente declara qué paga (art. 1253): solo la extraordinaria y la multa
+  ap = K.aplicarCobro({ monto: 2500, fecha: '2026-10-01', pendientes: K.conSaldo(rs, []), config: cf, orden: ['A1#1', 'B1#1'] });
+  igual(ap.aplicaciones.map(x => [x.clase, x.monto]).concat([ap.a_favor]), [['extraordinaria', 2000], ['multa', 500], 0], 'paga exactamente lo que el residente eligió');
+  ap = K.aplicarCobro({ monto: 700, fecha: '2026-10-01', pendientes: K.conSaldo(rs, []), config: cf, orden: ['mora', 'multa'] });
+  igual(ap.aplicaciones.map(x => [x.clase, x.monto]), [['mora', 120], ['multa', 500]], 'elegir por clase');
+  igual(ap.a_favor, 80, 'lo que pasa de lo elegido queda a favor');
+  const ks = [{ id: 'k1', fecha: '2026-10-01', apartamento: '5B', monto: 2500, aplicaciones: [{ recibo_id: 'A1', linea: 1, monto: 2000 }, { recibo_id: 'B1', linea: 1, monto: 500 }] }];
+  const ec = K.estadoCuenta('5B', rs, ks, '2026-10-05');
+  igual(ec.por_clase.map(x => [x.clase, x.deuda]), [['ordinaria', 12000], ['fondo_reserva', 1000], ['mora', 120]], 'estado de cuenta por clase, sin mezclar');
+  // morosidad solo de cuotas ordinarias
+  const mo = K.reporteMedida({ recibos: rs, cobros: ks, aptos: ['5B', '6A'] }, { tipo: 'morosidad', clases: ['ordinaria'], corte: '2026-10-05' });
+  igual([mo.resumen.total, mo.filas[0].d60, mo.filas[0].d30, mo.resumen.apartamentos, mo.resumen.de_apartamentos], [12000, 6000, 6000, 1, 2], 'reporte: morosidad solo de ordinarias');
+  igual(mo.titulo, 'Morosidad · Cuota ordinaria', 'título del reporte');
+  const co = K.reporteMedida({ recibos: rs, cobros: ks }, { tipo: 'cobrado', desde: '2026-10-01', hasta: '2026-10-31' });
+  igual(co.filas.map(f => [f.clase, f.total]), [['extraordinaria', 2000], ['multa', 500]], 'reporte: cobrado por clase');
+  igual(K.porRubro({ recibos: rs, cobros: ks }, '2026-10-01', '2026-10-31').filas.map(f => [f.rubro, f.monto]), [['I2.1', 2000], ['I2.3', 500]], 'ingresos por rubro sin prorrateo');
+  // aplicación vieja (sin línea) se reparte en el orden de clases
+  const viejo = [{ id: 'v', fecha: '2026-09-01', apartamento: '5B', monto: 7000, aplicaciones: [{ recibo_id: 'A1', monto: 7000 }] }];
+  igual(K.conSaldo(rs, viejo)[0].lineas.map(l => l.saldo), [0, 1000, 1000], 'aplicación vieja: primero la ordinaria');
+  // pronto pago solo sobre lo ordinario
+  igual(K.descuentoProntoPago(Object.assign({}, rA, { periodo: '2026-08' }), '2026-08-03', { pp_porcentaje: 5, pp_dia: 5 }), 300, 'pronto pago: 5 % de la ordinaria (6,000)');
+  igual(K.montoProntoPago(rA, { pp_porcentaje: 5 }), 8700, 'monto con pronto pago');
+  // fondo de reserva va al patrimonio, no al resultado
+  igual(K.cuentaDeRubro('I4.1', 'ingreso'), '3103', 'fondo de reserva → cuenta 3103');
+  // cobranza
+  const gs = [
+    { id: 'g1', fecha: '2026-10-02T10:00', apartamento: '5B', canal: 'llamada', resultado: 'promesa', duracion_seg: 180, promesa_fecha: '2026-10-05', promesa_monto: 2000, creado_por: 'Ana' },
+    { id: 'g2', fecha: '2026-10-02T11:00', apartamento: '6A', canal: 'llamada', resultado: 'no_contesta', creado_por: 'Ana' },
+    { id: 'g3', fecha: '2026-10-03T09:00', apartamento: '6A', canal: 'whatsapp', resultado: 'enviado', creado_por: 'Luis' },
+    { id: 'g4', fecha: '2026-10-01T09:00', apartamento: '7C', canal: 'llamada', resultado: 'promesa', promesa_fecha: '2026-10-03', creado_por: 'Luis' }];
+  const cobs = [{ id: 'p1', fecha: '2026-10-04', apartamento: '5B', monto: 2500 }];
+  const msj = [{ canal: 'whatsapp', estado: 'leido', enviado_en: '2026-10-03T09:00:00Z', leido_en: '2026-10-03T09:30:00Z' }, { canal: 'whatsapp', estado: 'entregado', enviado_en: '2026-10-03T09:00:00Z' }, { canal: 'whatsapp', estado: 'manual', enviado_en: '2026-10-03T09:00:00Z' }];
+  const enc = [{ enviada_en: '2026-10-02', respondida_en: '2026-10-02', csat: 5, nps: 10, resuelto: 'si', gestor: 'Ana' }, { enviada_en: '2026-10-02', respondida_en: '2026-10-03', csat: 3, nps: 6, resuelto: 'no', gestor: 'Ana' }, { enviada_en: '2026-10-03', gestor: 'Luis' }];
+  const m = K.metricasCobranza({ gestiones: gs, cobros: cobs, mensajes: msj, encuestas: enc }, '2026-10-01', '2026-10-31', '2026-10-20');
+  igual([m.totales.gestiones, m.totales.contactos, m.totales.promesas, m.totales.cumplidas, m.totales.incumplidas, m.totales.recuperado], [4, 2, 2, 1, 1, 2500], 'métricas: gestiones, contacto, promesas y recuperado');
+  igual([m.totales.tasa_contacto, m.totales.tasa_cumplimiento, m.totales.minutos], [50, 50, 3], 'tasas de contacto y de cumplimiento');
+  igual([m.whatsapp.con_estado, m.whatsapp.leidos, m.whatsapp.sin_leer, m.whatsapp.manuales, m.whatsapp.tasa_lectura, m.whatsapp.minutos_a_leer], [2, 1, 1, 1, 50, 30], 'WhatsApp: leídos, sin leer y enviados a mano');
+  igual([m.encuesta.enviadas, m.encuesta.respondidas, m.encuesta.csat, m.encuesta.satisfechos, m.encuesta.nps, m.encuesta.resuelto], [3, 2, 4, 50, 0, 50], 'encuesta: CSAT, satisfechos, NPS y resolución');
+  igual(m.por_gestor.map(g => [g.clave, g.gestiones]), [['Ana', 2], ['Luis', 2]], 'métricas por gestor');
+}
 
 console.log((mal ? '✗ ' : '✓ ') + ok + ' pruebas bien, ' + mal + ' mal');
 process.exit(mal ? 1 : 0);

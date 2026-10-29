@@ -1,5 +1,7 @@
 /**
- * Stili Soft v3.0 · Contabilidad: los cálculos.
+ * Stili Soft v3.2 · Contabilidad: los cálculos.
+ * v3.2 · Cobros segregados: cada línea del aviso tiene su clase (ordinaria, extraordinaria, fondo de reserva, reserva de áreas,
+ *        gas, multa, mora…) y cada pago se aplica línea por línea. Nada se mezcla: la cartera, lo cobrado y los reportes salen por clase.
  * Una sola librería para la página (contabilidad.html), la demostración y las pruebas (node test_contabilidad.js).
  * Todo se calcula en centavos enteros para que los totales cuadren al peso.
  * Montos en RD$, fechas 'aaaa-mm-dd', periodos 'aaaa-mm'.
@@ -31,6 +33,7 @@
     ['I1', 'Ingresos ordinarios', 'ingreso', [['I1.1', 'Cuota de mantenimiento'], ['I1.2', 'Consumo de gas'], ['I1.3', 'Consumo de agua'], ['I1.4', 'Consumo de luz'], ['I1.5', 'Tarjetas y controles de acceso']]],
     ['I2', 'Ingresos extraordinarios', 'ingreso', [['I2.1', 'Cuota extraordinaria'], ['I2.2', 'Reserva de áreas comunes'], ['I2.3', 'Multas'], ['I2.4', 'Mora'], ['I2.5', 'Intereses bancarios'], ['I2.6', 'Otros ingresos']]],
     ['I3', 'Saldos iniciales', 'ingreso', [['I3.1', 'Saldo inicial de apartamentos']]],
+    ['I4', 'Fondo de reserva', 'ingreso', [['I4.1', 'Aporte al fondo de reserva']]],
     ['E1', 'Servicios básicos', 'egreso', [['E1.1', 'Agua'], ['E1.2', 'Electricidad'], ['E1.3', 'Recogida de basura'], ['E1.4', 'Internet y teléfono'], ['E1.5', 'Gas'], ['E1.6', 'Gasoil']]],
     ['E2', 'Salarios y beneficios de ley', 'egreso', [['E2.1', 'Sueldos'], ['E2.2', 'Regalía pascual'], ['E2.3', 'Vacaciones'], ['E2.4', 'Seguridad social (TSS)'], ['E2.5', 'Horas extras'], ['E2.6', 'Prestaciones laborales'], ['E2.7', 'Uniformes']]],
     ['E3', 'Mantenimiento y reparaciones', 'egreso', [['E3.1', 'Ascensores'], ['E3.2', 'Bombas de agua'], ['E3.3', 'Sistema eléctrico'], ['E3.4', 'Planta eléctrica'], ['E3.5', 'Extintores'], ['E3.6', 'Piscina'], ['E3.7', 'Jardinería'],
@@ -68,8 +71,38 @@
     honorario_dia: 1,
     colchon_caja: 0,          // la proyección avisa si el saldo baja de esto
     pasarela_url: '',         // plantilla del enlace de pago: {recibo} {monto} {torre}
+    // v3.2 · orden en que se aplica un pago cuando el residente NO dice qué paga (art. 1256 del Código Civil: primero lo vencido,
+    // y entre lo vencido lo más antiguo). Este orden solo desempata cargos con el mismo vencimiento; lo fija la Junta o el reglamento.
+    orden_clases: 'ordinaria,extraordinaria,fondo_reserva,gas,otro,reserva_area,multa,mora',
+    mora_clases: 'ordinaria,extraordinaria',   // sobre qué clases se calcula la mora (nunca sobre la mora)
+    encuesta_dias: 30,        // no se manda la encuesta al mismo apartamento más de una vez en estos días
+    recibo_auto: 'si',        // al aplicar un pago se envía el recibo (correo, WhatsApp y Telegram)
   };
   const reglas = cfg => Object.assign({}, CONFIG_BASE, cfg || {});
+
+  // ----------------------------------------------------- v3.2 · clases de cargo
+  // Cada línea de un aviso de cobro es de UNA clase y cada peso cobrado va a UNA línea. Así la cartera y lo cobrado salen por clase.
+  const CLASES = [
+    ['ordinaria', 'Cuota ordinaria'], ['extraordinaria', 'Cuota extraordinaria'], ['fondo_reserva', 'Fondo de reserva'],
+    ['reserva_area', 'Reserva de áreas comunes'], ['gas', 'Consumo de gas'], ['multa', 'Multas'], ['mora', 'Mora'], ['otro', 'Otros cargos'],
+  ];
+  const CLASE_DE_RUBRO = { 'I1.1': 'ordinaria', 'I1.2': 'gas', 'I1.3': 'otro', 'I1.4': 'otro', 'I1.5': 'otro', 'I2.1': 'extraordinaria', 'I2.2': 'reserva_area', 'I2.3': 'multa', 'I2.4': 'mora', 'I4.1': 'fondo_reserva' };
+  const esClase = k => CLASES.some(x => x[0] === k);
+  const nombreClase = k => (CLASES.find(x => x[0] === k) || [k, 'Otros cargos'])[1];
+  /** Clase de una línea (o de un concepto): la que trae; si no, la de su rubro; si no, su tipo viejo (ordinaria/extraordinaria/mora). */
+  function claseDe(l) {
+    const x = l || {};
+    if (esClase(x.clase)) return x.clase;
+    if (x.tipo === 'mora') return 'mora';
+    if (CLASE_DE_RUBRO[x.rubro] && CLASE_DE_RUBRO[x.rubro] !== 'ordinaria') return CLASE_DE_RUBRO[x.rubro];
+    if (x.tipo === 'extraordinaria') return 'extraordinaria';
+    if (esClase(x.tipo)) return x.tipo;
+    return CLASE_DE_RUBRO[x.rubro] || 'ordinaria';
+  }
+  const listaCfg = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+  const ordenClases = config => { const o = listaCfg(reglas(config).orden_clases).filter(esClase); CLASES.forEach(([k]) => { if (o.indexOf(k) < 0) o.push(k); }); return o; };
+  /** Las líneas de un recibo; un recibo viejo sin líneas cuenta como una sola línea con su tipo. */
+  const lineasDe = r => (r.lineas && r.lineas.length ? r.lineas : [{ concepto: 'Recibo ' + (r.numero || ''), rubro: '', tipo: r.tipo, monto: r.total }]);
 
   // ------------------------------------------------------------ reparto de cuotas
   /**
@@ -111,11 +144,11 @@
       const rep = repartir(k, aptos, valores);
       Object.keys(rep).forEach(a => {
         if (!(rep[a] > 0)) return;
-        (porApto[a] = porApto[a] || []).push({ concepto_id: k.id, concepto: k.nombre, rubro: k.rubro, tipo: k.tipo || 'ordinaria', monto: rep[a] });
+        (porApto[a] = porApto[a] || []).push({ concepto_id: k.id, concepto: k.nombre, rubro: k.rubro, tipo: k.tipo || 'ordinaria', clase: claseDe(k), monto: rep[a] });
       });
     });
     return (aptos || []).filter(a => porApto[a]).map(a => {
-      const lineas = porApto[a], extra = lineas.every(l => l.tipo === 'extraordinaria');
+      const lineas = porApto[a], extra = lineas.every(l => claseDe(l) !== 'ordinaria');
       return { periodo, apartamento: a, emision: emision || hoyISO(), vence, tipo: extra ? 'extraordinaria' : 'ordinaria', lineas, total: p(lineas.reduce((s, l) => s + c(l.monto), 0)) };
     });
   }
@@ -126,7 +159,41 @@
     return { recibos: out, siguiente: n };
   }
 
-  // ---------------------------------------------------- saldos de los recibos
+  // ---------------------------------------------------- saldos de los recibos (v3.2 · por línea)
+  /**
+   * Lleva cada aplicación de cada cobro a la línea exacta del recibo.
+   * Las aplicaciones nuevas traen `linea`; las viejas (sin línea) se reparten entre las líneas del recibo en el orden de clases de la torre.
+   * Devuelve [{ cobro, recibo_id, linea, clase, monto, descuento }] en orden de fecha.
+   */
+  function aplicacionesPorLinea(cobros, recibos, config) {
+    const rec = {}; (recibos || []).forEach(r => { rec[r.id] = r; });
+    const usado = {}, out = [], orden = ordenClases(config);
+    const conLinea = x => x.linea !== undefined && x.linea !== null && x.linea !== '';
+    const ks = (cobros || []).filter(activo).slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.creado_en || '').localeCompare(String(b.creado_en || '')));
+    // primera pasada: las aplicaciones que dicen su línea (nunca las mueve una aplicación vieja de fecha anterior)
+    ks.forEach(k => (k.aplicaciones || []).filter(conLinea).forEach(x => {
+      const r = rec[x.recibo_id], i = Number(x.linea), l = r ? lineasDe(r)[i] : null, key = x.recibo_id + '#' + i;
+      usado[key] = (usado[key] || 0) + c(x.monto) + c(x.descuento || 0);
+      out.push({ cobro: k, recibo_id: x.recibo_id, linea: i, clase: l ? claseDe(l) : (x.clase || 'otro'), rubro: l ? l.rubro : '', monto: r2(x.monto), descuento: r2(x.descuento || 0) });
+    }));
+    // segunda pasada: las viejas (sin línea) se reparten sobre lo que queda
+    ks.forEach(k => (k.aplicaciones || []).filter(x => !conLinea(x)).forEach(x => {
+      const r = rec[x.recibo_id];
+      if (!r) { out.push({ cobro: k, recibo_id: x.recibo_id, linea: 0, clase: x.clase || 'otro', rubro: '', monto: r2(x.monto), descuento: r2(x.descuento || 0) }); return; }
+      // aplicación vieja: se reparte entre las líneas con saldo, en el orden de clases
+      const ls = lineasDe(r).map((l, i) => ({ l, i })).sort((a, b) => orden.indexOf(claseDe(a.l)) - orden.indexOf(claseDe(b.l)) || a.i - b.i);
+      let m = c(x.monto), d = c(x.descuento || 0);
+      ls.forEach(({ l, i }, n) => {
+        const key = r.id + '#' + i, libre = Math.max(0, c(l.monto) - (usado[key] || 0)), ultima = n === ls.length - 1;
+        let dd = ultima ? d : Math.min(d, libre); const mm = ultima ? m : Math.min(m, libre - dd);
+        if (!mm && !dd) return;
+        usado[key] = (usado[key] || 0) + mm + dd; m -= mm; d -= dd;
+        out.push({ cobro: k, recibo_id: r.id, linea: i, clase: claseDe(l), rubro: l.rubro, monto: p(mm), descuento: p(dd) });
+      });
+    }));
+    out.sort((a, b) => String(a.cobro.fecha).localeCompare(String(b.cobro.fecha)) || String(a.cobro.creado_en || '').localeCompare(String(b.cobro.creado_en || '')));
+    return out;
+  }
   /** Cuánto se ha aplicado a cada recibo (cobros, descuentos y cruces de anticipo). */
   function aplicadoPorRecibo(cobros, sinCruces) {
     const ap = {};
@@ -135,11 +202,38 @@
     }));
     return ap;
   }
-  /** Recibos con su saldo pendiente. */
-  function conSaldo(recibos, cobros, corte) {
-    const ks = (cobros || []).filter(k => !corte || k.fecha <= corte), ap = aplicadoPorRecibo(ks), apReal = aplicadoPorRecibo(ks, true);
-    return (recibos || []).filter(activo).filter(r => !corte || r.emision <= corte)
-      .map(r => Object.assign({}, r, { pagado: p(ap[r.id] || 0), pagado_cobros: p(apReal[r.id] || 0), saldo: p(Math.max(0, c(r.total) - (ap[r.id] || 0))) }));
+  /** Recibos con su saldo pendiente; cada línea trae su clase, lo pagado y su saldo. */
+  function conSaldo(recibos, cobros, corte, config) {
+    const ks = (cobros || []).filter(k => !corte || k.fecha <= corte);
+    const rs = (recibos || []).filter(activo).filter(r => !corte || r.emision <= corte);
+    const apL = {}, apLReal = {};
+    aplicacionesPorLinea(ks, recibos, config).forEach(x => {
+      const key = x.recibo_id + '#' + x.linea, v = c(x.monto) + c(x.descuento);
+      apL[key] = (apL[key] || 0) + v; if (x.cobro.origen !== 'cruce') apLReal[key] = (apLReal[key] || 0) + v;
+    });
+    return rs.map(r => {
+      const lineas = lineasDe(r).map((l, i) => { const pag = apL[r.id + '#' + i] || 0; return Object.assign({}, l, { linea: i, clase: claseDe(l), pagado: p(pag), pagado_cobros: p(apLReal[r.id + '#' + i] || 0), saldo: p(Math.max(0, c(l.monto) - pag)) }); });
+      const pag = lineas.reduce((s, l) => s + c(l.pagado), 0), real = lineas.reduce((s, l) => s + c(l.pagado_cobros), 0);
+      return Object.assign({}, r, { lineas, pagado: p(pag), pagado_cobros: p(real), saldo: p(Math.max(0, c(r.total) - pag)) });
+    });
+  }
+  /** Un recibo que no viene de conSaldo (sin saldo por línea): lo pagado se reparte entre sus líneas en el orden de clases. */
+  function normalizarRecibo(r, config) {
+    if (r.lineas && r.lineas.length && r.lineas.every(l => l.saldo !== undefined && l.linea !== undefined)) return r;
+    const oc = ordenClases(config), base = lineasDe(r).map((l, i) => Object.assign({}, l, { linea: i, clase: claseDe(l) }));
+    let pag = c(r.saldo !== undefined ? c(r.total) / 100 - Number(r.saldo) : r.pagado || 0), real = c(r.pagado_cobros !== undefined ? r.pagado_cobros : r.pagado || 0);
+    base.slice().sort((a, b) => oc.indexOf(a.clase) - oc.indexOf(b.clase) || a.linea - b.linea).forEach(l => {
+      const u = Math.min(pag, c(l.monto)), ur = Math.min(real, c(l.monto)); pag -= u; real -= ur;
+      l.pagado = p(u); l.pagado_cobros = p(ur); l.saldo = p(c(l.monto) - u);
+    });
+    return Object.assign({}, r, { lineas: base });
+  }
+  /** Cada línea pendiente como una partida: { key, recibo_id, numero, periodo, apartamento, vence, linea, clase, concepto, monto, saldo }. */
+  function partidas(recibosConSaldo) {
+    const out = [];
+    (recibosConSaldo || []).forEach(r => (r.lineas || []).forEach(l => out.push({ key: r.id + '#' + l.linea, recibo_id: r.id, numero: r.numero, periodo: r.periodo, apartamento: r.apartamento,
+      emision: r.emision, vence: r.vence, tipo: r.tipo, linea: l.linea, clase: l.clase, concepto: l.concepto, rubro: l.rubro, monto: r2(l.monto), pagado: l.pagado, pagado_cobros: l.pagado_cobros, saldo: l.saldo })));
+    return out;
   }
   /** Saldo a favor (anticipos) por apartamento: sobrantes de cobros menos lo ya cruzado. */
   function aFavor(cobros, corte) {
@@ -154,52 +248,85 @@
   }
 
   // ------------------------------------------------------------- pronto pago
+  /** v3.2 · El descuento es solo sobre las líneas de cuota ordinaria del recibo, pagadas completas, a tiempo y sin abonos previos. */
   function descuentoProntoPago(recibo, fechaPago, config) {
     const cfg = reglas(config);
-    if (!(Number(cfg.pp_porcentaje) > 0) || !recibo || recibo.tipo !== 'ordinaria') return 0;
+    if (!(Number(cfg.pp_porcentaje) > 0) || !recibo) return 0;
     if (fechaPago > conDia(recibo.periodo, cfg.pp_dia)) return 0;
-    // solo si se paga completo de una vez (el saldo a favor cruzado no cuenta como pago previo)
-    if (c(recibo.pagado_cobros !== undefined ? recibo.pagado_cobros : recibo.pagado || 0) > 0) return 0;
-    return r2(recibo.total * Number(cfg.pp_porcentaje) / 100);
+    const ord = lineasDe(recibo).filter(l => claseDe(l) === 'ordinaria');
+    if (!ord.length) return 0;
+    // el saldo a favor cruzado no cuenta como pago previo
+    if (ord.some(l => c(l.pagado_cobros !== undefined ? l.pagado_cobros : l.pagado || 0) > 0)) return 0;
+    if (!recibo.lineas && c(recibo.pagado_cobros !== undefined ? recibo.pagado_cobros : recibo.pagado || 0) > 0) return 0;
+    return r2(ord.reduce((s, l) => s + c(l.monto), 0) / 100 * Number(cfg.pp_porcentaje) / 100);
   }
-
-  /** Lo que se paga con el pronto pago (el mismo cálculo que exige el cobro). */
-  const montoProntoPago = (recibo, config) => p(c(recibo.total) - c(r2(recibo.total * Number(reglas(config).pp_porcentaje || 0) / 100)));
+  /** Lo que se paga con el pronto pago (el mismo cálculo que exige el cobro): el total menos el descuento de la parte ordinaria. */
+  const montoProntoPago = (recibo, config) => {
+    const ord = lineasDe(recibo).filter(l => claseDe(l) === 'ordinaria').reduce((s, l) => s + c(l.monto), 0);
+    return p(c(recibo.total) - c(r2(ord / 100 * Number(reglas(config).pp_porcentaje || 0) / 100)));
+  };
   /**
-   * Aplica un cobro a los recibos pendientes, del vencimiento más viejo al más nuevo (o en el orden marcado).
-   * Si el pago cubre un recibo ordinario dentro del plazo, aplica el pronto pago. Lo que sobra queda a favor.
+   * Aplica un cobro línea por línea.
+   * - Si el residente dijo qué paga (art. 1253 del Código Civil), `orden` trae esas partidas ('recibo#linea'), recibos o clases, y solo se aplica a eso.
+   * - Si no lo dijo (art. 1256): primero lo vencido, lo más antiguo primero; con el mismo vencimiento, el orden de clases de la torre.
+   * - El pronto pago aplica si se cubren completas las líneas ordinarias del recibo dentro del plazo. Lo que sobra queda a favor.
+   * `pendientes` = recibos con saldo (conSaldo) o partidas.
    */
   function aplicarCobro({ monto, fecha, pendientes, config, orden }) {
     let resto = c(monto);
-    const lista = (pendientes || []).filter(r => c(r.saldo) > 0).slice();
-    if (orden && orden.length) lista.sort((a, b) => orden.indexOf(a.id) - orden.indexOf(b.id));
-    else lista.sort((a, b) => (a.vence || '').localeCompare(b.vence || '') || (a.numero || '').localeCompare(b.numero || ''));
-    const aplicaciones = []; let descuentos = 0;
-    for (const r of lista) {
+    const f = fecha || hoyISO(), oc = ordenClases(config);
+    const rs = (pendientes || []).filter(x => x && !x.key).map(r => normalizarRecibo(r, config));   // recibos (con o sin saldo por línea)
+    let ps = rs.length ? partidas(rs) : (pendientes || []).filter(x => x && x.key);
+    ps = ps.filter(x => c(x.saldo) > 0);
+    const sel = (orden || []).filter(Boolean);
+    const elegida = x => !sel.length || sel.indexOf(x.key) >= 0 || sel.indexOf(x.recibo_id) >= 0 || sel.indexOf(x.clase) >= 0;
+    const rango = x => { const i = sel.indexOf(x.key) >= 0 ? sel.indexOf(x.key) : sel.indexOf(x.recibo_id) >= 0 ? sel.indexOf(x.recibo_id) : sel.indexOf(x.clase); return i < 0 ? 1e9 : i; };
+    ps = ps.filter(elegida).sort((a, b) => {
+      if (sel.length && rango(a) !== rango(b)) return rango(a) - rango(b);
+      const va = (a.vence || '') < f ? 0 : 1, vb = (b.vence || '') < f ? 0 : 1;
+      return va - vb || String(a.vence || '').localeCompare(String(b.vence || '')) || oc.indexOf(a.clase) - oc.indexOf(b.clase) || String(a.numero || '').localeCompare(String(b.numero || '')) || a.linea - b.linea;
+    });
+    const recById = {}; rs.forEach(r => { recById[r.id] = r; });
+    const aplicaciones = []; let descuentos = 0; const hecho = new Set();
+    for (const x of ps) {
       if (resto <= 0) break;
-      if (orden && orden.length && orden.indexOf(r.id) < 0) continue;
-      let desc = c(descuentoProntoPago(r, fecha, config));
-      const saldo = c(r.saldo);
-      if (desc > saldo) desc = saldo;
-      // tolerancia de 1 centavo: el que paga el monto impreso no pierde el descuento por redondeo
-      if (desc && resto < saldo - desc && saldo - desc - resto <= 1) desc = saldo - resto;
-      const falta = saldo - desc;
-      if (resto >= falta) { aplicaciones.push({ recibo_id: r.id, numero: r.numero, monto: p(falta), descuento: p(desc) }); resto -= falta; descuentos += desc; }
-      else { aplicaciones.push({ recibo_id: r.id, numero: r.numero, monto: p(resto), descuento: 0 }); resto = 0; }
+      if (hecho.has(x.key)) continue;
+      // pronto pago: todas las líneas ordinarias del recibo juntas, si están elegidas y alcanza
+      const r = recById[x.recibo_id];
+      if (x.clase === 'ordinaria' && r) {
+        const grupo = ps.filter(y => y.recibo_id === x.recibo_id && y.clase === 'ordinaria');
+        const todas = lineasDe(r).filter(l => claseDe(l) === 'ordinaria').length === grupo.length;
+        let desc = todas ? c(descuentoProntoPago(r, f, config)) : 0;
+        const saldoG = grupo.reduce((s, y) => s + c(y.saldo), 0);
+        if (desc > saldoG) desc = saldoG;
+        if (desc && resto < saldoG - desc && saldoG - desc - resto <= 1) desc = saldoG - resto;   // 1 centavo de tolerancia
+        if (desc && resto >= saldoG - desc) {
+          let dUsado = 0;
+          grupo.forEach((y, i) => {
+            const d = i === grupo.length - 1 ? Math.min(c(y.saldo), desc - dUsado) : Math.min(c(y.saldo), Math.round(desc * c(y.saldo) / saldoG)); dUsado += d;
+            aplicaciones.push({ recibo_id: y.recibo_id, numero: y.numero, linea: y.linea, clase: y.clase, monto: p(c(y.saldo) - d), descuento: p(d) });
+            resto -= c(y.saldo) - d; hecho.add(y.key);
+          });
+          descuentos += dUsado; continue;
+        }
+      }
+      const falta = c(x.saldo), m = Math.min(resto, falta);
+      aplicaciones.push({ recibo_id: x.recibo_id, numero: x.numero, linea: x.linea, clase: x.clase, monto: p(m), descuento: 0 });
+      resto -= m; hecho.add(x.key);
     }
     return { aplicaciones, descuento: p(descuentos), a_favor: p(resto) };
   }
-  /** Cruza el saldo a favor con los recibos pendientes (al emitir los recibos nuevos). */
-  function cruzarAnticipo({ apartamento, disponible, pendientes, fecha }) {
-    const r = aplicarCobro({ monto: disponible, fecha, pendientes, config: {} });
+  /** Cruza el saldo a favor con lo pendiente (al emitir los recibos nuevos), con el mismo orden legal. */
+  function cruzarAnticipo({ apartamento, disponible, pendientes, fecha, config }) {
+    const r = aplicarCobro({ monto: disponible, fecha, pendientes, config: Object.assign({}, config || {}, { pp_porcentaje: 0 }) });
     const usado = r.aplicaciones.reduce((s, x) => s + c(x.monto), 0);
     if (!usado) return null;
     return { fecha, apartamento, monto: p(usado), origen: 'cruce', forma: 'anticipo', cuenta_id: '', aplicaciones: r.aplicaciones, a_favor: 0, descuento: 0 };
   }
 
   // ------------------------------------------------------------ estado de cuenta
-  function estadoCuenta(apto, recibos, cobros, corte) {
-    const rs = conSaldo((recibos || []).filter(r => r.apartamento === apto), cobros, corte);
+  function estadoCuenta(apto, recibos, cobros, corte, config) {
+    const rs = conSaldo((recibos || []).filter(r => r.apartamento === apto), cobros, corte, config);
     const ks = (cobros || []).filter(activo).filter(k => k.apartamento === apto && (!corte || k.fecha <= corte));
     const movs = rs.map(r => ({ fecha: r.emision, tipo: 'recibo', detalle: 'Recibo ' + (r.numero || '') + ' · ' + (r.tipo === 'mora' ? 'mora ' : '') + nombreMes(r.periodo), cargo: r.total, abono: 0, ref: r.id }))
       .concat(ks.map(k => ({ fecha: k.fecha, tipo: k.origen === 'cruce' ? 'cruce' : 'cobro',
@@ -210,7 +337,13 @@
     movs.forEach(m => { if (m.tipo !== 'cruce') acum += c(m.cargo) - c(m.abono); else acum += 0; m.saldo = p(acum); });
     // el cruce mueve dinero que ya estaba (el anticipo); el saldo real es deuda − a favor
     const deuda = rs.reduce((s, r) => s + c(r.saldo), 0), favor = c(aFavor(ks, corte)[apto] || 0);
-    return { apartamento: apto, movimientos: movs, deuda: p(deuda), a_favor: p(favor), saldo: p(deuda - favor), pendientes: rs.filter(r => c(r.saldo) > 0) };
+    // v3.2 · lo que se debe de cada clase (vencido y por vencer), sin mezclar
+    const f = corte || hoyISO(), ps = partidas(rs).filter(x => c(x.saldo) > 0);
+    const porClase = CLASES.map(([k, n]) => {
+      const de = ps.filter(x => x.clase === k);
+      return { clase: k, nombre: n, deuda: p(de.reduce((s, x) => s + c(x.saldo), 0)), vencido: p(de.filter(x => x.vence < f).reduce((s, x) => s + c(x.saldo), 0)), partidas: de.length };
+    }).filter(x => x.partidas);
+    return { apartamento: apto, movimientos: movs, deuda: p(deuda), a_favor: p(favor), saldo: p(deuda - favor), pendientes: rs.filter(r => c(r.saldo) > 0), partidas: ps, por_clase: porClase };
   }
 
   // ------------------------------------------------------- cartera por antigüedad
@@ -219,9 +352,10 @@
     if (diasVencido <= 0) return 'corriente';
     if (diasVencido <= 30) return 'd30'; if (diasVencido <= 60) return 'd60'; if (diasVencido <= 90) return 'd90'; if (diasVencido <= 120) return 'd120'; return 'mas';
   }
-  function antiguedad(recibos, cobros, corte) {
-    const f = corte || hoyISO(), porApto = {};
-    conSaldo(recibos, cobros, f).filter(r => c(r.saldo) > 0).forEach(r => {
+  /** Cartera por antigüedad. v3.2 · `clases` limita a esas clases (p. ej. ['ordinaria'] = morosidad solo de cuotas ordinarias). */
+  function antiguedad(recibos, cobros, corte, clases, config) {
+    const f = corte || hoyISO(), porApto = {}, cl = (clases || []).filter(esClase);
+    partidas(conSaldo(recibos, cobros, f, config)).filter(x => c(x.saldo) > 0 && (!cl.length || cl.indexOf(x.clase) >= 0)).forEach(r => {
       const a = porApto[r.apartamento] = porApto[r.apartamento] || { apartamento: r.apartamento, total: 0, dias: 0 };
       TRAMOS.forEach(([k]) => { a[k] = a[k] || 0; });
       const d = dias(r.vence, f), t = tramoDe(d);
@@ -231,23 +365,24 @@
     const tot = { apartamento: 'Total', total: 0, dias: 0 };
     TRAMOS.forEach(([k]) => { tot[k] = p(filas.reduce((s, x) => s + c(x[k] || 0), 0)); });
     tot.total = p(filas.reduce((s, x) => s + c(x.total), 0));
-    return { filas, total: tot, vencido: p(c(tot.total) - c(tot.corriente)) };
+    return { filas, total: tot, vencido: p(c(tot.total) - c(tot.corriente)), clases: cl };
   }
 
   // ----------------------------------------------------------------------- mora
   /** Cargos de mora del periodo: uno por apartamento con recibos vencidos (después de los días de gracia). Nunca mora sobre mora. */
   function calcularMora({ recibos, cobros, config, periodo, fecha }) {
     const cfg = reglas(config); if (cfg.mora_tipo === 'ninguna' || !(Number(cfg.mora_valor) > 0)) return [];
-    const f = fecha || hoyISO();
+    const f = fecha || hoyISO(), base_clases = listaCfg(cfg.mora_clases).filter(k => esClase(k) && k !== 'mora');
     const ya = new Set((recibos || []).filter(activo).filter(r => r.tipo === 'mora' && r.periodo === periodo).map(r => r.apartamento));
     const porApto = {};
-    conSaldo(recibos, cobros, f).filter(r => r.tipo !== 'mora' && c(r.saldo) > 0 && dias(r.vence, f) > Number(cfg.mora_dias_gracia || 0))
-      .forEach(r => { (porApto[r.apartamento] = porApto[r.apartamento] || []).push(r); });
+    // v3.2 · la mora se calcula solo sobre las clases que dice la torre (por defecto ordinaria y extraordinaria); nunca mora sobre mora
+    partidas(conSaldo(recibos, cobros, f, config)).filter(x => x.clase !== 'mora' && base_clases.indexOf(x.clase) >= 0 && c(x.saldo) > 0 && dias(x.vence, f) > Number(cfg.mora_dias_gracia || 0))
+      .forEach(x => { (porApto[x.apartamento] = porApto[x.apartamento] || {})[x.recibo_id] = ((porApto[x.apartamento] || {})[x.recibo_id] || 0) + c(x.saldo); });
     return Object.keys(porApto).filter(a => !ya.has(a)).sort().map(a => {
-      const base = porApto[a].reduce((s, r) => s + c(r.saldo), 0);
+      const n = Object.keys(porApto[a]).length, base = Object.values(porApto[a]).reduce((s, v) => s + v, 0);
       const monto = cfg.mora_tipo === 'porcentaje' ? p(Math.round(base * Number(cfg.mora_valor) / 100)) : r2(cfg.mora_valor);
       return { periodo, apartamento: a, emision: f, vence: conDia(periodo, cfg.vence_dia), tipo: 'mora', base: p(base),
-        lineas: [{ concepto: 'Mora sobre ' + porApto[a].length + (porApto[a].length === 1 ? ' recibo vencido' : ' recibos vencidos'), rubro: 'I2.4', tipo: 'mora', monto }], total: monto };
+        lineas: [{ concepto: 'Mora sobre ' + n + (n === 1 ? ' recibo vencido' : ' recibos vencidos'), rubro: 'I2.4', tipo: 'mora', clase: 'mora', monto }], total: monto };
     }).filter(r => r.total > 0);
   }
 
@@ -361,17 +496,9 @@
     const D = d || {}, t = {};
     const sum = (rubro, tipo, monto) => { const k = rubro || (tipo === 'ingreso' ? 'I?' : 'E?'); t[k] = t[k] || { rubro: k, tipo, monto: 0 }; t[k].monto += c(monto); };
     const en = f => f && f >= desde && f <= hasta;
-    // ingresos cobrados: cada aplicación toma el rubro de las líneas del recibo (proporcional)
-    const rec = {}; (D.recibos || []).forEach(r => { rec[r.id] = r; });
-    (D.cobros || []).filter(activo).filter(k => en(k.fecha) && k.origen !== 'cruce').forEach(k => {
-      (k.aplicaciones || []).forEach(x => {
-        const r = rec[x.recibo_id]; if (!r) return;
-        const tot = c(r.total) || 1;
-        let usado = 0; const lineas = r.lineas || [];
-        lineas.forEach((l, i) => { const parte = i === lineas.length - 1 ? c(x.monto) - usado : Math.round(c(x.monto) * c(l.monto) / tot); usado += parte; sum(l.rubro, 'ingreso', p(parte)); });
-      });
-      if (c(k.a_favor) > 0) sum('ANT', 'ingreso', k.a_favor);
-    });
+    // v3.2 · ingresos cobrados: cada peso va al rubro de la línea exacta que pagó (sin prorrateos)
+    aplicacionesPorLinea(D.cobros, D.recibos, D.config).filter(x => en(x.cobro.fecha) && x.cobro.origen !== 'cruce').forEach(x => sum(x.rubro || ({ mora: 'I2.4', multa: 'I2.3' }[x.clase]) || 'I?', 'ingreso', x.monto));
+    (D.cobros || []).filter(activo).filter(k => en(k.fecha) && k.origen !== 'cruce' && c(k.a_favor) > 0).forEach(k => sum('ANT', 'ingreso', k.a_favor));
     (D.ingresos || []).filter(activo).filter(x => en(x.fecha)).forEach(x => sum(x.rubro, 'ingreso', x.monto));
     (D.gastos || []).filter(activo).filter(x => x.tipo !== 'transferencia' && en(x.fecha)).forEach(x => sum(x.rubro, 'egreso', x.monto));
     (D.pagos || []).filter(x => x.estado === 'pagada' && en(x.pagado_en)).forEach(x => sum(x.rubro, 'egreso', x.monto));
@@ -484,10 +611,12 @@
       if (antesN >= 4 && !ult2.some(pago) && deuda[a] > 0) al.push({ regla: 'C2', nivel: 'ambar', texto: 'El apto. ' + a + ' pagaba casi todos los meses y no paga desde hace 2 meses. Debe ' + p(deuda[a]).toLocaleString('en-US') + '.', apartamento: a });
     });
     // R3 · recibo ordinario por debajo del mes anterior
-    const ord = (D.recibos || []).filter(activo).filter(r => r.tipo === 'ordinaria');
+    // v3.2 · se compara solo la parte de cuota ordinaria (una extraordinaria que terminó no es una baja)
+    const ordM = r => p(lineasDe(r).filter(l => claseDe(l) === 'ordinaria').reduce((s, l) => s + c(l.monto), 0));
+    const ord = (D.recibos || []).filter(activo).filter(r => r.tipo !== 'mora' && ordM(r) > 0);
     ord.forEach(r => {
-      const ant = ord.find(x => x.apartamento === r.apartamento && x.periodo === sumarMeses(r.periodo, -1));
-      if (ant && c(r.total) < c(ant.total) * 0.95) al.push({ regla: 'C3', nivel: 'ambar', texto: 'El recibo de ' + nombreMes(r.periodo) + ' del apto. ' + r.apartamento + ' bajó ' + Math.round((1 - r.total / ant.total) * 100) + ' % frente al mes anterior (' + ant.total.toLocaleString('en-US') + ' → ' + r.total.toLocaleString('en-US') + '). Confirme que la Junta lo aprobó.', ids: [r.id] });
+      const ant = ord.find(x => x.apartamento === r.apartamento && x.periodo === sumarMeses(r.periodo, -1)), a = ant ? ordM(ant) : 0, b = ordM(r);
+      if (ant && c(b) < c(a) * 0.95) al.push({ regla: 'C3', nivel: 'ambar', texto: 'La cuota ordinaria de ' + nombreMes(r.periodo) + ' del apto. ' + r.apartamento + ' bajó ' + Math.round((1 - b / a) * 100) + ' % frente al mes anterior (' + a.toLocaleString('en-US') + ' → ' + b.toLocaleString('en-US') + '). Confirme que la Junta lo aprobó.', ids: [r.id] });
     });
     // R4 · depósitos sin identificar viejos · R5 · pagos notificados sin revisar
     (D.sin_identificar || []).filter(activo).filter(x => x.estado !== 'identificado' && dias(x.fecha, h) > 15)
@@ -497,15 +626,141 @@
     return al;
   }
 
+  // ------------------------------------------------------------ v3.2 · reporte a la medida
+  /**
+   * Un reporte filtrado por lo que se quiera. f = { tipo, clases, desde, hasta, corte, aptos, tramo_min, agrupar }
+   *  tipo: 'morosidad' (lo vencido por antigüedad) · 'saldos' (todo lo pendiente) · 'emitido' (lo facturado en el rango) · 'cobrado' (lo cobrado en el rango)
+   *  clases: [] = todas · ['ordinaria'] = solo cuotas ordinarias, etc.   agrupar: 'apartamento' | 'clase' | 'periodo'
+   * Devuelve { titulo, columnas, filas, total, resumen } listo para la tabla, el CSV y la impresión.
+   */
+  function reporteMedida(d, f) {
+    const D = d || {}, q = f || {}, tipo = q.tipo || 'morosidad', corte = q.corte || q.hasta || hoyISO();
+    const cl = (q.clases || []).filter(esClase), aptos = (q.aptos || []).map(a => String(a).toUpperCase()).filter(Boolean);
+    const okC = k => !cl.length || cl.indexOf(k) >= 0, okA = a => !aptos.length || aptos.indexOf(String(a).toUpperCase()) >= 0;
+    const desde = q.desde || '0000-01-01', hasta = q.hasta || corte, agrupar = q.agrupar || (tipo === 'morosidad' ? 'apartamento' : 'clase');
+    const nomCl = cl.length ? cl.map(nombreClase).join(', ') : 'todas las clases';
+    const titulos = { morosidad: 'Morosidad', saldos: 'Saldos pendientes', emitido: 'Emitido', cobrado: 'Cobrado' };
+    let filas = [], columnas, resumen = {};
+    if (tipo === 'morosidad' || tipo === 'saldos') {
+      let ps = partidas(conSaldo(D.recibos, D.cobros, corte, D.config)).filter(x => c(x.saldo) > 0 && okC(x.clase) && okA(x.apartamento));
+      if (tipo === 'morosidad') ps = ps.filter(x => x.vence < corte && dias(x.vence, corte) >= Number(q.tramo_min || 1));
+      if (agrupar === 'apartamento') {
+        const g = {};
+        ps.forEach(x => { const a = g[x.apartamento] = g[x.apartamento] || { apartamento: x.apartamento, total: 0, dias: 0, partidas: 0 }; TRAMOS.forEach(([k]) => { a[k] = a[k] || 0; });
+          const t = tramoDe(dias(x.vence, corte)); a[t] += c(x.saldo); a.total += c(x.saldo); a.dias = Math.max(a.dias, dias(x.vence, corte)); a.partidas++; });
+        filas = Object.values(g).map(a => { TRAMOS.forEach(([k]) => { a[k] = p(a[k]); }); a.total = p(a.total); return a; }).sort((x, y) => y.total - x.total);
+        columnas = [['apartamento', 'Apto.']].concat(TRAMOS.filter(([k]) => tipo === 'saldos' || k !== 'corriente').map(([k, n]) => [k, n, 'num']), [['total', 'Total', 'num'], ['dias', 'Días de atraso', 'num']]);
+      } else if (agrupar === 'periodo') {
+        const g = {}; ps.forEach(x => { const a = g[x.periodo] = g[x.periodo] || { periodo: x.periodo, mes: nombreMes(x.periodo), total: 0, partidas: 0 }; a.total += c(x.saldo); a.partidas++; });
+        filas = Object.values(g).map(a => Object.assign(a, { total: p(a.total) })).sort((x, y) => x.periodo.localeCompare(y.periodo));
+        columnas = [['mes', 'Mes'], ['partidas', 'Cargos', 'num'], ['total', 'Pendiente', 'num']];
+      } else {
+        const g = {}; ps.forEach(x => { const a = g[x.clase] = g[x.clase] || { clase: x.clase, nombre: nombreClase(x.clase), total: 0, aptos: new Set(), partidas: 0 }; a.total += c(x.saldo); a.aptos.add(x.apartamento); a.partidas++; });
+        filas = ordenClases(D.config).filter(k => g[k]).map(k => { const a = g[k]; return { clase: k, nombre: a.nombre, apartamentos: a.aptos.size, partidas: a.partidas, total: p(a.total) }; });
+        columnas = [['nombre', 'Clase'], ['apartamentos', 'Aptos.', 'num'], ['partidas', 'Cargos', 'num'], ['total', 'Pendiente', 'num']];
+      }
+      const totalAptos = (D.aptos || []).length || new Set((D.recibos || []).map(r => r.apartamento)).size;
+      const morosos = new Set(ps.map(x => x.apartamento)).size, total = ps.reduce((s, x) => s + c(x.saldo), 0);
+      // índice de morosidad: lo vencido entre lo emitido de esas clases en los últimos 12 meses
+      const emit12 = partidas(conSaldo(D.recibos, [], corte, D.config)).filter(x => okC(x.clase) && okA(x.apartamento) && x.emision > sumarMeses(periodoDe(corte), -12) + '-00').reduce((s, x) => s + c(x.monto), 0);
+      resumen = { total: p(total), apartamentos: morosos, de_apartamentos: totalAptos, pct_apartamentos: totalAptos ? Math.round(morosos * 1000 / totalAptos) / 10 : null,
+        indice: emit12 ? Math.round(total * 1000 / emit12) / 10 : null, corte };
+    } else {
+      // emitido o cobrado en el rango, por la clase de cada línea
+      let movs;
+      if (tipo === 'emitido') movs = partidas(conSaldo(D.recibos, [], null, D.config)).filter(x => x.emision >= desde && x.emision <= hasta).map(x => ({ apartamento: x.apartamento, clase: x.clase, periodo: x.periodo, monto: c(x.monto) }));
+      else movs = aplicacionesPorLinea(D.cobros, D.recibos, D.config).filter(x => x.cobro.origen !== 'cruce' && x.cobro.fecha >= desde && x.cobro.fecha <= hasta)
+        .map(x => ({ apartamento: x.cobro.apartamento, clase: x.clase, periodo: periodoDe(x.cobro.fecha), monto: c(x.monto) }));
+      movs = movs.filter(x => okC(x.clase) && okA(x.apartamento));
+      const clave = agrupar === 'apartamento' ? 'apartamento' : agrupar === 'periodo' ? 'periodo' : 'clase', g = {};
+      movs.forEach(x => { const a = g[x[clave]] = g[x[clave]] || { k: x[clave], total: 0, n: 0, aptos: new Set() }; a.total += x.monto; a.n++; a.aptos.add(x.apartamento); });
+      const orden = clave === 'clase' ? ordenClases(D.config) : Object.keys(g).sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
+      filas = orden.filter(k => g[k]).map(k => { const a = g[k]; return { [clave]: k, nombre: clave === 'clase' ? nombreClase(k) : clave === 'periodo' ? nombreMes(k) : k, apartamentos: a.aptos.size, movimientos: a.n, total: p(a.total) }; });
+      columnas = [['nombre', clave === 'clase' ? 'Clase' : clave === 'periodo' ? 'Mes' : 'Apto.'], ['apartamentos', 'Aptos.', 'num'], ['movimientos', 'Movimientos', 'num'], ['total', tipo === 'emitido' ? 'Emitido' : 'Cobrado', 'num']];
+      resumen = { total: p(movs.reduce((s, x) => s + x.monto, 0)), desde, hasta };
+      // efectividad: cobrado ÷ emitido del mismo rango y clases
+      if (tipo === 'cobrado') { const em = reporteMedida(D, Object.assign({}, q, { tipo: 'emitido' })).resumen.total; resumen.emitido = em; resumen.efectividad = em ? Math.round(c(resumen.total) * 1000 / c(em)) / 10 : null; }
+    }
+    const total = {}; (columnas || []).filter(x => x[2] === 'num' && x[0] !== 'dias').forEach(([k]) => { total[k] = filas.reduce((s, x) => s + (k === 'total' || TRAMOS.some(t => t[0] === k) ? c(x[k]) : Number(x[k]) || 0), 0); if (k === 'total' || TRAMOS.some(t => t[0] === k)) total[k] = p(total[k]); });
+    return { titulo: titulos[tipo] + ' · ' + nomCl, tipo, clases: cl, columnas, filas, total, resumen };
+  }
+
+  // -------------------------------------------- v3.2 · seguimiento de cobranza y sus métricas
+  const CANALES = [['llamada', 'Llamada'], ['whatsapp', 'WhatsApp'], ['correo', 'Correo'], ['sms', 'SMS'], ['telegram', 'Telegram'], ['visita', 'Visita'], ['carta', 'Carta o aviso']];
+  const RESULTADOS = [['contactado', 'Habló con el residente', 1], ['promesa', 'Prometió pagar', 1], ['pago_informado', 'Dijo que ya pagó', 1], ['disputa', 'No está de acuerdo con el saldo', 1],
+    ['no_contesta', 'No contestó', 0], ['ocupado', 'Ocupado o apagado', 0], ['mensaje_dejado', 'Se dejó mensaje', 0], ['numero_errado', 'Número equivocado', 0], ['enviado', 'Mensaje enviado', 0]];
+  const esContacto = res => !!(RESULTADOS.find(x => x[0] === res) || [])[2];
+  /** Canal de una gestión vieja (v3.0 guardaba `tipo`). */
+  const canalDe = g => g.canal || ({ llamada: 'llamada', whatsapp: 'whatsapp', correo: 'correo', visita: 'visita', carta: 'carta', sms: 'sms' }[String(g.tipo || '').toLowerCase()]) || 'llamada';
+  /** Estado de una promesa de pago: cumplida si el apto pagó lo prometido entre la gestión y la fecha prometida (+2 días de gracia). */
+  function estadoPromesa(g, cobros, hoy) {
+    if (!g.promesa_fecha) return null;
+    const h = hoy || hoyISO(), ini = String(g.fecha).slice(0, 10), fin = g.promesa_fecha;
+    const lim = new Date(Date.parse(fin) + 2 * 864e5).toISOString().slice(0, 10);
+    const pagado = (cobros || []).filter(activo).filter(k => k.apartamento === g.apartamento && k.origen !== 'cruce' && k.fecha >= ini && k.fecha <= lim).reduce((s, k) => s + c(k.monto), 0);
+    const meta = c(g.promesa_monto || 0);
+    if (pagado > 0 && (!meta || pagado >= meta)) return 'cumplida';
+    return lim < h ? 'incumplida' : 'pendiente';
+  }
+  /**
+   * Métricas del equipo de cobros en un rango: gestiones, contacto, promesas, lo recuperado, WhatsApp (entregado / leído) y la encuesta.
+   * x = { gestiones, mensajes, encuestas, cobros }   Lo recuperado = lo cobrado a un apto en los 7 días siguientes a una gestión con él (sin contar dos veces).
+   */
+  function metricasCobranza(x, desde, hasta, hoy) {
+    const X = x || {}, h = hoy || hoyISO(), en = f => { const d = String(f || '').slice(0, 10); return d >= desde && d <= hasta; };
+    const gs = (X.gestiones || []).filter(g => g.estado !== 'anulado' && en(g.fecha));
+    const ks = (X.cobros || []).filter(activo).filter(k => k.origen !== 'cruce');
+    const pct = (a, b) => b ? Math.round(a * 1000 / b) / 10 : null;
+    const grupo = lista => {
+      const contactos = lista.filter(g => esContacto(g.resultado || (canalDe(g) === 'llamada' ? '' : 'enviado'))).length;
+      const prom = lista.filter(g => g.promesa_fecha), est = prom.map(g => estadoPromesa(g, ks, h));
+      const cumplidas = est.filter(e => e === 'cumplida').length, incumplidas = est.filter(e => e === 'incumplida').length;
+      // recuperado: cobros del apto dentro de 7 días después de alguna gestión de esta lista
+      const vistos = new Set(); let recuperado = 0;
+      lista.forEach(g => { const ini = String(g.fecha).slice(0, 10), fin = new Date(Date.parse(ini) + 7 * 864e5).toISOString().slice(0, 10);
+        ks.filter(k => k.apartamento === g.apartamento && k.fecha >= ini && k.fecha <= fin && !vistos.has(k.id)).forEach(k => { vistos.add(k.id); recuperado += c(k.monto); }); });
+      const llamadas = lista.filter(g => canalDe(g) === 'llamada'), seg = llamadas.reduce((s, g) => s + (Number(g.duracion_seg) || 0), 0);
+      return { gestiones: lista.length, llamadas: llamadas.length, minutos: Math.round(seg / 6) / 10, contactos, tasa_contacto: pct(contactos, lista.length), promesas: prom.length, cumplidas, incumplidas,
+        tasa_cumplimiento: pct(cumplidas, cumplidas + incumplidas), recuperado: p(recuperado), aptos: new Set(lista.map(g => g.apartamento)).size };
+    };
+    const por = (fn, nombres) => { const g = {}; gs.forEach(x => { const k = fn(x) || '—'; (g[k] = g[k] || []).push(x); }); return Object.keys(g).map(k => Object.assign({ clave: k, nombre: nombres ? (nombres.find(n => n[0] === k) || [k, k])[1] : k }, grupo(g[k]))).sort((a, b) => b.gestiones - a.gestiones); };
+    const porDia = {}; gs.forEach(g => { const d = String(g.fecha).slice(0, 10); const a = porDia[d] = porDia[d] || { fecha: d, gestiones: 0, contactos: 0 }; a.gestiones++; if (esContacto(g.resultado)) a.contactos++; });
+    // WhatsApp: solo los mensajes con estado del proveedor dicen si se leyeron; los enviados a mano se cuentan aparte
+    const ms = (X.mensajes || []).filter(m => en(m.enviado_en || m.creado_en));
+    const wa = ms.filter(m => m.canal === 'whatsapp'), api = wa.filter(m => m.estado !== 'manual' && m.estado !== 'pendiente');
+    const llego = m => ['entregado', 'leido', 'respondido'].indexOf(m.estado) >= 0, leyo = m => ['leido', 'respondido'].indexOf(m.estado) >= 0;
+    const tLect = api.filter(m => m.leido_en && m.enviado_en).map(m => (Date.parse(m.leido_en) - Date.parse(m.enviado_en)) / 6e4).filter(v => v >= 0);
+    const whatsapp = { total: wa.length, con_estado: api.length, manuales: wa.filter(m => m.estado === 'manual').length, enviados: api.length, entregados: api.filter(llego).length, leidos: api.filter(leyo).length,
+      sin_leer: api.filter(m => m.estado === 'entregado' || m.estado === 'enviado').length, respondidos: api.filter(m => m.estado === 'respondido').length, fallidos: api.filter(m => m.estado === 'fallido').length,
+      tasa_entrega: pct(api.filter(llego).length, api.length), tasa_lectura: pct(api.filter(leyo).length, api.filter(llego).length), tasa_respuesta: pct(api.filter(m => m.estado === 'respondido').length, api.filter(leyo).length),
+      minutos_a_leer: tLect.length ? Math.round(tLect.sort((a, b) => a - b)[Math.floor(tLect.length / 2)]) : null };
+    const canales = ['whatsapp', 'correo', 'telegram', 'sms'].map(k => { const l = ms.filter(m => m.canal === k); return { canal: k, total: l.length, fallidos: l.filter(m => m.estado === 'fallido').length }; }).filter(x => x.total);
+    return { desde, hasta, totales: grupo(gs), por_gestor: por(g => g.creado_por), por_canal: por(canalDe, CANALES), por_resultado: por(g => g.resultado || 'sin_dato', RESULTADOS),
+      por_dia: Object.values(porDia).sort((a, b) => a.fecha.localeCompare(b.fecha)), whatsapp, mensajes: canales, encuesta: kpiEncuesta((X.encuestas || []).filter(e => en(e.enviada_en))) };
+  }
+  /** KPI de la encuesta de satisfacción de cobros: respuesta, CSAT (1–5), % satisfechos (4 y 5), NPS (0–10), claridad, trato y resolución. */
+  function kpiEncuesta(lista, porGestor) {
+    const es = lista || [], r = es.filter(e => e.respondida_en);
+    const prom = k => { const v = r.map(e => Number(e[k])).filter(n => n > 0); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) * 100 / v.length) / 100 : null; };
+    const nps = r.filter(e => e.nps !== '' && e.nps !== null && e.nps !== undefined).map(e => Number(e.nps)).filter(n => n >= 0 && n <= 10);
+    const out = { enviadas: es.length, respondidas: r.length, tasa_respuesta: es.length ? Math.round(r.length * 1000 / es.length) / 10 : null, csat: prom('csat'),
+      satisfechos: r.length ? Math.round(r.filter(e => Number(e.csat) >= 4).length * 1000 / r.length) / 10 : null, claridad: prom('claridad'), trato: prom('trato'),
+      resuelto: r.length ? Math.round(r.filter(e => e.resuelto === 'si').length * 1000 / r.length) / 10 : null,
+      nps: nps.length ? Math.round((nps.filter(n => n >= 9).length - nps.filter(n => n <= 6).length) * 100 / nps.length) : null, comentarios: r.filter(e => e.comentario).map(e => ({ fecha: e.respondida_en, csat: e.csat, texto: e.comentario, gestor: e.gestor })).slice(-20).reverse() };
+    if (porGestor !== false) { const g = {}; es.forEach(e => { (g[e.gestor || '—'] = g[e.gestor || '—'] || []).push(e); }); out.por_gestor = Object.keys(g).map(k => Object.assign({ gestor: k }, kpiEncuesta(g[k], false))).sort((a, b) => (b.respondidas - a.respondidas)); }
+    return out;
+  }
+
   // ----------------------------------------------------- contabilidad formal (partida doble)
   const CATALOGO = [
     ['1101', 'Caja chica', 'activo'], ['1102', 'Bancos', 'activo'], ['1201', 'Cuentas por cobrar a propietarios', 'activo'],
     ['2101', 'Cuentas por pagar a proveedores', 'pasivo'], ['2102', 'Cuotas adelantadas', 'pasivo'], ['2103', 'Depósitos por identificar', 'pasivo'],
-    ['3101', 'Fondo del condominio', 'patrimonio'], ['3102', 'Resultado del periodo', 'patrimonio'],
+    ['3101', 'Fondo del condominio', 'patrimonio'], ['3102', 'Resultado del periodo', 'patrimonio'], ['3103', 'Fondo de reserva', 'patrimonio'],
     ['4999', 'Descuentos por pronto pago', 'ingreso'],
   ];
   function cuentaDeRubro(cod, tipo) {
     if (cod === 'I3.1') return '3101';
+    if (cod === 'I4.1') return '3103';   // v3.2 · el aporte al fondo de reserva no es ingreso del mes: va al fondo
     return (tipo === 'egreso' || String(cod || '').startsWith('E') ? '5-' : '4-') + (cod || '?');
   }
   function cuentaDeBanco(D, id, fecha) {
@@ -631,6 +886,9 @@
     // cuotas y cobros
     repartir, armarRecibos, numerar, aplicadoPorRecibo, conSaldo, aFavor, descuentoProntoPago, montoProntoPago, aplicarCobro, cruzarAnticipo, estadoCuenta,
     TRAMOS, antiguedad, calcularMora, estadoAcuerdo, planCuotas, vigiaCobros,
+    // v3.2 · clases, partidas, reporte a la medida, cobranza y encuesta
+    CLASES, nombreClase, claseDe, ordenClases, lineasDe, aplicacionesPorLinea, partidas, reporteMedida,
+    CANALES, RESULTADOS, esContacto, canalDe, estadoPromesa, metricasCobranza, kpiEncuesta,
     // bancos y cierre
     libro, saldoCuenta, conciliar, leerExtracto, leerCSV, mesCerrado,
     // reportes
