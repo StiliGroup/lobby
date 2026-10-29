@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stili Group · Empresa · Stili Soft</title>
+<meta name="description" content="La contabilidad de Stili Group conectada a Alegra: facturas de suplidores leídas con IA, conciliación mensual y facturas a clientes con aprobación.">
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css?v=3.0">
+<script src="config.js"></script>
+<script src="stili-modulos.js?v=3.4"></script>
+<style>
+td.num, th.num { text-align: right; white-space: nowrap; }
+.secciones nav { overflow-x: auto; scrollbar-width: thin; }
+.al { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 3px; }
+.al li { font-size: 12.5px; padding-left: 9px; border-left: 2px solid var(--line); }
+.al li.rojo { border-left-color: var(--crit); color: var(--crit); } .al li.ambar { border-left-color: var(--warn); color: var(--warn); } .al li.azul { border-left-color: var(--navy); } .al li.verde { border-left-color: var(--ok); color: var(--ok); }
+.filtros { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+.filtros button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 5px 12px; font-weight: 600; cursor: pointer; font-size: 13px; color: var(--fg); }
+.filtros button[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.filtros input[type=search] { padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-2); color: var(--fg); font: inherit; min-width: 0; flex: 1 1 180px; max-width: 320px; }
+.mini { font-size: 12.5px; color: var(--muted); }
+.suelta { border: 2px dashed var(--line); border-radius: 14px; padding: 26px 16px; text-align: center; background: var(--panel-2); cursor: pointer; }
+.suelta.encima { border-color: var(--navy); background: var(--azul-suave); }
+.suelta b { display: block; font-size: 16px; color: var(--titulo); margin-bottom: 4px; }
+.pasos { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+.btn.chico { padding: 5px 10px; font-size: 13px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.fila-acc { display: flex; gap: 6px; flex-wrap: wrap; }
+.dup { background: var(--crit-suave); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin: 8px 0; }
+.ok-txt { color: var(--ok); font-weight: 600; } .mal-txt { color: var(--crit); font-weight: 600; }
+.barra { height: 6px; background: var(--panel-2); border-radius: 99px; overflow: hidden; margin-top: 4px; } .barra i { display: block; height: 100%; background: var(--navy); }
+#aviso { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #13293D; color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 90; font-weight: 600; max-width: calc(100% - 32px); }
+.secreto { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .1em; }
+@media (max-width: 640px) { .tabla td, .tabla th { font-size: 13px; } }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Stili Group · Contabilidad propia</small><b>Empresa · Alegra</b></div><div id="estado-cab"></div></div></header>
+<div class="secciones"><nav class="gutter" id="nav" role="tablist" aria-label="Stili Group · Empresa"></nav></div>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<dialog id="dlg"><div class="cuerpo" id="dlg-cuerpo"></div></dialog>
+<div id="aviso" hidden></div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const dinero = v => v === null || v === undefined || v === '' || isNaN(v) ? '—' : (Number(v) < 0 ? '−' : '') + 'RD$ ' + Math.abs(Number(v)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fecha = f => { const m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}:\d{2}))?/); return m ? m[3] + '/' + m[2] + '/' + m[1] + (m[4] ? ' ' + m[4] : '') : esc(f); };
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const mesTxt = p => { const m = String(p || '').match(/^(\d{4})-(\d{2})/); return m ? MESES[Number(m[2]) - 1] + ' ' + m[1] : esc(p); };
+const sinT = v => String(v == null ? '' : v).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const TABS = [['inicio', 'Inicio'], ['compras', 'Facturas de suplidores'], ['subir', 'Subir facturas'], ['conciliacion', 'Conciliación'], ['clientes', 'Facturas a clientes'], ['criterio', 'Criterio'], ['config', 'Conexión y ajustes']];
+const EST = { listo: ['Lista', 'verde'], revisar: ['Para revisar', 'ambar'], duplicada: ['Duplicada', 'rojo'], registrada: ['En Alegra', 'azul'], registrando: ['A medias: verificar', 'rojo'], descartada: ['Descartada', ''] };
+let D = null, tab = 'inicio', filtro = 'revisar', buscar = '', concSel = '', concLineas = null, propFiltro = 'propuesta';
+
+// ---------------------------------------------------------------- demostración
+function demo() {
+  const cat = [{ id: '62', nombre: 'Gastos › Papelería y útiles' }, { id: '63', nombre: 'Gastos › Mantenimiento de equipos' }, { id: '64', nombre: 'Gastos › Combustible' }, { id: '65', nombre: 'Gastos › Servicios profesionales' }, { id: '66', nombre: 'Gastos › Comunicaciones' }];
+  const prov = [{ id: '5', nombre: 'Papelería Central SRL', rnc: '101821256', tipos: ['provider'] }, { id: '6', nombre: 'Claro Dominicana', rnc: '101001577', tipos: ['provider'] }, { id: '7', nombre: 'Estación Texaco Naco', rnc: '130551122', tipos: ['provider'] },
+    { id: '10', nombre: 'Condominio Torre Niza 7', rnc: '430123456', tipos: ['client'] }, { id: '11', nombre: 'Condominio Apex Arroyo Hondo', rnc: '430654321', tipos: ['client'] }, { id: '12', nombre: 'Residencial Bella Vista Prime', rnc: '430777888', tipos: ['client'] }];
+  const al = (n, t) => ({ nivel: n, texto: t });
+  const q = (id, est, sup, rnc, ncf, f, g, i, t, pags, prop, motivos, alertas, dup, extra) => Object.assign({ id, lote_id: 'LOT-1', paginas: pags, url: '#', estado: est, suplidor: sup, rnc, ncf, fecha_factura: f, total: t, itbis: i,
+    datos: { suplidor: sup, rnc, ncf, fecha_factura: f, gravado: g, exento: 0, itbis: i, total: t, servicio: '', moneda: 'DOP' }, propuesta: prop, motivos, alertas, duplicado: dup || null, alegra_id: '', error: '', creado_en: '2026-10-28T09:12' }, extra || {});
+  return {
+    conectado: true, usuario: 'c•••@stiligroup.do', puede_editar: true, gerente: true, carpeta: '#', activo: true, cada_minutos: 10, ultima: '2026-10-28T09:20',
+    sync: { ultima: '2026-10-28T06:00', completa: '2026-10-27T06:00', estilo_ncf: 'prefijo', compras: 1874, por_anio: { 2024: 702, 2025: 846, 2026: 326 } },
+    config: { EMP_RNC: '131234567', EMP_RAZON: 'Stili Group SRL', EMP_DESDE: '2024-01-01', EMP_AUTO: 'no', EMP_EMITIR: 'si', EMP_PLANTILLA_VENTA: '21', EMP_VENCE_DIAS: '30', EMP_GMAIL_ETIQUETA: 'facturas-stili' },
+    catalogo: { contactos: prov, categorias: cat, centros: [{ id: '7', nombre: 'Administración' }, { id: '8', nombre: 'Operaciones de torres' }], impuestos: [{ id: '1', nombre: 'ITBIS 18%', porcentaje: 18 }, { id: '2', nombre: 'ITBIS 16%', porcentaje: 16 }],
+      bancos: [{ id: '3', nombre: 'Banco Popular · Stili', numero: '6789' }, { id: '4', nombre: 'Banreservas · Stili', numero: '1122' }], numeraciones: [{ id: '21', nombre: 'Crédito fiscal (B01)', documento: 'invoice', preferida: true }, { id: '22', nombre: 'e-CF crédito fiscal (E31)', documento: 'invoice' }],
+      items: [{ id: '31', nombre: 'Honorarios de administración', precio: 50000 }, { id: '32', nombre: 'Asesoría y otros servicios', precio: 0 }] },
+    lotes: [{ id: 'LOT-1', fecha: '2026-10-28T09:10', origen: 'pantalla · Gerente', archivo: 'escaneo-octubre.pdf', paginas: 26, siguiente: 27, facturas: 18, estado: 'leido', detalle: '' },
+      { id: 'LOT-2', fecha: '2026-10-28T09:18', origen: 'carpeta', archivo: 'facturas-2024-caja-3.pdf', paginas: 30, siguiente: 17, facturas: 11, estado: 'leyendo', detalle: '' },
+      { id: 'LOT-3', fecha: '2026-10-27T17:02', origen: 'correo', archivo: 'Factura Claro.pdf', paginas: 1, siguiente: 2, facturas: 1, estado: 'leido', detalle: '' }],
+    cola: [
+      q('EMF-1', 'listo', 'Papelería Central SRL', '101821256', 'B0100002001', '2026-10-02', 1000, 180, 1180, '1,2', { proveedor_id: '5', proveedor: 'Papelería Central SRL', categoria_id: '62', centro_id: '7', impuesto_id: '1', criterio: 'Como las 14 compras anteriores de este suplidor (100 % así)', fuente: 'historial' }, [], [al('verde', 'NCF B0100002001 válido en la DGII.')]),
+      q('EMF-2', 'listo', 'Claro Dominicana', '101001577', 'B0100118812', '2026-10-05', 3050.85, 549.15, 3600, '3', { proveedor_id: '6', proveedor: 'Claro Dominicana', categoria_id: '66', centro_id: '7', impuesto_id: '1', criterio: 'Como las 22 compras anteriores de este suplidor (95 % así)', fuente: 'historial' }, [], [al('verde', 'NCF B0100118812 válido en la DGII.')]),
+      q('EMF-3', 'revisar', 'Ferretería Nueva', '131000001', 'B0100000077', '2026-10-03', 500, 90, 590, '4', { proveedor_id: '', categoria_id: '63', centro_id: '', impuesto_id: '1', criterio: 'Sugerida por la IA: son tornillos y piezas para mantenimiento', fuente: 'ia' },
+        ['El suplidor no está en Alegra: créelo con un clic', 'Categoría por confirmar (la sugirió la IA)'], [al('verde', 'NCF B0100000077 válido en la DGII.')]),
+      q('EMF-4', 'revisar', 'Estación Texaco Naco', '130551122', 'B0200045121', '2026-10-06', 0, 0, 2500, '5', { proveedor_id: '7', proveedor: 'Estación Texaco Naco', categoria_id: '64', centro_id: '8', impuesto_id: '', criterio: 'Como las 9 compras anteriores de este suplidor (100 % así)', fuente: 'historial' },
+        ['Factura de consumo (B0200045121): no sustenta crédito de ITBIS ni gasto para el ISR. Pida factura de crédito fiscal.'], [al('ambar', 'Factura de consumo (B0200045121): no sustenta crédito de ITBIS ni gasto para el ISR. Pida factura de crédito fiscal.'), al('azul', 'La factura no menciona el nombre de Stili Group.')]),
+      q('EMF-5', 'revisar', 'Servicios Técnicos Herrera', '40212345678', 'B0100000301', '2026-10-07', 2000, 300, 2300, '6,7', { proveedor_id: '', categoria_id: '', centro_id: '', impuesto_id: '', criterio: '', fuente: '' },
+        ['El ITBIS (300) no es el 18 % ni el 16 % de la base gravada (2000): es 15 %.', 'El suplidor no está en Alegra: créelo con un clic', 'No se sabe cómo distribuirla: elija la categoría', 'No encuentro en Alegra el impuesto de esta tasa de ITBIS'],
+        [al('rojo', 'El ITBIS (300) no es el 18 % ni el 16 % de la base gravada (2000): es 15 %.'), al('rojo', 'El RNC del cliente en la factura (131000002) no es el de Stili Group SRL (131234567).')]),
+      q('EMF-6', 'duplicada', 'Papelería Central SRL', '101821256', 'B0100001000', '2025-01-10', 1000, 180, 1180, '8,9,10,11', { proveedor_id: '5', categoria_id: '62', centro_id: '7', impuesto_id: '1', fuente: 'historial' }, ['El mismo NCF de este suplidor ya está registrado'], [],
+        { nivel: 'rojo', con: [{ id: 'AL-1043', torre: 'Alegra', suplidor: 'Papelería Central SRL', ncf: 'B0100001000', fecha: '2025-01-10', monto: 1180, concepto: 'Compra 1043 en Alegra' }] }),
+      q('EMF-7', 'registrada', 'Papelería Central SRL', '101821256', 'B0100001992', '2026-09-28', 400, 72, 472, '12', { proveedor_id: '5', categoria_id: '62', centro_id: '7', impuesto_id: '1', fuente: 'historial' }, [], [], null, { alegra_id: '1871', revisado_por: 'Automático' })],
+    reglas: [{ id: 'EMR-1', rnc: '', contiene: 'combustible', categoria_id: '64', centro_id: '8', nota: 'Gasolina de los gestores' }],
+    criterio: [{ clave: '101001577', proveedor: 'Claro Dominicana', categoria_id: '66', centro_id: '7', veces: 22, igual: 21, parte: 0.95 }, { clave: '101821256', proveedor: 'Papelería Central SRL', categoria_id: '62', centro_id: '7', veces: 14, igual: 14, parte: 1 },
+      { clave: '130551122', proveedor: 'Estación Texaco Naco', categoria_id: '64', centro_id: '8', veces: 9, igual: 9, parte: 1 }],
+    honorarios: [{ id: 'EMH-1', torre: 'Torre Niza 7', cliente_id: '10', item_id: '31', monto: 50000, impuesto_id: '1', dia: 1, activo: 'si' }, { id: 'EMH-2', torre: 'Apex Arroyo Hondo', cliente_id: '11', item_id: '31', monto: 42000, impuesto_id: '1', dia: 1, activo: 'si' }],
+    propuestas: [{ id: 'EMV-1', tipo: 'honorario', periodo: '2026-10', fecha: '2026-10-01', cliente_id: '10', cliente: 'Condominio Torre Niza 7', item_id: '31', concepto: 'Honorarios de administración Torre Niza 7 · octubre 2026', monto: 50000, impuesto_id: '1', origen: 'Honorario fijo de Torre Niza 7', estado: 'propuesta' },
+      { id: 'EMV-2', tipo: 'honorario', periodo: '2026-10', fecha: '2026-10-01', cliente_id: '11', cliente: 'Condominio Apex Arroyo Hondo', item_id: '31', concepto: 'Honorarios de administración Apex Arroyo Hondo · octubre 2026', monto: 42000, impuesto_id: '1', origen: 'Honorario fijo de Apex Arroyo Hondo', estado: 'propuesta' },
+      { id: 'EMV-0', tipo: 'honorario', periodo: '2026-09', fecha: '2026-09-01', cliente_id: '10', cliente: 'Condominio Torre Niza 7', item_id: '31', concepto: 'Honorarios de administración Torre Niza 7 · septiembre 2026', monto: 50000, impuesto_id: '1', estado: 'creada', numero: 'B0100000388', alegra_id: '901', aprobado_por: 'Gerente' }],
+    conciliaciones: [{ id: 'EMC-1', cuenta_id: '3', cuenta: 'Banco Popular · Stili', mes: '2026-09', url: '#', saldo_inicial: '412500.20', saldo_banco: '498310.55', lineas: 64, parejas: 58, estado: 'lista', alegra_id: '',
+      detalle: { cuadre: 0, gastos_banco: 650, impuestos: 312.4, intereses: 18.2, depositos: 59000, retiros: 0, fuente: 'movimientos', solo_alegra: [{ id: 'm9', fecha: '2026-09-29', monto: -12500, descripcion: 'Cheque 1044 · Servicios Técnicos Herrera' }] } }],
+  };
+}
+const demoLineas = () => [
+  { id: 'EMC-1-1', n: 1, fecha: '2026-09-02', descripcion: 'DEP TRANSF CONDOMINIO TORRE NIZA 7', referencia: '77810', monto: 59000, clase: 'conciliada', pareja: 'm1', pareja_desc: '2026-09-02 · Cobro factura B0100000370' },
+  { id: 'EMC-1-2', n: 2, fecha: '2026-09-11', descripcion: 'DEP TRANSF RESIDENCIAL BELLA VISTA', referencia: '88121', monto: 59000, clase: 'deposito', pareja: '', propuesta_id: '' },
+  { id: 'EMC-1-3', n: 3, fecha: '2026-09-30', descripcion: 'COMISION MANEJO DE CUENTA', monto: -650, clase: 'gasto_banco', pareja: '' },
+  { id: 'EMC-1-4', n: 4, fecha: '2026-09-30', descripcion: 'IMPUESTO DGII 0.15%', monto: -312.4, clase: 'impuesto', pareja: '' },
+  { id: 'EMC-1-5', n: 5, fecha: '2026-09-30', descripcion: 'INTERESES GANADOS', monto: 18.2, clase: 'interes', pareja: '' }];
+
+// ---------------------------------------------------------------- servicio
+const toast = m => { const el = $('#aviso'); el.textContent = m; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, 5000); };
+async function api(op, datos) {
+  if (DEMO) { toast('Demostración: no se envía nada a Alegra.'); return D; }
+  const r = await StiliModulos.api('emp', { op, datos: datos || {} });
+  if (r.aviso) toast(r.aviso);
+  return r;
+}
+async function hacer(op, datos, boton) {
+  if (boton) { boton.disabled = true; boton.dataset.t = boton.textContent; boton.textContent = 'Un momento…'; }
+  try { const r = await api(op, datos); if (r && r.cola) D = r; pintar(); return r; }
+  catch (e) { toast(e.message); throw e; }
+  finally { if (boton && document.body.contains(boton)) { boton.disabled = false; boton.textContent = boton.dataset.t; } }
+}
+async function cargar() {
+  try { D = DEMO ? demo() : await StiliModulos.api('emp', { op: 'datos' }); pintar(); }
+  catch (e) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(e.message) + '</p></div>'; }
+}
+
+// ---------------------------------------------------------------- nombres del catálogo
+const nombre = (lista, id) => { const x = (D.catalogo[lista] || []).find(c => String(c.id) === String(id)); return x ? x.nombre : (id ? '#' + id : ''); };
+const opciones = (lista, sel, vacio) => '<option value="">' + esc(vacio || '— Elegir —') + '</option>' + (D.catalogo[lista] || []).map(c => '<option value="' + esc(c.id) + '"' + (String(c.id) === String(sel) ? ' selected' : '') + '>' + esc(c.nombre + (c.porcentaje != null && lista === 'impuestos' ? '' : '')) + '</option>').join('');
+const contactoTxt = c => c.nombre + (c.rnc ? ' · ' + c.rnc : '');
+const datalist = (id, tipo) => '<datalist id="' + id + '">' + D.catalogo.contactos.filter(c => !tipo || !c.tipos.length || c.tipos.indexOf(tipo) >= 0).map(c => '<option value="' + esc(contactoTxt(c)) + '">').join('') + '</datalist>';
+const contactoDe = txt => D.catalogo.contactos.find(c => contactoTxt(c) === txt || c.nombre === txt);
+const edita = () => D.puede_editar;
+
+// ---------------------------------------------------------------- pintar
+function pintar() {
+  const cola = D.cola || [], n = k => cola.filter(q => q.estado === k).length;
+  const pend = (D.propuestas || []).filter(p => p.estado === 'propuesta').length;
+  $('#nav').innerHTML = TABS.map(([k, t]) => '<button type="button" role="tab" data-tab="' + k + '" aria-selected="' + (tab === k) + '">' + esc(t) +
+    (k === 'compras' && n('revisar') + n('listo') ? '<span class="n">' + (n('revisar') + n('listo')) + '</span>' : '') + (k === 'clientes' && pend ? '<span class="n">' + pend + '</span>' : '') + '</button>').join('');
+  $('#estado-cab').innerHTML = D.conectado ? '<span class="chip verde">Alegra conectado</span>' : '<span class="chip rojo">Alegra sin conectar</span>';
+  const pre = DEMO ? '<div class="aviso-edicion">Demostración con datos de ejemplo: nada se envía a Alegra.</div>' : '';
+  const P = { inicio: pInicio, compras: pCompras, subir: pSubir, conciliacion: pConciliacion, clientes: pClientes, criterio: pCriterio, config: pConfig }[tab] || pInicio;
+  $('#contenido').innerHTML = pre + (!D.conectado && tab !== 'config' ? '<div class="card"><b>Falta conectar Alegra.</b> ' + (D.gerente ? '<a href="#config">Conéctelo en «Conexión y ajustes»</a> con el correo y el token de su cuenta de Alegra.' : 'Pídale a Gerencia que lo conecte.') + '</div>' : '') + P();
+  if (tab === 'conciliacion' && concSel && !concLineas) cargarLineas(concSel);
+}
+function pInicio() {
+  const cola = D.cola || [], n = k => cola.filter(q => q.estado === k).length, s = D.sync || {}, mes = new Date().toISOString().slice(0, 7);
+  const regMes = cola.filter(q => q.estado === 'registrada' && String(q.creado_en).slice(0, 7) === mes).length;
+  const kpi = (t, v, d, href, cl) => '<div class="kpi ' + (cl || '') + '"><span>' + esc(t) + '</span><b>' + v + '</b>' + (d ? '<small>' + d + '</small>' : '') + (href ? '<a href="' + href + '">Ver →</a>' : '') + '</div>';
+  const abiertas = (D.conciliaciones || []).filter(c => ['leyendo', 'lista'].indexOf(c.estado) >= 0).length;
+  return '<div class="kpis anchos">' +
+    kpi('En Alegra', (s.compras || 0).toLocaleString('en-US'), Object.keys(s.por_anio || {}).sort().map(a => a + ': ' + s.por_anio[a]).join(' · ') || 'Todavía sin sincronizar') +
+    kpi('Listas para Alegra', n('listo'), D.config.EMP_AUTO === 'si' ? 'Se registran solas' : 'Se aprueban con un clic', '#compras', n('listo') ? 'ambar' : '') +
+    kpi('Para revisar', n('revisar') + n('registrando'), 'Alertas, suplidor nuevo o categoría por confirmar', '#compras', n('revisar') ? 'rojo' : '') +
+    kpi('Duplicadas detenidas', n('duplicada'), 'No se registraron', '#compras') +
+    kpi('Registradas este mes', regMes, '') +
+    kpi('Facturas a clientes por aprobar', (D.propuestas || []).filter(p => p.estado === 'propuesta').length, 'Honorarios, depósitos y servicios', '#clientes') +
+    kpi('Conciliaciones abiertas', abiertas, '', '#conciliacion') + '</div>' +
+    '<div class="card"><div class="cab"><h2>Cómo trabaja</h2>' + (D.activo ? '<span class="chip verde">Activo · cada ' + D.cada_minutos + ' min</span>' : '<span class="chip rojo">Sin activar</span>') + '</div>' +
+    '<ol class="pasos"><li><b>Compras.</b> Suba un PDF con muchas facturas (20 o 30 páginas escaneadas), fotos o deje los archivos en la carpeta «Entrada»' + (D.carpeta ? ' (<a href="' + esc(D.carpeta) + '" target="_blank" rel="noopener">abrir en Drive</a>)' : '') + (D.config.EMP_GMAIL_ETIQUETA ? ' o en los correos con la etiqueta «' + esc(D.config.EMP_GMAIL_ETIQUETA) + '»' : '') + '. La IA separa cada factura y sus páginas, y lee los datos fiscales.</li>' +
+    '<li><b>Valida.</b> NCF en la DGII, RNC y estado del suplidor, que esté a nombre de ' + esc(D.config.EMP_RAZON || 'Stili Group') + ' con su RNC, ITBIS separado y bien calculado. Busca duplicados contra todo lo que ya está en Alegra desde ' + esc(D.config.EMP_DESDE.slice(0, 4)) + '.</li>' +
+    '<li><b>Distribuye como Contabilidad.</b> Aprende de las compras ya registradas en Alegra qué categoría y centro de costo lleva cada suplidor, más las reglas que usted escriba.</li>' +
+    '<li><b>Registra en Alegra</b> las listas, con su PDF adjunto. Las dudosas esperan su revisión: puede seguir adelante a pesar de una alerta.</li>' +
+    '<li><b>Concilia el mes</b> con el estado de cuenta del banco y <b>propone las facturas a sus clientes</b> (honorarios por torre, depósitos sin factura y otros servicios). Ninguna factura a cliente se emite sin que una persona la apruebe.</li></ol>' +
+    '<p class="mini">Última vuelta: ' + (D.ultima ? fecha(D.ultima) : '—') + ' · Última lectura de Alegra: ' + (s.ultima ? fecha(s.ultima) : '—') + '</p>' +
+    (edita() ? '<div class="acciones-fila"><button class="btn primario" data-acc="procesar">Procesar ahora</button><button class="btn" data-acc="sincronizar">Leer Alegra ahora</button></div>' : '') + '</div>';
+}
+function pCompras() {
+  const cola = D.cola || [], cuenta = k => cola.filter(q => q.estado === k).length;
+  const t = sinT(buscar);
+  const lista = cola.filter(q => (!filtro || q.estado === filtro || (filtro === 'revisar' && q.estado === 'registrando')) && (!t || sinT([q.suplidor, q.rnc, q.ncf, q.total].join(' ')).indexOf(t) >= 0));
+  const listas = cuenta('listo');
+  return '<div class="card"><div class="cab"><h2>Facturas de suplidores</h2>' + (edita() && listas ? '<button class="btn primario" data-acc="registrar_listas">Registrar las ' + listas + ' listas en Alegra</button>' : '') + '</div>' +
+    '<div class="filtros">' + [['revisar', 'Para revisar · ' + (cuenta('revisar') + cuenta('registrando'))], ['listo', 'Listas · ' + listas], ['duplicada', 'Duplicadas · ' + cuenta('duplicada')], ['registrada', 'En Alegra · ' + cuenta('registrada')], ['descartada', 'Descartadas'], ['', 'Todas']]
+      .map(([k, x]) => '<button type="button" data-f="' + k + '" aria-pressed="' + (filtro === k) + '">' + x + '</button>').join('') + '<input type="search" id="buscar" placeholder="Buscar suplidor, RNC, NCF o monto" value="' + esc(buscar) + '"></div>' +
+    (lista.length ? '<div class="tabla"><table><thead><tr><th>Factura</th><th class="num">Total</th><th>Distribución en Alegra</th><th>Estado</th><th></th></tr></thead><tbody>' + lista.slice(0, 300).map(q => {
+      const p = q.propuesta || {}, e = EST[q.estado] || [q.estado, ''];
+      const al = (q.estado === 'registrada' ? [] : (q.motivos || []).map(m => ({ nivel: 'ambar', texto: m }))).concat((q.alertas || []).filter(a => a.nivel === 'verde' || (a.nivel === 'azul' && q.estado !== 'registrada')));
+      return '<tr><td><b>' + esc(q.suplidor || 'Sin nombre') + '</b><br><span class="mini">' + esc(q.rnc || 'sin RNC') + ' · ' + esc(q.ncf || 'sin NCF') + ' · ' + fecha(q.fecha_factura) + '</span><br><a class="mini" href="' + esc(q.url) + '" target="_blank" rel="noopener">PDF (pág. ' + esc(q.paginas) + ')</a></td>' +
+        '<td class="num">' + dinero(q.total) + (q.itbis ? '<br><span class="mini">ITBIS ' + dinero(q.itbis) + '</span>' : '') + '</td>' +
+        '<td>' + (p.categoria_id ? esc(nombre('categorias', p.categoria_id)) + (p.centro_id ? '<br><span class="mini">Centro: ' + esc(nombre('centros', p.centro_id)) + '</span>' : '') : '<span class="mal-txt">Sin categoría</span>') + (p.criterio ? '<br><span class="mini">' + esc(p.criterio) + '</span>' : '') + '</td>' +
+        '<td><span class="chip ' + e[1] + '">' + esc(e[0]) + '</span>' + (q.alegra_id ? '<br><span class="mini">Compra ' + esc(q.alegra_id) + (q.revisado_por ? ' · ' + esc(q.revisado_por) : '') + '</span>' : '') + (al.length ? '<ul class="al">' + al.slice(0, 5).map(a => '<li class="' + esc(a.nivel) + '">' + esc(a.texto) + '</li>').join('') + '</ul>' : '') + (q.error ? '<div class="mini mal-txt">' + esc(q.error) + '</div>' : '') + '</td>' +
+        '<td><div class="fila-acc">' + (['registrada', 'descartada'].indexOf(q.estado) < 0 ? '<button class="btn chico" data-rev="' + esc(q.id) + '">Revisar</button>' : '') + (q.estado === 'listo' && edita() ? '<button class="btn chico primario" data-reg="' + esc(q.id) + '">Registrar</button>' : '') + '</div></td></tr>';
+    }).join('') + '</tbody></table></div>' + (lista.length > 300 ? '<p class="mini">Se muestran 300 de ' + lista.length + '. Use la búsqueda.</p>' : '') : '<p class="nota">No hay facturas en esta lista.</p>') + '</div>';
+}
+function dlgRevisar(id) {
+  const q = D.cola.find(x => x.id === id); if (!q) return;
+  const f = q.datos || {}, p = q.propuesta || {}, prov = D.catalogo.contactos.find(c => c.id === p.proveedor_id);
+  const inp = (k, t, tipo) => '<label>' + t + '<input name="f_' + k + '" ' + (tipo === 'n' ? 'inputmode="decimal"' : '') + ' value="' + esc(f[k] == null ? '' : f[k]) + '"' + (edita() ? '' : ' disabled') + '></label>';
+  const dup = q.duplicado && q.duplicado.con && q.duplicado.con.length ? '<div class="dup"><b>Posible duplicado' + (q.duplicado.ia && q.duplicado.ia.razon ? ' (IA: ' + esc(q.duplicado.ia.razon) + ')' : '') + ':</b><ul class="al">' +
+    q.duplicado.con.map(c => '<li class="' + esc(c.nivel || 'rojo') + '">' + esc(c.concepto) + ' · ' + esc(c.suplidor) + ' · ' + esc(c.ncf || 'sin NCF') + ' · ' + fecha(c.fecha) + ' · ' + dinero(c.monto) + '</li>').join('') + '</ul></div>' : '';
+  $('#dlg-cuerpo').innerHTML = '<h2>' + esc(q.suplidor || 'Factura sin nombre de suplidor') + '</h2><p class="mini"><a href="' + esc(q.url) + '" target="_blank" rel="noopener">Abrir el PDF de la factura</a> · páginas ' + esc(q.paginas) + ' del lote</p>' + dup +
+    ((q.motivos || []).length ? '<ul class="al">' + q.motivos.map(m => '<li class="ambar">' + esc(m) + '</li>').join('') + '</ul>' : '') +
+    '<form id="f-rev" class="form" style="margin-top:12px">' + inp('suplidor', 'Suplidor (como en la factura)') + inp('rnc', 'RNC o cédula') + inp('ncf', 'NCF') + inp('fecha_factura', 'Fecha (AAAA-MM-DD)') + inp('gravado', 'Base gravada', 'n') + inp('exento', 'Exento', 'n') + inp('itbis', 'ITBIS', 'n') + inp('total', 'Total', 'n') +
+    '<label class="ancho">Qué se factura<input name="f_servicio" value="' + esc(f.servicio || '') + '"' + (edita() ? '' : ' disabled') + '></label>' +
+    '<label class="ancho">Suplidor en Alegra<input name="proveedor" list="dl-prov" placeholder="Escriba para buscar" value="' + esc(prov ? contactoTxt(prov) : '') + '"' + (edita() ? '' : ' disabled') + '>' + datalist('dl-prov', 'provider') + '</label>' +
+    '<label>Categoría<select name="categoria_id"' + (edita() ? '' : ' disabled') + '>' + opciones('categorias', p.categoria_id) + '</select></label>' +
+    '<label>Centro de costo<select name="centro_id"' + (edita() ? '' : ' disabled') + '>' + opciones('centros', p.centro_id, '— Ninguno —') + '</select></label>' +
+    '<label>Impuesto (ITBIS)<select name="impuesto_id"' + (edita() ? '' : ' disabled') + '>' + opciones('impuestos', p.impuesto_id, '— Sin ITBIS —') + '</select></label></form>' +
+    (p.criterio ? '<p class="mini">Distribución propuesta: ' + esc(p.criterio) + '</p>' : '') + (q.error ? '<p class="mini mal-txt">' + esc(q.error) + '</p>' : '') +
+    '<div class="acciones-fila">' + (edita() ? (q.estado === 'registrando' ? '<button class="btn" data-acc="revisada" data-id="' + esc(id) + '">Ya verifiqué: no está en Alegra</button>'
+      : '<button class="btn primario" data-acc="registrar" data-id="' + esc(id) + '">' + (q.estado === 'duplicada' ? 'Registrar de todos modos' : 'Registrar en Alegra') + '</button>' +
+      '<button class="btn" data-acc="corregir" data-id="' + esc(id) + '">Guardar y volver a validar</button>' +
+      (!p.proveedor_id ? '<button class="btn" data-acc="crear_suplidor" data-id="' + esc(id) + '">Crear el suplidor en Alegra</button>' : '') +
+      '<button class="btn peligro" data-acc="descartar" data-id="' + esc(id) + '">Descartar</button>') : '') + '<button class="btn" data-cerrar>Cerrar</button></div>';
+  $('#dlg').showModal();
+}
+function leerRevision() {
+  const fm = $('#f-rev'), g = k => fm.elements[k] ? fm.elements[k].value.trim() : '';
+  const factura = {}; ['suplidor', 'rnc', 'ncf', 'fecha_factura', 'servicio'].forEach(k => { factura[k] = g('f_' + k); }); ['gravado', 'exento', 'itbis', 'total'].forEach(k => { factura[k] = Number(g('f_' + k).replace(/,/g, '')) || 0; });
+  const prov = contactoDe(g('proveedor'));
+  if (g('proveedor') && !prov) throw new Error('Ese suplidor no está en Alegra: elíjalo de la lista o use «Crear el suplidor en Alegra».');
+  const propuesta = { categoria_id: g('categoria_id'), centro_id: g('centro_id'), impuesto_id: g('impuesto_id') };
+  if (prov) Object.assign(propuesta, { proveedor_id: prov.id, proveedor: prov.nombre });
+  return { factura, propuesta };
+}
+function pSubir() {
+  const l = D.lotes || [], EL = { pendiente: ['En espera', 'azul'], leyendo: ['Leyendo', 'azul'], leido: ['Leído', 'verde'], duplicado: ['Repetido', 'rojo'], problema: ['Problema', 'ambar'] };
+  return '<div class="card"><h2>Subir facturas</h2>' + (edita() ? '<label class="suelta" id="suelta" for="archivos"><b>Arrastre aquí los PDF o fotos</b><span class="mini">Un PDF puede traer muchas facturas (20 o 30 páginas): la IA separa cada una. Hasta 30 MB por archivo.</span>' +
+    '<input type="file" id="archivos" accept="application/pdf,image/jpeg,image/png,image/webp" multiple hidden></label>' : '<p class="nota">Necesita el nivel «Editar» para subir facturas.</p>') +
+    '<p class="mini">También puede dejarlas en la carpeta «Entrada»' + (D.carpeta ? ' de <a href="' + esc(D.carpeta) + '" target="_blank" rel="noopener">Facturas Stili Group (empresa)</a>' : '') + ' (en la PC con «Google Drive para escritorio»)' + (D.config.EMP_GMAIL_ETIQUETA ? ' o ponerle la etiqueta «' + esc(D.config.EMP_GMAIL_ETIQUETA) + '» al correo' : '') + '. Se leen solas cada ' + D.cada_minutos + ' minutos, de día o de noche.</p><div id="progreso"></div></div>' +
+    '<div class="card"><h2>Archivos recibidos</h2>' + (l.length ? '<div class="tabla"><table><thead><tr><th>Recibido</th><th>Archivo</th><th>Lectura</th><th class="num">Facturas</th><th>Estado</th></tr></thead><tbody>' + l.map(x => {
+      const e = EL[x.estado] || [x.estado, ''], pct = x.paginas ? Math.min(100, Math.round((x.siguiente - 1) / x.paginas * 100)) : 0;
+      return '<tr><td>' + fecha(x.fecha) + '<br><span class="mini">' + esc(x.origen) + '</span></td><td>' + esc(x.archivo) + '</td><td>' + (x.paginas ? Math.min(x.siguiente - 1, x.paginas) + ' de ' + x.paginas + ' páginas<div class="barra"><i style="width:' + pct + '%"></i></div>' : '—') + '</td><td class="num">' + x.facturas + '</td><td><span class="chip ' + e[1] + '">' + e[0] + '</span>' + (x.detalle ? '<div class="mini">' + esc(x.detalle) + '</div>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<p class="nota">Todavía no hay archivos.</p>') + '</div>';
+}
+async function subirArchivos(files) {
+  const prog = $('#progreso');
+  for (const f of files) {
+    if (f.size > 30 * 1024 * 1024) { toast(f.name + ': pasa de 30 MB, divídalo.'); continue; }
+    prog.innerHTML = '<p class="mini">Subiendo ' + esc(f.name) + '…</p>';
+    const b64 = await new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = mal; r.readAsDataURL(f); });
+    try { const r = await api('subir', { nombre: f.name, mime: f.type || (/\.pdf$/i.test(f.name) ? 'application/pdf' : ''), contenido: b64 }); if (r && r.cola) D = r; }
+    catch (e) { toast(f.name + ': ' + e.message); }
+  }
+  pintar();
+}
+function pConciliacion() {
+  const cs = D.conciliaciones || [], EC = { leyendo: ['Leyendo', 'azul'], lista: ['Lista para revisar', 'ambar'], enviando: ['Enviando', 'azul'], borrador_alegra: ['Borrador en Alegra', 'verde'], cerrada: ['Cerrada en Alegra', 'verde'], problema: ['Problema', 'rojo'], descartada: ['Descartada', ''] };
+  const mesPasado = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
+  let h = '<div class="card"><h2>Conciliación bancaria del mes</h2>' + (edita() ? '<form id="f-conc" class="form"><label>Cuenta de banco en Alegra<select name="cuenta_id" required>' + opciones('bancos', '') + '</select></label><label>Mes<input type="month" name="mes" value="' + mesPasado + '" required></label>' +
+    '<label>Estado de cuenta (PDF, foto o CSV)<input type="file" name="archivo" accept="application/pdf,image/jpeg,image/png,text/csv,.csv" required></label><div class="ancho"><button class="btn primario">Subir y conciliar</button></div></form>' : '') +
+    '<p class="mini">La IA lee el estado de cuenta, lo empareja con los movimientos de Alegra (mismo monto, fecha cercana, la referencia desempata) y separa comisiones, impuestos e intereses del banco y los depósitos que no tienen factura. Usted revisa y confirma.</p></div>';
+  h += '<div class="card"><h2>Conciliaciones</h2>' + (cs.length ? '<div class="tabla"><table><thead><tr><th>Mes</th><th>Cuenta</th><th class="num">Emparejadas</th><th class="num">Saldo del banco</th><th>Estado</th><th></th></tr></thead><tbody>' + cs.map(c => {
+    const e = EC[c.estado] || [c.estado, ''];
+    return '<tr><td>' + mesTxt(c.mes) + '</td><td>' + esc(c.cuenta) + '</td><td class="num">' + c.parejas + ' de ' + c.lineas + '</td><td class="num">' + (c.saldo_banco !== '' ? dinero(c.saldo_banco) : '—') + '</td><td><span class="chip ' + e[1] + '">' + e[0] + '</span>' + (c.detalle && c.detalle.error ? '<div class="mini mal-txt">' + esc(c.detalle.error) + '</div>' : '') + '</td><td><button class="btn chico" data-conc="' + esc(c.id) + '">Ver</button></td></tr>';
+  }).join('') + '</tbody></table></div>' : '<p class="nota">Todavía no hay conciliaciones.</p>') + '</div>';
+  const c = cs.find(x => x.id === concSel);
+  if (c) {
+    const d = c.detalle || {}, lin = concLineas || [];
+    const CL = { conciliada: ['Emparejada', 'verde'], deposito: ['Depósito sin factura', 'ambar'], retiro: ['Salida sin registrar', 'rojo'], gasto_banco: ['Comisión del banco', 'azul'], impuesto: ['Impuesto (0.15 %)', 'azul'], interes: ['Interés', 'azul'] };
+    h += '<div class="card"><div class="cab"><h2>' + esc(c.cuenta) + ' · ' + mesTxt(c.mes) + '</h2><a class="btn chico" href="' + esc(c.url) + '" target="_blank" rel="noopener">Ver estado de cuenta</a></div>' +
+      '<div class="kpis"><div class="kpi"><span>Emparejadas</span><b>' + c.parejas + '/' + c.lineas + '</b></div><div class="kpi"><span>Comisiones</span><b>' + dinero(d.gastos_banco) + '</b></div><div class="kpi"><span>Impuestos</span><b>' + dinero(d.impuestos) + '</b></div>' +
+      '<div class="kpi"><span>Intereses</span><b>' + dinero(d.intereses) + '</b></div><div class="kpi ' + (d.depositos ? 'ambar' : '') + '"><span>Depósitos sin factura</span><b>' + dinero(d.depositos) + '</b></div><div class="kpi ' + (d.retiros ? 'rojo' : '') + '"><span>Salidas sin registrar</span><b>' + dinero(d.retiros) + '</b></div></div>' +
+      (d.cuadre != null && d.cuadre !== '' ? '<p class="' + (Math.abs(d.cuadre) < 0.01 ? 'ok-txt' : 'mal-txt') + '">' + (Math.abs(d.cuadre) < 0.01 ? 'El estado de cuenta cuadra: saldo inicial + movimientos = saldo final.' : 'El estado de cuenta no cuadra por ' + dinero(d.cuadre) + ': puede que la IA no leyera alguna línea. Revise antes de enviar.') + '</p>' : '') +
+      (d.fuente === 'pagos' ? '<p class="mini">Alegra no dio sus movimientos bancarios por la API: se emparejó con los pagos y cobros de esa cuenta.</p>' : '') +
+      (lin.length ? '<div class="tabla"><table><thead><tr><th>Fecha</th><th>Descripción</th><th class="num">Monto</th><th>En Alegra</th><th></th></tr></thead><tbody>' + lin.map(l => {
+        const e = CL[l.clase] || [l.clase, ''];
+        return '<tr><td>' + fecha(l.fecha) + '</td><td>' + esc(l.descripcion) + (l.referencia ? '<br><span class="mini">Ref. ' + esc(l.referencia) + '</span>' : '') + '</td><td class="num">' + dinero(l.monto) + '</td><td><span class="chip ' + e[1] + '">' + e[0] + '</span>' + (l.pareja_desc ? '<br><span class="mini">' + esc(l.pareja_desc) + '</span>' : '') + '</td><td>' +
+          (l.clase === 'deposito' && edita() && c.estado === 'lista' ? (l.propuesta_id ? '<span class="mini ok-txt">Factura propuesta</span>' : '<button class="btn chico" data-depo="' + esc(l.id) + '">Proponer factura</button>') : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>' : '<p class="nota">' + (c.estado === 'leyendo' ? 'La IA está leyendo el estado de cuenta…' : 'Cargando líneas…') + '</p>') +
+      ((d.solo_alegra || []).length ? '<h3 class="sub">En Alegra pero no en el banco (' + d.solo_alegra.length + ')</h3><ul class="al">' + d.solo_alegra.slice(0, 40).map(m => '<li class="ambar">' + fecha(m.fecha) + ' · ' + dinero(m.monto) + ' · ' + esc(m.descripcion) + '</li>').join('') + '</ul>' : '') +
+      (edita() && c.estado === 'lista' ? '<form id="f-enviar" class="form" style="margin-top:14px" data-id="' + esc(c.id) + '"><label>Saldo final según el banco<input name="saldo_banco" inputmode="decimal" value="' + esc(c.saldo_banco) + '" required></label>' +
+        '<label>Crear en Alegra como<select name="estado"><option value="draft">Borrador (lo revisa y cierra allá)</option><option value="open">Conciliación cerrada</option></select></label>' +
+        '<div class="ancho acciones-fila"><button class="btn primario">Crear la conciliación en Alegra</button><button type="button" class="btn" data-acc="conc_reemparejar" data-id="' + esc(c.id) + '">Volver a emparejar</button><button type="button" class="btn peligro" data-acc="conc_descartar" data-id="' + esc(c.id) + '">Descartar</button></div></form>' : '') + '</div>';
+  }
+  return h;
+}
+async function cargarLineas(id) {
+  try { concLineas = DEMO ? demoLineas() : (await StiliModulos.api('emp', { op: 'conc_detalle', datos: { id } })).lineas; } catch (e) { concLineas = []; toast(e.message); }
+  if (tab === 'conciliacion') pintar();
+}
+function adivinar(desc) {
+  const pal = sinT(desc).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !/^(deposito|transf|transferencia|credito|pago|banco|cuenta|recibida|desde)$/.test(w));
+  let mejor = null, pm = 0;
+  D.catalogo.contactos.filter(c => !c.tipos.length || c.tipos.indexOf('client') >= 0).forEach(c => { const n = new Set(sinT(c.nombre).split(/\s+/)); const p = pal.filter(w => n.has(w)).length; if (p > pm) { pm = p; mejor = c; } });
+  return mejor;
+}
+function dlgPropuesta(base) {
+  const b = base || {}, cli = b.cliente_id ? D.catalogo.contactos.find(c => c.id === b.cliente_id) : null;
+  $('#dlg-cuerpo').innerHTML = '<h2>' + (b.extracto_id ? 'Factura por un depósito sin factura' : 'Nueva factura a cliente') + '</h2>' + (b.nota ? '<p class="mini">' + esc(b.nota) + '</p>' : '') +
+    '<form id="f-prop" class="form" data-tipo="' + esc(b.tipo || 'servicio') + '" data-extracto="' + esc(b.extracto_id || '') + '"><label class="ancho">Cliente en Alegra<input name="cliente" list="dl-cli" required value="' + esc(cli ? contactoTxt(cli) : '') + '">' + datalist('dl-cli', 'client') + '</label>' +
+    '<label>Producto o servicio de Alegra<select name="item_id" required>' + opciones('items', b.item_id || '') + '</select></label><label>Fecha<input type="date" name="fecha" value="' + esc(b.fecha || new Date().toISOString().slice(0, 10)) + '"></label>' +
+    '<label>Monto<input name="monto" inputmode="decimal" required value="' + esc(b.monto || '') + '"></label><label>Impuesto<select name="impuesto_id">' + opciones('impuestos', b.impuesto_id || '', '— Sin ITBIS —') + '</select></label>' +
+    '<label class="ancho" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="incluye_itbis" style="width:auto"' + (b.extracto_id ? ' checked' : '') + '> El monto ya incluye el ITBIS (se calcula la base)</label>' +
+    '<label class="ancho">Concepto (sale en la factura)<input name="concepto" maxlength="480" value="' + esc(b.concepto || '') + '"></label><div class="ancho acciones-fila"><button class="btn primario">Guardar como propuesta</button><button type="button" class="btn" data-cerrar>Cancelar</button></div></form>' +
+    '<p class="mini">Queda como propuesta: se emite en Alegra solo cuando alguien la aprueba.</p>';
+  $('#dlg').showModal();
+}
+function dlgAprobar(id) {
+  const p = D.propuestas.find(x => x.id === id); if (!p) return;
+  const imp = D.catalogo.impuestos.find(t => t.id === p.impuesto_id), itbis = imp ? Math.round(p.monto * imp.porcentaje) / 100 : 0;
+  $('#dlg-cuerpo').innerHTML = '<h2>Aprobar factura a cliente</h2><form id="f-apr" class="form" data-id="' + esc(id) + '"><label class="ancho">Cliente<input disabled value="' + esc(p.cliente || nombre('contactos', p.cliente_id)) + '"></label>' +
+    '<label>Servicio<input disabled value="' + esc(nombre('items', p.item_id)) + '"></label><label>Fecha<input type="date" name="fecha" value="' + esc(p.fecha) + '"></label>' +
+    '<label>Monto antes de ITBIS<input name="monto" inputmode="decimal" value="' + esc(p.monto) + '"></label><label>Impuesto<select name="impuesto_id">' + opciones('impuestos', p.impuesto_id, '— Sin ITBIS —') + '</select></label>' +
+    '<label class="ancho">Concepto<input name="concepto" maxlength="480" value="' + esc(p.concepto) + '"></label></form>' +
+    '<p><b>Total aproximado: ' + dinero(p.monto + itbis) + '</b>' + (itbis ? ' (ITBIS ' + dinero(itbis) + ')' : '') + '</p>' +
+    '<p class="aviso-edicion">' + (D.config.EMP_EMITIR === 'si' ? 'Al aprobar, se crea y se emite en Alegra con su NCF' + (D.config.EMP_PLANTILLA_VENTA ? ' (' + esc(nombre('numeraciones', D.config.EMP_PLANTILLA_VENTA)) + ')' : '') + '. Para anularla después hace falta una nota de crédito.' : 'Al aprobar, se crea en Alegra como borrador.') + '</p>' +
+    '<div class="acciones-fila"><button class="btn primario" data-acc="propuesta_aprobar" data-id="' + esc(id) + '">Aprobar y crear en Alegra</button><button class="btn peligro" data-acc="propuesta_descartar" data-id="' + esc(id) + '">Descartar</button><button class="btn" data-cerrar>Cancelar</button></div>';
+  $('#dlg').showModal();
+}
+function pClientes() {
+  const ps = (D.propuestas || []).filter(p => !propFiltro || p.estado === propFiltro), hs = D.honorarios || [];
+  const EP = { propuesta: ['Por aprobar', 'ambar'], enviando: ['Enviando', 'azul'], creada: ['En Alegra', 'verde'], descartada: ['Descartada', ''] };
+  const TP = { honorario: 'Honorario fijo', deposito: 'Depósito sin factura', servicio: 'Otro servicio' };
+  return '<div class="card"><div class="cab"><h2>Facturas a clientes</h2>' + (edita() ? '<div class="fila-acc"><button class="btn" data-acc="proponer">Proponer los honorarios del mes</button><button class="btn primario" data-nueva-prop>Nueva factura (otro servicio)</button></div>' : '') + '</div>' +
+    '<div class="filtros">' + [['propuesta', 'Por aprobar · ' + (D.propuestas || []).filter(p => p.estado === 'propuesta').length], ['creada', 'En Alegra'], ['descartada', 'Descartadas'], ['', 'Todas']].map(([k, t]) => '<button type="button" data-pf="' + k + '" aria-pressed="' + (propFiltro === k) + '">' + t + '</button>').join('') + '</div>' +
+    (ps.length ? '<div class="tabla"><table><thead><tr><th>Cliente</th><th>Concepto</th><th class="num">Monto</th><th>Estado</th><th></th></tr></thead><tbody>' + ps.map(p => {
+      const e = EP[p.estado] || [p.estado, ''];
+      return '<tr><td><b>' + esc(p.cliente) + '</b><br><span class="mini">' + esc(TP[p.tipo] || p.tipo) + ' · ' + fecha(p.fecha) + '</span></td><td>' + esc(p.concepto) + (p.origen ? '<br><span class="mini">' + esc(p.origen.indexOf('extracto:') === 0 ? 'Del estado de cuenta' : p.origen) + '</span>' : '') + '</td><td class="num">' + dinero(p.monto) + (p.impuesto_id ? '<br><span class="mini">+ ' + esc(nombre('impuestos', p.impuesto_id)) + '</span>' : '') + '</td>' +
+        '<td><span class="chip ' + e[1] + '">' + e[0] + '</span>' + (p.numero ? '<br><span class="mini">' + esc(p.numero) + (p.aprobado_por ? ' · aprobó ' + esc(p.aprobado_por) : '') + '</span>' : '') + (p.error ? '<div class="mini mal-txt">' + esc(p.error) + '</div>' : '') + '</td>' +
+        '<td>' + (p.estado === 'propuesta' && edita() ? '<button class="btn chico primario" data-apr="' + esc(p.id) + '">Revisar y aprobar</button>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<p class="nota">No hay facturas en esta lista.</p>') + '</div>' +
+    '<div class="card"><h2>Honorarios fijos por torre</h2><p class="mini">Cada mes, desde el día indicado, se propone la factura de cada torre. El monto es antes de ITBIS.</p>' +
+    (hs.length ? '<div class="tabla"><table><thead><tr><th>Torre</th><th>Cliente en Alegra</th><th>Servicio</th><th class="num">Monto</th><th>Desde el día</th><th></th></tr></thead><tbody>' + hs.map(h => '<tr><td>' + esc(h.torre) + (h.activo === 'no' ? ' <span class="chip">Pausado</span>' : '') + '</td><td>' + esc(nombre('contactos', h.cliente_id)) + '</td><td>' + esc(nombre('items', h.item_id)) + '</td><td class="num">' + dinero(h.monto) + (h.impuesto_id ? '<br><span class="mini">+ ' + esc(nombre('impuestos', h.impuesto_id)) + '</span>' : '') + '</td><td>' + h.dia + '</td><td>' + (edita() ? '<button class="btn chico" data-hon="' + esc(h.id) + '">Editar</button>' : '') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="nota">Todavía no hay honorarios fijos.</p>') +
+    (edita() ? '<form id="f-hon" class="form" style="margin-top:12px"><input type="hidden" name="id"><label>Torre<input name="torre" required></label><label>Cliente en Alegra<input name="cliente" list="dl-cli2" required>' + datalist('dl-cli2', 'client') + '</label>' +
+      '<label>Servicio de Alegra<select name="item_id" required>' + opciones('items', '') + '</select></label><label>Monto antes de ITBIS<input name="monto" inputmode="decimal" required></label><label>Impuesto<select name="impuesto_id">' + opciones('impuestos', '', '— Sin ITBIS —') + '</select></label>' +
+      '<label>Desde el día del mes<input type="number" name="dia" min="1" max="28" value="1"></label><label>Activo<select name="activo"><option value="si">Sí</option><option value="no">Pausado</option></select></label><div class="ancho"><button class="btn primario">Guardar honorario</button></div></form>' : '') + '</div>';
+}
+function pCriterio() {
+  const r = D.reglas || [], c = D.criterio || [];
+  return '<div class="card"><h2>Cómo distribuye Contabilidad</h2><p class="mini">Aprendido de las ' + ((D.sync || {}).compras || 0).toLocaleString('en-US') + ' compras ya registradas en Alegra. Una factura queda «lista» solo si el suplidor tiene 2 compras o más y el 60 % o más va a la misma categoría; si no, se confirma.</p>' +
+    (c.length ? '<div class="tabla"><table><thead><tr><th>Suplidor</th><th>Categoría</th><th>Centro</th><th class="num">Compras</th><th class="num">Así</th></tr></thead><tbody>' + c.slice(0, 150).map(x => '<tr><td>' + esc(x.proveedor) + '<br><span class="mini">' + esc(x.clave.charAt(0) === 'p' ? 'sin RNC' : x.clave) + '</span></td><td>' + esc(nombre('categorias', x.categoria_id)) + '</td><td>' + esc(nombre('centros', x.centro_id)) + '</td><td class="num">' + x.veces + '</td><td class="num">' + Math.round(x.parte * 100) + ' %' + (x.veces >= 2 && x.parte >= 0.6 ? '' : ' <span class="chip ambar">Se confirma</span>') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="nota">Aparece después de la primera lectura de Alegra.</p>') + '</div>' +
+    '<div class="card"><h2>Reglas escritas</h2><p class="mini">Mandan sobre lo aprendido. Por RNC del suplidor o por una palabra que aparezca en el suplidor o en lo que se factura.</p>' +
+    (r.filter(x => x.categoria_id).length ? '<ul class="al">' + r.filter(x => x.categoria_id).map(x => '<li class="azul">' + (x.rnc ? 'RNC ' + esc(x.rnc) : 'Contiene «' + esc(x.contiene) + '»') + ' → ' + esc(nombre('categorias', x.categoria_id)) + (x.centro_id ? ' · ' + esc(nombre('centros', x.centro_id)) : '') + (x.nota ? ' · ' + esc(x.nota) : '') + (edita() ? ' <button class="btn chico" data-borrar-regla="' + esc(x.id) + '">Quitar</button>' : '') + '</li>').join('') + '</ul>' : '<p class="nota">Sin reglas.</p>') +
+    (edita() ? '<form id="f-regla" class="form" style="margin-top:12px"><label>RNC del suplidor<input name="rnc" inputmode="numeric"></label><label>o una palabra<input name="contiene" placeholder="p. ej. combustible"></label><label>Categoría<select name="categoria_id" required>' + opciones('categorias', '') + '</select></label>' +
+      '<label>Centro de costo<select name="centro_id">' + opciones('centros', '', '— Ninguno —') + '</select></label><label class="ancho">Nota<input name="nota"></label><div class="ancho"><button class="btn primario">Guardar regla</button></div></form>' : '') + '</div>';
+}
+function pConfig() {
+  const c = D.config, s = D.sync || {};
+  const sel = (k, ops) => '<select name="' + k + '"' + (D.gerente ? '' : ' disabled') + '>' + ops.map(([v, t]) => '<option value="' + v + '"' + (c[k] === v ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>';
+  const inp = (k, t, extra) => '<label>' + t + '<input name="' + k + '" value="' + esc(c[k]) + '"' + (D.gerente ? '' : ' disabled') + (extra || '') + '></label>';
+  return '<div class="card"><div class="cab"><h2>Conexión con Alegra</h2>' + (D.conectado ? '<span class="chip verde">Conectado · ' + esc(D.usuario) + '</span>' : '<span class="chip rojo">Sin conectar</span>') + '</div>' +
+    (D.gerente ? '<ol class="pasos"><li>En Alegra: <b>Configuración › API - Integraciones con otros sistemas</b>. Allí están el correo y el token (si no hay token, genérelo).</li><li>Escríbalos aquí. El token se guarda en el servicio de Stili y no vuelve a mostrarse en ninguna pantalla.</li></ol>' +
+      '<form id="f-conectar" class="form" style="margin-top:12px" autocomplete="off"><label>Correo de Alegra<input name="usuario" type="email" required autocomplete="off"></label><label>Token de Alegra<input name="token" type="password" required autocomplete="new-password" class="secreto"></label>' +
+      '<div class="ancho acciones-fila"><button class="btn primario">' + (D.conectado ? 'Cambiar la conexión' : 'Conectar') + '</button>' + (D.conectado ? '<button type="button" class="btn peligro" data-acc="desconectar">Desconectar</button>' : '') + '</div></form>' : '<p class="nota">Solo Gerencia conecta Alegra.</p>') +
+    '<p class="mini">Lectura de Alegra: ' + (s.ultima ? fecha(s.ultima) : 'todavía no') + (s.completa ? ' · lectura completa: ' + fecha(s.completa) : '') + (s.estilo_ncf ? ' · formato del NCF en compras: ' + (s.estilo_ncf === 'prefijo' ? 'prefijo + número' : 'número completo') : '') + '. Se lee sola cada 6 horas (solo lectura).</p></div>' +
+    '<div class="card"><h2>Ajustes</h2><form id="f-config" class="form">' + inp('EMP_RAZON', 'Razón social de Stili Group') + inp('EMP_RNC', 'RNC de Stili Group', ' inputmode="numeric"') + inp('EMP_DESDE', 'Registrar facturas desde', ' type="date"') +
+    '<label>Facturas listas' + sel('EMP_AUTO', [['no', 'Se aprueban con un clic'], ['si', 'Se registran solas en Alegra']]) + '</label>' +
+    '<label>Al aprobar una factura a cliente' + sel('EMP_EMITIR', [['si', 'Se emite en Alegra (con NCF)'], ['no', 'Queda en borrador en Alegra']]) + '</label>' +
+    '<label>Numeración de las facturas a clientes<select name="EMP_PLANTILLA_VENTA"' + (D.gerente ? '' : ' disabled') + '>' + opciones('numeraciones', c.EMP_PLANTILLA_VENTA, '— La preferida en Alegra —') + '</select></label>' +
+    inp('EMP_VENCE_DIAS', 'Días de crédito a clientes', ' type="number" min="0" max="120"') + inp('EMP_GMAIL_ETIQUETA', 'Etiqueta de Gmail con facturas (opcional)') +
+    (D.gerente ? '<div class="ancho"><button class="btn primario">Guardar ajustes</button></div>' : '') + '</form>' +
+    '<p class="mini">Carpeta en Drive: ' + (D.carpeta ? '<a href="' + esc(D.carpeta) + '" target="_blank" rel="noopener">Facturas Stili Group (empresa)</a> (Entrada, Procesadas, Originales, Extractos)' : 'se crea al instalar') + ' · Proceso automático: ' + (D.activo ? 'activo' : 'sin activar') + '.</p></div>';
+}
+
+// ---------------------------------------------------------------- eventos
+const irA = t => { tab = TABS.some(x => x[0] === t) ? t : 'inicio'; if (location.hash.slice(1) !== tab) history.replaceState(null, '', '#' + tab); pintar(); };
+window.addEventListener('hashchange', () => irA(location.hash.slice(1)));
+document.addEventListener('click', async e => {
+  const el = e.target.closest('button, [data-tab]'); if (!el) return;
+  const ds = el.dataset;
+  if (ds.tab) return irA(ds.tab);
+  if (ds.cerrar !== undefined) return $('#dlg').close();
+  if (ds.f !== undefined) { filtro = ds.f; return pintar(); }
+  if (ds.pf !== undefined) { propFiltro = ds.pf; return pintar(); }
+  if (ds.rev) return dlgRevisar(ds.rev);
+  if (ds.apr) return dlgAprobar(ds.apr);
+  if (ds.conc) { concSel = ds.conc; concLineas = null; return pintar(); }
+  if (ds.nuevaProp !== undefined) return dlgPropuesta({ tipo: 'servicio' });
+  if (ds.depo) {
+    const l = (concLineas || []).find(x => x.id === ds.depo), cli = adivinar(l.descripcion), hon = cli && (D.honorarios || []).find(h => h.cliente_id === cli.id);
+    return dlgPropuesta({ tipo: 'deposito', extracto_id: l.id, fecha: l.fecha, monto: l.monto, cliente_id: cli ? cli.id : '', item_id: hon ? hon.item_id : '', impuesto_id: hon ? hon.impuesto_id : '', concepto: 'Servicios · depósito del ' + fecha(l.fecha), nota: 'Depósito de ' + dinero(l.monto) + ': «' + l.descripcion + '»' + (cli ? '. Cliente sugerido por la descripción: confírmelo.' : '') });
+  }
+  if (ds.hon) { const h = D.honorarios.find(x => x.id === ds.hon), f = $('#f-hon'); if (!f) return; f.elements.id.value = h.id; f.elements.torre.value = h.torre; const c = D.catalogo.contactos.find(x => x.id === h.cliente_id); f.elements.cliente.value = c ? contactoTxt(c) : ''; f.elements.item_id.value = h.item_id; f.elements.monto.value = h.monto; f.elements.impuesto_id.value = h.impuesto_id; f.elements.dia.value = h.dia; f.elements.activo.value = h.activo; f.scrollIntoView({ behavior: 'smooth' }); return; }
+  if (ds.borrarRegla) return hacer('regla', { id: ds.borrarRegla, borrar: true }, el);
+  if (ds.reg) return hacer('registrar', { id: ds.reg }, el).catch(() => {});
+  const acc = ds.acc; if (!acc) return;
+  try {
+    if (acc === 'registrar') {
+      const q = D.cola.find(x => x.id === ds.id), r = leerRevision();
+      if (q.estado === 'duplicada' && !confirm('El sistema cree que esta factura ya está en Alegra. ¿Registrarla de todos modos?')) return;
+      await hacer('registrar', Object.assign({ id: ds.id, forzar: q.estado === 'duplicada' }, r), el); $('#dlg').close(); return;
+    }
+    if (acc === 'corregir') { await hacer('corregir', Object.assign({ id: ds.id }, leerRevision()), el); dlgRevisar(ds.id); return; }
+    if (acc === 'crear_suplidor') { const r = leerRevision(); if (!r.factura.suplidor) return toast('Escriba el nombre del suplidor.'); await hacer('corregir', { id: ds.id, factura: r.factura }, el); await hacer('crear_suplidor', { id: ds.id }, el); dlgRevisar(ds.id); return; }
+    if (acc === 'descartar') { const m = prompt('¿Por qué se descarta? (opcional)'); if (m === null) return; await hacer('descartar', { id: ds.id, motivo: m }, el); $('#dlg').close(); return; }
+    if (acc === 'revisada') { await hacer('revisada', { id: ds.id }, el); $('#dlg').close(); return; }
+    if (acc === 'propuesta_aprobar') { const f = $('#f-apr'); await hacer('propuesta_aprobar', { id: ds.id, cambios: { fecha: f.elements.fecha.value, monto: Number(String(f.elements.monto.value).replace(/,/g, '')) || 0, impuesto_id: f.elements.impuesto_id.value, concepto: f.elements.concepto.value } }, el); $('#dlg').close(); return; }
+    if (acc === 'propuesta_descartar') { const m = prompt('¿Por qué se descarta? (opcional)'); if (m === null) return; await hacer('propuesta_descartar', { id: ds.id, motivo: m }, el); $('#dlg').close(); return; }
+    if (acc === 'conc_reemparejar') { await hacer(acc, { id: ds.id }, el); concLineas = null; return pintar(); }
+    if (acc === 'conc_descartar') { if (!confirm('¿Descartar esta conciliación?')) return; await hacer(acc, { id: ds.id }, el); concSel = ''; return; }
+    if (acc === 'desconectar') { if (!confirm('¿Desconectar Alegra? Se borra el token guardado.')) return; }
+    await hacer(acc, ds.id ? { id: ds.id } : {}, el);
+  } catch (er) { toast(er.message); }
+});
+document.addEventListener('input', e => { if (e.target.id === 'buscar') { buscar = e.target.value; const pos = e.target.selectionStart; pintar(); const b = $('#buscar'); b.focus(); b.setSelectionRange(pos, pos); } });
+document.addEventListener('change', e => { if (e.target.id === 'archivos' && e.target.files.length) subirArchivos(Array.from(e.target.files)); });
+document.addEventListener('dragover', e => { const s = e.target.closest && e.target.closest('#suelta'); if (s) { e.preventDefault(); s.classList.add('encima'); } });
+document.addEventListener('dragleave', e => { const s = e.target.closest && e.target.closest('#suelta'); if (s) s.classList.remove('encima'); });
+document.addEventListener('drop', e => { const s = e.target.closest && e.target.closest('#suelta'); if (s) { e.preventDefault(); s.classList.remove('encima'); subirArchivos(Array.from(e.dataTransfer.files)); } });
+const leerArchivo = f => new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = mal; r.readAsDataURL(f); });
+document.addEventListener('submit', async e => {
+  const f = e.target; e.preventDefault(); const b = f.querySelector('button:not([type=button])'), v = k => f.elements[k] ? String(f.elements[k].value).trim() : '';
+  try {
+    if (f.id === 'f-conectar') { await hacer('conectar', { usuario: v('usuario'), token: f.elements.token.value }, b); f.reset(); return; }
+    if (f.id === 'f-config') { const d = {}; Array.from(f.elements).filter(x => x.name).forEach(x => { d[x.name] = x.value; }); await hacer('config', d, b); toast('Ajustes guardados.'); return; }
+    if (f.id === 'f-regla') { await hacer('regla', { rnc: v('rnc'), contiene: v('contiene'), categoria_id: v('categoria_id'), centro_id: v('centro_id'), nota: v('nota') }, b); return; }
+    if (f.id === 'f-hon') { const c = contactoDe(v('cliente')); if (!c) return toast('Elija el cliente de la lista de Alegra.'); await hacer('honorario', { id: v('id'), torre: v('torre'), cliente_id: c.id, item_id: v('item_id'), monto: Number(v('monto').replace(/,/g, '')) || 0, impuesto_id: v('impuesto_id'), dia: v('dia'), activo: v('activo') }, b); return; }
+    if (f.id === 'f-prop') {
+      const c = contactoDe(v('cliente')); if (!c) return toast('Elija el cliente de la lista de Alegra.');
+      await hacer('propuesta_nueva', { tipo: f.dataset.tipo, extracto_id: f.dataset.extracto, cliente_id: c.id, item_id: v('item_id'), fecha: v('fecha'), monto: Number(v('monto').replace(/,/g, '')) || 0, impuesto_id: v('impuesto_id'), incluye_itbis: f.elements.incluye_itbis.checked, concepto: v('concepto') }, b);
+      $('#dlg').close(); if (f.dataset.extracto) { concLineas = null; pintar(); } return;
+    }
+    if (f.id === 'f-conc') {
+      const a = f.elements.archivo.files[0]; if (!a) return; if (a.size > 20 * 1024 * 1024) return toast('El estado de cuenta pasa de 20 MB.');
+      await hacer('conc_subir', { cuenta_id: v('cuenta_id'), mes: v('mes'), nombre: a.name, mime: a.type || (/\.csv$/i.test(a.name) ? 'text/csv' : ''), contenido: await leerArchivo(a) }, b); return;
+    }
+    if (f.id === 'f-enviar') {
+      const est = v('estado'); if (!confirm(est === 'open' ? '¿Crear la conciliación cerrada en Alegra?' : '¿Crear la conciliación como borrador en Alegra?')) return;
+      await hacer('conc_enviar', { id: f.dataset.id, saldo_banco: Number(v('saldo_banco').replace(/,/g, '')), estado: est }, b); return;
+    }
+  } catch (er) { /* el aviso ya se mostró */ }
+});
+tab = TABS.some(x => x[0] === location.hash.slice(1)) ? location.hash.slice(1) : 'inicio';
+StiliModulos.montar(document.body, 'empresa');
+if (!DEMO && !StiliModulos.leer().sesion) $('#contenido').innerHTML = '<div class="card entrar"><h2>Stili Group · Empresa</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>';
+else cargar();
+</script>
+</body>
+</html>

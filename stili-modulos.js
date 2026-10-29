@@ -20,7 +20,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '3.3';
+  const VERSION_BARRA = '3.4';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -85,6 +85,12 @@
         ct('Cierre de mes', 'conciliacion/cierre'),
         { t: 'Confirmación con el banco', d: 'Pagos de Cuentas por pagar', href: 'torres.html?m=finanzas#/cxp/banco', ve: 'cuentas', viejo: 'torres' },
         { t: 'Chequeras', href: 'torres.html?m=finanzas#/cxp/cheques', ve: 'cuentas', viejo: 'torres' }] },
+      { t: 'Stili Group · Empresa (Alegra)', items: [
+        { t: 'Facturas de suplidores', d: 'Leídas con IA, validadas y registradas en Alegra', href: 'empresa.html#compras', ve: 'empresa' },
+        { t: 'Subir facturas', d: 'Un PDF con 20 o 30 facturas, fotos o correo', href: 'empresa.html#subir', ve: 'empresa' },
+        { t: 'Conciliación de Stili', d: 'Estado de cuenta contra Alegra, cada mes', href: 'empresa.html#conciliacion', ve: 'empresa' },
+        { t: 'Facturas a clientes', d: 'Honorarios por torre y depósitos, con aprobación', href: 'empresa.html#clientes', ve: 'empresa' },
+        { t: 'Criterio y conexión', d: 'Cómo distribuye Contabilidad · Alegra', href: 'empresa.html#criterio', ve: 'empresa' }] },
       { t: 'Configuración', items: [
         ct('Reglas de la torre', 'config/reglas', 'Vencimiento, pronto pago, mora, Junta'),
         ct('Rubros', 'config/rubros'),
@@ -168,7 +174,7 @@
   // Páginas viejas o internas y su módulo
   // Páginas y claves viejas → su módulo (si la página actual no aparece en ningún menú)
   const DENTRO_DE = { invitados: 'lobby', presupuesto: 'financiero', usuarios: 'ajustes', admin: 'ajustes', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'administrativo', torres: 'administrativo',
-    nomina: 'personal', cobros: 'financiero', contabilidad: 'financiero', condominios: 'administrativo', operaciones: 'administrativo', finanzas: 'financiero' };
+    nomina: 'personal', cobros: 'financiero', contabilidad: 'financiero', empresa: 'financiero', condominios: 'administrativo', operaciones: 'administrativo', finanzas: 'financiero' };
 
   const CSS = `
 .sm-barra { background: #003A75; color: #fff; border-bottom: 3px solid #DCB40C; font-family: Montserrat, "Segoe UI", system-ui, sans-serif; }
@@ -741,6 +747,6 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     } }, window.STILI_PROTECCION || {});
   const actual = document.currentScript && document.currentScript.src;
   const s = document.createElement('script');
-  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.3') : 'stili-proteccion.js?v=3.3';
+  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.4') : 'stili-proteccion.js?v=3.4';
   (document.head || document.documentElement).appendChild(s);
 })();
