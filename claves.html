@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gestor de claves · Stili Soft</title>
+<meta name="description" content="Claves de las cuentas de cada torre, cifradas, con registro de quién las ve.">
+<meta name="theme-color" content="#003A75">
+<meta name="robots" content="noindex">
+<link rel="icon" href="portal/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="stili-estilo.css?v=3.0">
+<script src="config.js"></script>
+<script src="stili-modulos.js?v=3.4.2"></script>
+<style>
+.secciones nav { overflow-x: auto; scrollbar-width: thin; }
+.mini { font-size: 12.5px; color: var(--muted); }
+.btn.chico { padding: 5px 10px; font-size: 13px; }
+.fila-acc { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.filtros input[type=search] { padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-2); color: var(--fg); font: inherit; flex: 1 1 220px; max-width: 360px; }
+.filtros label { display: flex; gap: 6px; align-items: center; font-size: 13.5px; font-weight: 600; }
+.clave { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .04em; background: var(--panel-2); border-radius: 6px; padding: 3px 8px; user-select: all; }
+.oculta { letter-spacing: .2em; color: var(--muted); }
+.segura { background: var(--oro-suave); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; }
+#aviso { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #13293D; color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 90; font-weight: 600; max-width: calc(100% - 32px); }
+</style>
+</head>
+<body>
+<header class="cabecera"><div class="fila gutter"><div class="titulo"><small>Torres · Administrativo</small><b>Gestor de claves</b></div></div></header>
+<div class="secciones"><nav class="gutter" id="nav" role="tablist" aria-label="Gestor de claves"></nav></div>
+<main class="gutter" id="contenido"><p class="nota">Cargando…</p></main>
+<dialog id="dlg"><div class="cuerpo" id="dlg-cuerpo"></div></dialog>
+<div id="aviso" hidden></div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DEMO = new URLSearchParams(location.search).has('demo');
+const fecha = f => { const m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}:\d{2}))?/); return m ? m[3] + '/' + m[2] + '/' + m[1] + (m[4] ? ' ' + m[4] : '') : esc(f); };
+const sinT = v => String(v == null ? '' : v).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const ACC = { ver: 'Vio', copiar: 'Copió', crear: 'Agregó', editar: 'Editó datos', cambiar_clave: 'Cambió la clave', eliminar: 'Eliminó' };
+let D = null, tab = location.hash === '#registro' ? 'registro' : 'claves', buscar = '', todas = true, visibles = {}, R = null;
+const toast = m => { const el = $('#aviso'); el.textContent = m; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, 4000); };
+const torreBarra = () => (window.StiliModulos && StiliModulos.torre().torre) || '';
+function demo() {
+  return { nivel: 3, puede_ver: true, puede_editar: true, ve_registro: true, torres: ['Torre Niza 7', 'Torre LB3'], claves: [
+    { id: 'CLV-1', torre: 'Torre Niza 7', entidad: 'DGII · Oficina Virtual', usuario: '430-31334-3', tiene_clave: true, enlace: 'https://dgii.gov.do', notas: 'Declaraciones IT-1 e IR-17', actualizado_por: 'Contabilidad', actualizado_en: '2026-10-20T10:12' },
+    { id: 'CLV-2', torre: 'Torre Niza 7', entidad: 'Banco (ejemplo) · banca en línea', usuario: 'condniza7', tiene_clave: true, enlace: '', notas: 'Token físico en la oficina', actualizado_por: 'Gerente', actualizado_en: '2026-09-02T16:40' },
+    { id: 'CLV-3', torre: 'Torre LB3', entidad: 'TSS · SUIR Plus', usuario: 'lb3admin', tiene_clave: true, enlace: '', notas: '', actualizado_por: 'Contabilidad', actualizado_en: '2026-10-01T09:00' }],
+    pendientes: [{ torre: 'Torre LB3', entidad: 'EDESUR', usuario: '1029384' }] };
+}
+async function api(op, datos) {
+  if (DEMO) { if (op === 'ver') return { clave: 'Ejemplo#2026' }; if (op === 'registro') return { registro: [{ fecha: '2026-10-29T14:30', usuario: 'Contabilidad', accion: 'ver', torre: 'Torre Niza 7', entidad: 'DGII · Oficina Virtual' }] }; if (op !== 'lista') toast('Demostración: no se guarda nada.'); return D || demo(); }
+  const r = await StiliModulos.api('claves', Object.assign({ op }, datos || {}));
+  if (r.aviso) toast(r.aviso);
+  return r;
+}
+async function cargar() {
+  try { D = await api('lista', todas ? {} : { torre: torreBarra() }); visibles = {}; pintar(); if (tab === 'registro' && D.ve_registro) cargarRegistro(); }
+  catch (e) { $('#contenido').innerHTML = '<div class="card"><p>' + esc(/acci[oó]n desconocida/i.test(e.message) ? 'El gestor de claves todavía no está instalado en el servicio.' : e.message) + '</p></div>'; }
+}
+async function cargarRegistro() { try { R = (await api('registro')).registro; } catch (e) { R = []; toast(e.message); } pintar(); }
+function pintar() {
+  const tabs = [['claves', 'Claves']].concat(D.ve_registro ? [['registro', 'Quién vio qué']] : []);
+  $('#nav').innerHTML = tabs.map(([k, t]) => '<button type="button" role="tab" data-tab="' + k + '" aria-selected="' + (tab === k) + '">' + t + '</button>').join('');
+  const pre = DEMO ? '<div class="aviso-edicion">Demostración con datos de ejemplo.</div>' : '';
+  if (tab === 'registro') { $('#contenido').innerHTML = pre + pRegistro(); return; }
+  const t = sinT(buscar), lista = D.claves.filter(c => !t || sinT(c.torre + ' ' + c.entidad + ' ' + c.usuario + ' ' + c.notas).indexOf(t) >= 0);
+  $('#contenido').innerHTML = pre + '<div class="card"><div class="cab"><h2>Cuentas de las torres</h2>' + (D.puede_editar ? '<button class="btn primario" data-nueva>+ Agregar clave</button>' : '') + '</div>' +
+    '<p class="segura">Las claves están cifradas. Se ven una a una y cada vista queda anotada con su nombre. ' + (D.puede_ver ? 'Al verla, se oculta sola a los 30 segundos.' : 'Su nivel permite ver la lista, no las claves.') + ' No las copie en chats ni en papeles.</p>' +
+    '<div class="filtros"><input type="search" id="buscar" placeholder="Buscar entidad, usuario o torre" value="' + esc(buscar) + '"><label><input type="checkbox" id="todas"' + (todas ? ' checked' : '') + '> Todas mis torres</label>' + (!todas ? '<span class="mini">Torre: ' + esc(torreBarra() || '— elija en la barra —') + '</span>' : '') + '</div>' +
+    (lista.length ? '<div class="tabla"><table><thead><tr><th>Torre</th><th>Entidad</th><th>Usuario</th><th>Clave</th><th>Notas</th><th></th></tr></thead><tbody>' + lista.map(c => {
+      const v = visibles[c.id];
+      return '<tr><td>' + esc(c.torre) + '</td><td><b>' + esc(c.entidad) + '</b>' + (c.enlace ? '<br><a class="mini" href="' + esc(c.enlace) + '" target="_blank" rel="noopener noreferrer">Abrir el sitio</a>' : '') + '</td>' +
+        '<td><span class="clave">' + esc(c.usuario || '—') + '</span>' + (c.usuario ? ' <button class="btn chico" data-copiar-usuario="' + esc(c.id) + '">Copiar</button>' : '') + '</td>' +
+        '<td>' + (!c.tiene_clave ? '<span class="mini">Sin clave</span>' : v !== undefined ? '<span class="clave">' + esc(v) + '</span>' : '<span class="oculta">••••••••</span>') +
+        (c.tiene_clave && D.puede_ver ? '<div class="fila-acc" style="margin-top:4px">' + (v === undefined ? '<button class="btn chico" data-ver="' + esc(c.id) + '">Ver</button>' : '<button class="btn chico" data-ocultar="' + esc(c.id) + '">Ocultar</button>') + '<button class="btn chico" data-copiar="' + esc(c.id) + '">Copiar</button></div>' : '') + '</td>' +
+        '<td><span class="mini">' + esc(c.notas) + '</span>' + (c.actualizado_en ? '<div class="mini">Act. ' + fecha(c.actualizado_en) + ' · ' + esc(c.actualizado_por) + '</div>' : '') + '</td>' +
+        '<td>' + (D.puede_editar ? '<button class="btn chico" data-editar="' + esc(c.id) + '">Editar</button>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '<p class="nota">No hay claves' + (buscar ? ' con esa búsqueda' : '') + '.</p>') + '</div>' +
+    (D.puede_editar && D.pendientes.length ? '<div class="card"><h2>Cuentas sin clave (de «Accesos y servicios»)</h2><div class="tabla"><table><thead><tr><th>Torre</th><th>Entidad</th><th>Usuario</th><th></th></tr></thead><tbody>' +
+      D.pendientes.slice(0, 200).map((p, i) => '<tr><td>' + esc(p.torre) + '</td><td>' + esc(p.entidad) + '</td><td>' + esc(p.usuario) + '</td><td><button class="btn chico" data-pendiente="' + i + '">Agregar su clave</button></td></tr>').join('') + '</tbody></table></div></div>' : '');
+}
+function pRegistro() {
+  if (!R) return '<div class="card"><p class="nota">Cargando…</p></div>';
+  return '<div class="card"><h2>Quién vio qué</h2>' + (R.length ? '<div class="tabla"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Torre</th><th>Entidad</th></tr></thead><tbody>' +
+    R.map(r => '<tr><td>' + fecha(r.fecha) + '</td><td>' + esc(r.usuario) + '</td><td>' + esc(ACC[r.accion] || r.accion) + (r.detalle ? '<div class="mini">' + esc(r.detalle) + '</div>' : '') + '</td><td>' + esc(r.torre) + '</td><td>' + esc(r.entidad) + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="nota">Sin movimientos.</p>') + '</div>';
+}
+function generar() {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789#$%&*+-=?@', a = new Uint32Array(16); crypto.getRandomValues(a);
+  return Array.from(a, x => abc[x % abc.length]).join('');
+}
+function dlgClave(c) {
+  const torres = D.torres.length ? D.torres : [...new Set(D.claves.map(x => x.torre))];
+  $('#dlg-cuerpo').innerHTML = '<h2>' + (c && c.id ? 'Editar ' + esc(c.entidad) : 'Agregar clave') + '</h2><form id="f-clave" class="form" data-id="' + esc(c && c.id || '') + '" autocomplete="off">' +
+    '<label>Torre<select name="torre" required>' + torres.map(t => '<option' + ((c && c.torre) === t || (!c && t === torreBarra()) ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select></label>' +
+    '<label>Entidad<input name="entidad" required maxlength="80" placeholder="DGII, TSS, EDESUR, banco…" value="' + esc(c && c.entidad || '') + '"></label>' +
+    '<label>Usuario<input name="usuario" maxlength="120" value="' + esc(c && c.usuario || '') + '" autocomplete="off"></label>' +
+    '<label>' + (c && c.id ? 'Clave nueva (vacío = no cambiar)' : 'Clave') + '<input name="clave" type="password" maxlength="500" autocomplete="new-password"></label>' +
+    '<div class="fila-acc ancho"><button type="button" class="btn chico" data-generar>Generar una clave segura</button><button type="button" class="btn chico" data-mostrar>Mostrar lo escrito</button></div>' +
+    '<label class="ancho">Enlace del sitio (opcional)<input name="enlace" placeholder="https://" value="' + esc(c && c.enlace || '') + '"></label>' +
+    '<label class="ancho">Notas (sin claves aquí)<input name="notas" maxlength="300" value="' + esc(c && c.notas || '') + '"></label>' +
+    '<div class="ancho acciones-fila"><button class="btn primario">Guardar</button>' + (c && c.id ? '<button type="button" class="btn peligro" data-eliminar="' + esc(c.id) + '">Eliminar</button>' : '') + '<button type="button" class="btn" data-cerrar>Cancelar</button></div></form>';
+  $('#dlg').showModal();
+}
+async function revelar(id, motivo) {
+  const r = await api('ver', { id, motivo });
+  return r.clave;
+}
+document.addEventListener('click', async e => {
+  const el = e.target.closest('button, [data-tab]'); if (!el) return; const ds = el.dataset;
+  try {
+    if (ds.tab) { tab = ds.tab; history.replaceState(null, '', tab === 'registro' ? '#registro' : '#'); if (tab === 'registro' && !R) return cargarRegistro(); return pintar(); }
+    if (ds.cerrar !== undefined) return $('#dlg').close();
+    if (ds.nueva !== undefined) return dlgClave(null);
+    if (ds.pendiente !== undefined) { const p = D.pendientes[Number(ds.pendiente)]; return dlgClave({ torre: p.torre, entidad: p.entidad, usuario: p.usuario }); }
+    if (ds.editar) return dlgClave(D.claves.find(c => c.id === ds.editar));
+    if (ds.ver) { el.disabled = true; visibles[ds.ver] = await revelar(ds.ver, 'ver'); pintar(); const id = ds.ver; setTimeout(() => { if (visibles[id] !== undefined) { delete visibles[id]; pintar(); } }, 30000); return; }
+    if (ds.ocultar) { delete visibles[ds.ocultar]; return pintar(); }
+    if (ds.copiar) { const id = ds.copiar, v = visibles[id] !== undefined ? visibles[id] : await revelar(id, 'copiar'); try { await navigator.clipboard.writeText(v); toast('Clave copiada. Péguela solo en el sitio de la entidad.'); } catch (x) { visibles[id] = v; pintar(); setTimeout(() => { if (visibles[id] !== undefined) { delete visibles[id]; pintar(); } }, 30000); toast('El navegador no dejó copiar: la clave quedó a la vista para copiarla a mano.'); } return; }
+    if (ds.copiarUsuario) { await navigator.clipboard.writeText(D.claves.find(c => c.id === ds.copiarUsuario).usuario); return toast('Usuario copiado.'); }
+    if (ds.generar !== undefined) { const i = el.closest('form').elements.clave; i.value = generar(); i.type = 'text'; return; }
+    if (ds.mostrar !== undefined) { const i = el.closest('form').elements.clave; i.type = i.type === 'password' ? 'text' : 'password'; return; }
+    if (ds.eliminar) { if (!confirm('¿Eliminar esta clave? Se borra del sistema (queda anotado quién la eliminó).')) return; D = await api('eliminar', { id: ds.eliminar, motivo: prompt('Motivo (opcional)') || '' }); visibles = {}; $('#dlg').close(); return pintar(); }
+  } catch (er) { toast(er.message); el.disabled = false; }
+});
+document.addEventListener('input', e => { if (e.target.id === 'buscar') { buscar = e.target.value; const p = e.target.selectionStart; pintar(); const b = $('#buscar'); b.focus(); b.setSelectionRange(p, p); } });
+document.addEventListener('change', e => { if (e.target.id === 'todas') { todas = e.target.checked; cargar(); } });
+document.addEventListener('submit', async e => {
+  const f = e.target; if (f.id !== 'f-clave') return; e.preventDefault(); const v = k => f.elements[k].value;
+  const datos = { id: f.dataset.id, torre: v('torre'), entidad: v('entidad').trim(), usuario: v('usuario').trim(), enlace: v('enlace').trim(), notas: v('notas').trim() };
+  if (v('clave') !== '') datos.clave = v('clave');
+  const b = f.querySelector('button.primario'); b.disabled = true;
+  try { D = await api('guardar', { datos, torre: todas ? '' : torreBarra() }); visibles = {}; f.reset(); $('#dlg').close(); pintar(); } catch (er) { toast(er.message); } finally { b.disabled = false; }
+});
+window.addEventListener('stili:torre', () => { if (!todas) cargar(); });
+// al salir de la página o esconderla, las claves vistas se borran de la pantalla
+document.addEventListener('visibilitychange', () => { if (document.hidden && Object.keys(visibles).length) { visibles = {}; if (D) pintar(); } });
+StiliModulos.montar(document.body, 'torres');
+if (DEMO) { D = demo(); pintar(); }
+else if (!StiliModulos.leer().sesion) $('#contenido').innerHTML = '<div class="card entrar"><h2>Gestor de claves</h2><p>Entre con su usuario de Stili en el Portal.</p><a class="btn primario" href="portal/">Entrar en Stili Soft</a></div>';
+else cargar();
+</script>
+</body>
+</html>

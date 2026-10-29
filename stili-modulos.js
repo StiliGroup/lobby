@@ -20,7 +20,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '3.4.1';
+  const VERSION_BARRA = '3.4.2';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -54,7 +54,8 @@
       { t: 'Contratos y documentos', items: [
         { t: 'Proveedores y contratos', href: 'torres.html?m=inicio#/proveedores', ve: 'torres' },
         { t: 'Reglamentos y documentos', href: 'torres.html?m=inicio#/documentos', ve: 'torres' },
-        { t: 'Accesos y servicios', d: 'EDESUR, CAASD, banca en línea', href: 'torres.html?m=inicio#/accesos', ve: 'torres' }] },
+        { t: 'Accesos y servicios', d: 'EDESUR, CAASD, banca en línea', href: 'torres.html?m=inicio#/accesos', ve: 'torres' },
+        { t: 'Gestor de claves', d: 'Claves de cada torre, cifradas y con registro de quién las ve', href: 'claves.html', ve: 'claves' }] },
       { t: 'Operaciones', items: [
         { t: 'Tareas de la torre', d: 'Levantamientos, estatus y comentarios', href: 'torres.html?m=operaciones#/tareas', ve: 'operaciones', viejo: 'torres' },
         { t: 'Tareas por gestor', href: 'tareas.html', ve: 'operaciones', viejo: 'torres' },
@@ -174,7 +175,7 @@
   // Páginas viejas o internas y su módulo
   // Páginas y claves viejas → su módulo (si la página actual no aparece en ningún menú)
   const DENTRO_DE = { invitados: 'lobby', presupuesto: 'financiero', usuarios: 'ajustes', admin: 'ajustes', cumpleanos: 'inicio', recursos: 'inicio', tareas: 'administrativo', torres: 'administrativo',
-    nomina: 'personal', cobros: 'financiero', contabilidad: 'financiero', empresa: 'financiero', condominios: 'administrativo', operaciones: 'administrativo', finanzas: 'financiero' };
+    nomina: 'personal', cobros: 'financiero', contabilidad: 'financiero', empresa: 'financiero', condominios: 'administrativo', claves: 'administrativo', operaciones: 'administrativo', finanzas: 'financiero' };
 
   const CSS = `
 .sm-barra { background: #003A75; color: #fff; border-bottom: 3px solid #DCB40C; font-family: Montserrat, "Segoe UI", system-ui, sans-serif; }
@@ -772,6 +773,6 @@ main input:not([type=checkbox]):not([type=radio]), main select, main textarea, .
     } }, window.STILI_PROTECCION || {});
   const actual = document.currentScript && document.currentScript.src;
   const s = document.createElement('script');
-  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.4.1') : 'stili-proteccion.js?v=3.4.1';
+  s.src = actual ? actual.replace(/stili-modulos\.js.*$/, 'stili-proteccion.js?v=3.4.2') : 'stili-proteccion.js?v=3.4.2';
   (document.head || document.documentElement).appendChild(s);
 })();

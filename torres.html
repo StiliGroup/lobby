@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap">
 <script src="config.js"></script>
-<script src="stili-modulos.js?v=3.4.1"></script>
+<script src="stili-modulos.js?v=3.4.2"></script>
 <script src="stili-vigia.js?v=3.0"></script>
 <link rel="stylesheet" href="stili-estilo.css?v=3.0">
 </head>
@@ -234,7 +234,7 @@ function pintarSeccion() {
   if (k === 'junta') h = pintarJunta(d);
   if (k === 'accesos') h = '<div class="card"><h2>Servicios (códigos de cliente)</h2>' + tabla(['Servicio', 'Código', 'Notas'],
       (d.servicios || []).map(x => '<tr><td><b>' + esc(x.servicio) + '</b></td><td>' + esc(x.codigo) + '</td><td><small>' + esc(x.notas) + '</small></td></tr>'), 'Sin códigos de servicios.') + '</div>' +
-    (d.accesos ? '<div class="card"><h2>Accesos institucionales</h2><p class="nota" style="margin-top:0">Las contraseñas nunca se guardan aquí: van en el gestor de claves.</p>' + tabla(['Entidad', 'Usuario', 'Nombre de usuario', 'Token', 'Última actualización', 'Notas'],
+    (d.accesos ? '<div class="card"><h2>Accesos institucionales</h2><p class="nota" style="margin-top:0">Las contraseñas nunca se guardan aquí: van en el <a href="claves.html">Gestor de claves</a> (cifradas y con registro de quién las ve).</p>' + tabla(['Entidad', 'Usuario', 'Nombre de usuario', 'Token', 'Última actualización', 'Notas'],
       d.accesos.map(x => '<tr><td><b>' + esc(x.entidad) + '</b></td><td>' + esc(x.usuario) + '</td><td>' + esc(x.nombre_usuario) + '</td><td>' + esc(x.token) + '</td><td>' + esc(x.ultima_actualizacion) + '</td><td><small>' + esc(x.notas) + '</small></td></tr>'), 'Sin accesos registrados.') + '</div>' +
       '<div class="card"><h2>Banca en línea</h2>' + tabla(['Banco', 'Titular', 'Usuario', 'Notas'], (d.bancos || []).map(x => '<tr><td>' + esc(x.banco) + '</td><td>' + esc(x.titular) + '</td><td>' + esc(x.usuario) + '</td><td><small>' + esc(x.notas) + '</small></td></tr>'), 'Sin datos de banca.') + '</div>'
     : '<p class="nota">Los accesos institucionales y de banca los ven quienes tienen el nivel «Profundizar» en Torres.</p>');
