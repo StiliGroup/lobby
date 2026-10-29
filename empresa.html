@@ -153,7 +153,7 @@ function pInicio() {
   const kpi = (t, v, d, href, cl) => '<div class="kpi ' + (cl || '') + '"><span>' + esc(t) + '</span><b>' + v + '</b>' + (d ? '<small>' + d + '</small>' : '') + (href ? '<a href="' + href + '">Ver →</a>' : '') + '</div>';
   const abiertas = (D.conciliaciones || []).filter(c => ['leyendo', 'lista'].indexOf(c.estado) >= 0).length;
   return '<div class="kpis anchos">' +
-    kpi('En Alegra', (s.compras || 0).toLocaleString('en-US'), Object.keys(s.por_anio || {}).sort().map(a => a + ': ' + s.por_anio[a]).join(' · ') || 'Todavía sin sincronizar') +
+    kpi('En Alegra', (s.compras || 0).toLocaleString('en-US'), Object.keys(s.por_anio || {}).sort().map(a => esc(a) + ': ' + Number(s.por_anio[a])).join(' · ') || 'Todavía sin sincronizar') +
     kpi('Listas para Alegra', n('listo'), D.config.EMP_AUTO === 'si' ? 'Se registran solas' : 'Se aprueban con un clic', '#compras', n('listo') ? 'ambar' : '') +
     kpi('Para revisar', n('revisar') + n('registrando'), 'Alertas, suplidor nuevo o categoría por confirmar', '#compras', n('revisar') ? 'rojo' : '') +
     kpi('Duplicadas detenidas', n('duplicada'), 'No se registraron', '#compras') +
@@ -225,7 +225,7 @@ function pSubir() {
     '<p class="mini">También puede dejarlas en la carpeta «Entrada»' + (D.carpeta ? ' de <a href="' + esc(D.carpeta) + '" target="_blank" rel="noopener">Facturas Stili Group (empresa)</a>' : '') + ' (en la PC con «Google Drive para escritorio»)' + (D.config.EMP_GMAIL_ETIQUETA ? ' o ponerle la etiqueta «' + esc(D.config.EMP_GMAIL_ETIQUETA) + '» al correo' : '') + '. Se leen solas cada ' + D.cada_minutos + ' minutos, de día o de noche.</p><div id="progreso"></div></div>' +
     '<div class="card"><h2>Archivos recibidos</h2>' + (l.length ? '<div class="tabla"><table><thead><tr><th>Recibido</th><th>Archivo</th><th>Lectura</th><th class="num">Facturas</th><th>Estado</th></tr></thead><tbody>' + l.map(x => {
       const e = EL[x.estado] || [x.estado, ''], pct = x.paginas ? Math.min(100, Math.round((x.siguiente - 1) / x.paginas * 100)) : 0;
-      return '<tr><td>' + fecha(x.fecha) + '<br><span class="mini">' + esc(x.origen) + '</span></td><td>' + esc(x.archivo) + '</td><td>' + (x.paginas ? Math.min(x.siguiente - 1, x.paginas) + ' de ' + x.paginas + ' páginas<div class="barra"><i style="width:' + pct + '%"></i></div>' : '—') + '</td><td class="num">' + x.facturas + '</td><td><span class="chip ' + e[1] + '">' + e[0] + '</span>' + (x.detalle ? '<div class="mini">' + esc(x.detalle) + '</div>' : '') + '</td></tr>';
+      return '<tr><td>' + fecha(x.fecha) + '<br><span class="mini">' + esc(x.origen) + '</span></td><td>' + esc(x.archivo) + '</td><td>' + (x.paginas ? Math.min(x.siguiente - 1, x.paginas) + ' de ' + x.paginas + ' páginas<div class="barra"><i style="width:' + pct + '%"></i></div>' : '—') + '</td><td class="num">' + x.facturas + '</td><td><span class="chip ' + esc(e[1]) + '">' + esc(e[0]) + '</span>' + (x.detalle ? '<div class="mini">' + esc(x.detalle) + '</div>' : '') + (x.estado === 'problema' && edita() ? '<button class="btn chico" data-acc="reintentar_lote" data-id="' + esc(x.id) + '">Reintentar</button>' : '') + '</td></tr>';
     }).join('') + '</tbody></table></div>' : '<p class="nota">Todavía no hay archivos.</p>') + '</div>';
 }
 async function subirArchivos(files) {
@@ -240,14 +240,14 @@ async function subirArchivos(files) {
   pintar();
 }
 function pConciliacion() {
-  const cs = D.conciliaciones || [], EC = { leyendo: ['Leyendo', 'azul'], lista: ['Lista para revisar', 'ambar'], enviando: ['Enviando', 'azul'], borrador_alegra: ['Borrador en Alegra', 'verde'], cerrada: ['Cerrada en Alegra', 'verde'], problema: ['Problema', 'rojo'], descartada: ['Descartada', ''] };
+  const cs = D.conciliaciones || [], EC = { leyendo: ['Leyendo', 'azul'], lista: ['Lista para revisar', 'ambar'], enviando: ['A medias: verificar en Alegra', 'rojo'], borrador_alegra: ['Borrador en Alegra', 'verde'], cerrada: ['Cerrada en Alegra', 'verde'], problema: ['Problema', 'rojo'], descartada: ['Descartada', ''] };
   const mesPasado = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
   let h = '<div class="card"><h2>Conciliación bancaria del mes</h2>' + (edita() ? '<form id="f-conc" class="form"><label>Cuenta de banco en Alegra<select name="cuenta_id" required>' + opciones('bancos', '') + '</select></label><label>Mes<input type="month" name="mes" value="' + mesPasado + '" required></label>' +
     '<label>Estado de cuenta (PDF, foto o CSV)<input type="file" name="archivo" accept="application/pdf,image/jpeg,image/png,text/csv,.csv" required></label><div class="ancho"><button class="btn primario">Subir y conciliar</button></div></form>' : '') +
     '<p class="mini">La IA lee el estado de cuenta, lo empareja con los movimientos de Alegra (mismo monto, fecha cercana, la referencia desempata) y separa comisiones, impuestos e intereses del banco y los depósitos que no tienen factura. Usted revisa y confirma.</p></div>';
   h += '<div class="card"><h2>Conciliaciones</h2>' + (cs.length ? '<div class="tabla"><table><thead><tr><th>Mes</th><th>Cuenta</th><th class="num">Emparejadas</th><th class="num">Saldo del banco</th><th>Estado</th><th></th></tr></thead><tbody>' + cs.map(c => {
     const e = EC[c.estado] || [c.estado, ''];
-    return '<tr><td>' + mesTxt(c.mes) + '</td><td>' + esc(c.cuenta) + '</td><td class="num">' + c.parejas + ' de ' + c.lineas + '</td><td class="num">' + (c.saldo_banco !== '' ? dinero(c.saldo_banco) : '—') + '</td><td><span class="chip ' + e[1] + '">' + e[0] + '</span>' + (c.detalle && c.detalle.error ? '<div class="mini mal-txt">' + esc(c.detalle.error) + '</div>' : '') + '</td><td><button class="btn chico" data-conc="' + esc(c.id) + '">Ver</button></td></tr>';
+    return '<tr><td>' + mesTxt(c.mes) + '</td><td>' + esc(c.cuenta) + '</td><td class="num">' + c.parejas + ' de ' + c.lineas + '</td><td class="num">' + (c.saldo_banco !== '' ? dinero(c.saldo_banco) : '—') + '</td><td><span class="chip ' + esc(e[1]) + '">' + esc(e[0]) + '</span>' + (c.detalle && c.detalle.error ? '<div class="mini mal-txt">' + esc(c.detalle.error) + '</div>' : '') + '</td><td><button class="btn chico" data-conc="' + esc(c.id) + '">Ver</button>' + (c.estado === 'enviando' && edita() ? ' <button class="btn chico" data-verif="conc_verificada" data-id="' + esc(c.id) + '">Ya verifiqué en Alegra</button>' : '') + '</td></tr>';
   }).join('') + '</tbody></table></div>' : '<p class="nota">Todavía no hay conciliaciones.</p>') + '</div>';
   const c = cs.find(x => x.id === concSel);
   if (c) {
@@ -260,7 +260,7 @@ function pConciliacion() {
       (d.fuente === 'pagos' ? '<p class="mini">Alegra no dio sus movimientos bancarios por la API: se emparejó con los pagos y cobros de esa cuenta.</p>' : '') +
       (lin.length ? '<div class="tabla"><table><thead><tr><th>Fecha</th><th>Descripción</th><th class="num">Monto</th><th>En Alegra</th><th></th></tr></thead><tbody>' + lin.map(l => {
         const e = CL[l.clase] || [l.clase, ''];
-        return '<tr><td>' + fecha(l.fecha) + '</td><td>' + esc(l.descripcion) + (l.referencia ? '<br><span class="mini">Ref. ' + esc(l.referencia) + '</span>' : '') + '</td><td class="num">' + dinero(l.monto) + '</td><td><span class="chip ' + e[1] + '">' + e[0] + '</span>' + (l.pareja_desc ? '<br><span class="mini">' + esc(l.pareja_desc) + '</span>' : '') + '</td><td>' +
+        return '<tr><td>' + fecha(l.fecha) + '</td><td>' + esc(l.descripcion) + (l.referencia ? '<br><span class="mini">Ref. ' + esc(l.referencia) + '</span>' : '') + '</td><td class="num">' + dinero(l.monto) + '</td><td><span class="chip ' + esc(e[1]) + '">' + esc(e[0]) + '</span>' + (l.pareja_desc ? '<br><span class="mini">' + esc(l.pareja_desc) + '</span>' : '') + '</td><td>' +
           (l.clase === 'deposito' && edita() && c.estado === 'lista' ? (l.propuesta_id ? '<span class="mini ok-txt">Factura propuesta</span>' : '<button class="btn chico" data-depo="' + esc(l.id) + '">Proponer factura</button>') : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>' : '<p class="nota">' + (c.estado === 'leyendo' ? 'La IA está leyendo el estado de cuenta…' : 'Cargando líneas…') + '</p>') +
       ((d.solo_alegra || []).length ? '<h3 class="sub">En Alegra pero no en el banco (' + d.solo_alegra.length + ')</h3><ul class="al">' + d.solo_alegra.slice(0, 40).map(m => '<li class="ambar">' + fecha(m.fecha) + ' · ' + dinero(m.monto) + ' · ' + esc(m.descripcion) + '</li>').join('') + '</ul>' : '') +
@@ -305,15 +305,16 @@ function dlgAprobar(id) {
 }
 function pClientes() {
   const ps = (D.propuestas || []).filter(p => !propFiltro || p.estado === propFiltro), hs = D.honorarios || [];
-  const EP = { propuesta: ['Por aprobar', 'ambar'], enviando: ['Enviando', 'azul'], creada: ['En Alegra', 'verde'], descartada: ['Descartada', ''] };
+  const EP = { propuesta: ['Por aprobar', 'ambar'], enviando: ['A medias: verificar en Alegra', 'rojo'], creada: ['En Alegra', 'verde'], descartada: ['Descartada', ''] };
   const TP = { honorario: 'Honorario fijo', deposito: 'Depósito sin factura', servicio: 'Otro servicio' };
   return '<div class="card"><div class="cab"><h2>Facturas a clientes</h2>' + (edita() ? '<div class="fila-acc"><button class="btn" data-acc="proponer">Proponer los honorarios del mes</button><button class="btn primario" data-nueva-prop>Nueva factura (otro servicio)</button></div>' : '') + '</div>' +
     '<div class="filtros">' + [['propuesta', 'Por aprobar · ' + (D.propuestas || []).filter(p => p.estado === 'propuesta').length], ['creada', 'En Alegra'], ['descartada', 'Descartadas'], ['', 'Todas']].map(([k, t]) => '<button type="button" data-pf="' + k + '" aria-pressed="' + (propFiltro === k) + '">' + t + '</button>').join('') + '</div>' +
     (ps.length ? '<div class="tabla"><table><thead><tr><th>Cliente</th><th>Concepto</th><th class="num">Monto</th><th>Estado</th><th></th></tr></thead><tbody>' + ps.map(p => {
       const e = EP[p.estado] || [p.estado, ''];
       return '<tr><td><b>' + esc(p.cliente) + '</b><br><span class="mini">' + esc(TP[p.tipo] || p.tipo) + ' · ' + fecha(p.fecha) + '</span></td><td>' + esc(p.concepto) + (p.origen ? '<br><span class="mini">' + esc(p.origen.indexOf('extracto:') === 0 ? 'Del estado de cuenta' : p.origen) + '</span>' : '') + '</td><td class="num">' + dinero(p.monto) + (p.impuesto_id ? '<br><span class="mini">+ ' + esc(nombre('impuestos', p.impuesto_id)) + '</span>' : '') + '</td>' +
-        '<td><span class="chip ' + e[1] + '">' + e[0] + '</span>' + (p.numero ? '<br><span class="mini">' + esc(p.numero) + (p.aprobado_por ? ' · aprobó ' + esc(p.aprobado_por) : '') + '</span>' : '') + (p.error ? '<div class="mini mal-txt">' + esc(p.error) + '</div>' : '') + '</td>' +
-        '<td>' + (p.estado === 'propuesta' && edita() ? '<button class="btn chico primario" data-apr="' + esc(p.id) + '">Revisar y aprobar</button>' : '') + '</td></tr>';
+        '<td><span class="chip ' + esc(e[1]) + '">' + esc(e[0]) + '</span>' + (p.numero ? '<br><span class="mini">' + esc(p.numero) + (p.aprobado_por ? ' · aprobó ' + esc(p.aprobado_por) : '') + '</span>' : '') + (p.error ? '<div class="mini mal-txt">' + esc(p.error) + '</div>' : '') + '</td>' +
+        '<td>' + (p.estado === 'propuesta' && edita() ? '<button class="btn chico primario" data-apr="' + esc(p.id) + '">Revisar y aprobar</button>' : '') +
+        (p.estado === 'enviando' && edita() ? '<button class="btn chico" data-verif="propuesta_verificada" data-id="' + esc(p.id) + '">Ya verifiqué en Alegra</button>' : '') + '</td></tr>';
     }).join('') + '</tbody></table></div>' : '<p class="nota">No hay facturas en esta lista.</p>') + '</div>' +
     '<div class="card"><h2>Honorarios fijos por torre</h2><p class="mini">Cada mes, desde el día indicado, se propone la factura de cada torre. El monto es antes de ITBIS.</p>' +
     (hs.length ? '<div class="tabla"><table><thead><tr><th>Torre</th><th>Cliente en Alegra</th><th>Servicio</th><th class="num">Monto</th><th>Desde el día</th><th></th></tr></thead><tbody>' + hs.map(h => '<tr><td>' + esc(h.torre) + (h.activo === 'no' ? ' <span class="chip">Pausado</span>' : '') + '</td><td>' + esc(nombre('contactos', h.cliente_id)) + '</td><td>' + esc(nombre('items', h.item_id)) + '</td><td class="num">' + dinero(h.monto) + (h.impuesto_id ? '<br><span class="mini">+ ' + esc(nombre('impuestos', h.impuesto_id)) + '</span>' : '') + '</td><td>' + h.dia + '</td><td>' + (edita() ? '<button class="btn chico" data-hon="' + esc(h.id) + '">Editar</button>' : '') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="nota">Todavía no hay honorarios fijos.</p>') +
@@ -363,10 +364,16 @@ document.addEventListener('click', async e => {
   if (ds.conc) { concSel = ds.conc; concLineas = null; return pintar(); }
   if (ds.nuevaProp !== undefined) return dlgPropuesta({ tipo: 'servicio' });
   if (ds.depo) {
-    const l = (concLineas || []).find(x => x.id === ds.depo), cli = adivinar(l.descripcion), hon = cli && (D.honorarios || []).find(h => h.cliente_id === cli.id);
+    const l = (concLineas || []).find(x => x.id === ds.depo); if (!l) return;
+    const cli = adivinar(l.descripcion), hon = cli && (D.honorarios || []).find(h => h.cliente_id === cli.id);
     return dlgPropuesta({ tipo: 'deposito', extracto_id: l.id, fecha: l.fecha, monto: l.monto, cliente_id: cli ? cli.id : '', item_id: hon ? hon.item_id : '', impuesto_id: hon ? hon.impuesto_id : '', concepto: 'Servicios · depósito del ' + fecha(l.fecha), nota: 'Depósito de ' + dinero(l.monto) + ': «' + l.descripcion + '»' + (cli ? '. Cliente sugerido por la descripción: confírmelo.' : '') });
   }
   if (ds.hon) { const h = D.honorarios.find(x => x.id === ds.hon), f = $('#f-hon'); if (!f) return; f.elements.id.value = h.id; f.elements.torre.value = h.torre; const c = D.catalogo.contactos.find(x => x.id === h.cliente_id); f.elements.cliente.value = c ? contactoTxt(c) : ''; f.elements.item_id.value = h.item_id; f.elements.monto.value = h.monto; f.elements.impuesto_id.value = h.impuesto_id; f.elements.dia.value = h.dia; f.elements.activo.value = h.activo; f.scrollIntoView({ behavior: 'smooth' }); return; }
+  if (ds.verif) {
+    const n = prompt('¿Está en Alegra? Escriba su número de Alegra (id). Si NO está, deje vacío y acepte: volverá a quedar para enviar.');
+    if (n === null) return;
+    return hacer(ds.verif, { id: ds.id, alegra_id: n.trim() }, el).catch(() => {});
+  }
   if (ds.borrarRegla) return hacer('regla', { id: ds.borrarRegla, borrar: true }, el);
   if (ds.reg) return hacer('registrar', { id: ds.reg }, el).catch(() => {});
   const acc = ds.acc; if (!acc) return;
