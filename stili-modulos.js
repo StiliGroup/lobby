@@ -20,7 +20,7 @@
   const BASE = script ? script.src.replace(/stili-modulos\.js.*$/, '') : '';
   // v2.8.1 · La Nómina (en la PC) carga este mismo archivo con data-nomina: la misma barra arriba y sin el menú viejo de la izquierda
   const EN_NOMINA = !!(script && script.hasAttribute('data-nomina'));
-  const VERSION_BARRA = '3.5.1';
+  const VERSION_BARRA = '3.6';
   const servicio = () => leer().url || (window.STILI && window.STILI.servicio) || '';
   const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -140,13 +140,15 @@
         { t: 'Personal por torre', href: 'torres.html?m=personal#/personal', ve: 'torres' }] },
       { t: 'Nómina', items: [
         { t: 'Nóminas quincenales', d: 'Novedades, cálculo, aprobación y banco', nomina: '/nominas', ve: 'nomina' },
-        { t: 'Cubre turnos', nomina: '/turnos', ve: 'nomina' },
+        { t: 'Cubre turnos', nomina: '/cubre-turnos', ve: 'nomina' },
+        { t: 'Planificación de turnos', d: 'Quién cubre cada puesto, feriados incluidos', nomina: '/planificacion', ve: 'nomina' },
         { t: 'Empleadores', d: 'RNC, TSS, banco y tamaño de cada torre', nomina: '/empleadores', ve: 'nomina' }] },
       { t: 'Asistencia y ausencias', items: [
         { t: 'Ponchador', d: 'Empleados del lobby y su PIN', href: 'admin.html?m=personal#personal', ve: 'personal', viejo: 'panel' },
         { t: 'Horas por quincena', href: 'admin.html?m=personal#quincena', ve: 'personal', viejo: 'panel' },
         { t: 'Vacaciones', nomina: '/vacaciones', ve: 'nomina' },
-        { t: 'Licencias médicas', nomina: '/licencias', ve: 'nomina' }] },
+        { t: 'Licencias médicas', nomina: '/licencias', ve: 'nomina' },
+        { t: 'Amonestaciones', d: 'Faltas y tardanzas; RRHH revisa', nomina: '/amonestaciones', ve: 'nomina' }] },
       { t: 'Reclutamiento', items: [
         { t: 'Candidatos', d: 'Solicitudes ordenadas por puntaje', href: 'reclutamiento.html', ve: 'personal', viejo: 'nomina_permiso' },
         { t: 'Vacantes', href: 'reclutamiento.html#vacantes', ve: 'personal', viejo: 'nomina_permiso' }] },
