@@ -86,6 +86,14 @@ details.art p { margin: 6px 0 0; white-space: pre-line; font-size: 15px; }
 .pie { text-align: center; color: var(--muted); font-size: 13px; }
 .demo { background: var(--hue-suave); color: var(--hue); border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; text-align: center; }
 .demo button { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; padding: 2px 9px; margin: 4px 2px 0; font-size: 12px; font-weight: 700; }
+/* v3.7 · registro previo */
+.reg { display: grid; gap: 10px; } .reg label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+.reg input, .reg select { font: inherit; padding: 10px; border: 1px solid #c9d3da; border-radius: 8px; width: 100%; box-sizing: border-box; min-width: 0; }
+.reg fieldset.persona { border: 1px solid #d5dee3; border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; margin: 0 0 8px; }
+.reg legend { font-weight: 700; padding: 0 4px; } .reg .acepto { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; font-size: 12.5px; }
+.reg .acepto input { width: auto; margin-top: 2px; } .reg .enviar { background: #0F7C7A; color: #fff; border: 0; border-radius: 8px; padding: 12px; font: inherit; font-weight: 700; cursor: pointer; }
+.reg .otra { background: none; border: 1px dashed #9fb0bb; border-radius: 8px; padding: 9px; font: inherit; cursor: pointer; color: inherit; }
+.reg .o { text-align: center; margin: 0; font-size: 13px; opacity: .7; } .reg .msg { margin: 0; font-weight: 600; } p.ok { color: #1E7D4F; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -2398,7 +2406,8 @@ const TZ = 'America/Santo_Domingo';
 const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const SERVICIO = (window.STILI && window.STILI.servicio) || '';
 const R = new URLSearchParams(location.search).get('r') || '';
-const DEMO = !SERVICIO || !R;
+const U = new URLSearchParams(location.search).get('u') || '';      // v3.7 · enlace fijo del apartamento (mensaje programado de Airbnb)
+const DEMO = !SERVICIO || (!R && !U);
 const T = {
   es: { hola: 'Bienvenido(a), ', apto: 'Apartamento', llegada: 'Llegada', salida: 'Salida', desde: 'desde', hasta: 'hasta las', qr: 'Muestre este código en la portería. El portero verificará el documento de cada persona.',
     antes: 'Su apartamento estará listo el {f} a partir de las {h}. Antes de esa hora el código no da acceso.', puede_llegar: 'Ya puede llegar. Muestre el código en la portería; el código de la puerta y la clave del wifi aparecen aquí cuando el portero confirma su ingreso.',
@@ -2423,11 +2432,70 @@ let L = (() => { try { return localStorage.getItem('stili-lang') || ''; } catch 
 let D = null;
 const fFecha = d => new Date(d).toLocaleDateString({ es: 'es-DO', en: 'en-US', fr: 'fr-FR' }[L], { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' });
 const fHora = d => new Date(d).toLocaleTimeString({ es: 'es-DO', en: 'en-US', fr: 'fr-FR' }[L], { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
+// v3.7 · registro previo: buscar la reserva con el enlace del apartamento y registrar a cada persona antes de llegar
+const RG = {
+  es: { buscarTit: 'Registro de entrada', buscarTxt: 'Escriba el código de su reservación (Airbnb: HM…) o su apellido y la fecha de llegada.', codigo: 'Código de reservación', o: 'o bien', apellido: 'Apellido', llegada: 'Fecha de llegada', buscar: 'Buscar mi reserva',
+    tit: 'Registro previo', txt: 'Registre a cada persona con su documento antes de llegar. En la portería solo mostrarán el documento.', nombre: 'Nombre completo', tipo: 'Documento', doc: 'Número de documento', nac: 'Nacionalidad', foto: 'Foto del documento (opcional)',
+    otra: 'Agregar otra persona', acepto: 'Acepto que Stili Group y la administración del condominio usen estos datos solo para el control de acceso y la seguridad del edificio, y que los conserven el tiempo que exige su reglamento.', enviar: 'Enviar registro', listo: 'personas registradas', persona: 'Persona', pas: 'Pasaporte', ced: 'Cédula', lic: 'Licencia' },
+  en: { buscarTit: 'Check-in', buscarTxt: 'Enter your confirmation code (Airbnb: HM…) or your last name and arrival date.', codigo: 'Confirmation code', o: 'or', apellido: 'Last name', llegada: 'Arrival date', buscar: 'Find my booking',
+    tit: 'Pre-registration', txt: 'Register every guest with their ID before arrival. At the lobby you will only show the ID.', nombre: 'Full name', tipo: 'ID type', doc: 'ID number', nac: 'Nationality', foto: 'Photo of the ID (optional)',
+    otra: 'Add another guest', acepto: 'I agree that Stili Group and the building management use this data only for access control and building security, and keep it as long as their rules require.', enviar: 'Send registration', listo: 'guests registered', persona: 'Guest', pas: 'Passport', ced: 'National ID', lic: 'Driver license' },
+  fr: { buscarTit: 'Enregistrement', buscarTxt: 'Saisissez votre code de réservation (Airbnb : HM…) ou votre nom et la date d’arrivée.', codigo: 'Code de réservation', o: 'ou', apellido: 'Nom', llegada: 'Date d’arrivée', buscar: 'Trouver ma réservation',
+    tit: 'Pré-enregistrement', txt: 'Enregistrez chaque personne avec sa pièce d’identité avant l’arrivée. À la réception, montrez seulement la pièce.', nombre: 'Nom complet', tipo: 'Pièce', doc: 'Numéro', nac: 'Nationalité', foto: 'Photo de la pièce (facultatif)',
+    otra: 'Ajouter une personne', acepto: 'J’accepte que Stili Group et l’administration de l’immeuble utilisent ces données uniquement pour le contrôle d’accès et la sécurité, et les conservent selon leur règlement.', enviar: 'Envoyer', listo: 'personnes enregistrées', persona: 'Personne', pas: 'Passeport', ced: 'Carte d’identité', lic: 'Permis' },
+};
+async function llamar(accion, datos) { const r = await fetch(SERVICIO, { method: 'POST', body: JSON.stringify(Object.assign({ accion }, datos)) }); const j = await r.json(); if (!j.ok) throw new Error(j.error); return j; }
+function pintarBuscar() {
+  const g = RG[L];
+  document.getElementById('app').innerHTML = '<div class="card"><h2>' + g.buscarTit + '</h2><p>' + g.buscarTxt + '</p><form id="f-buscar" class="reg">' +
+    '<label>' + g.codigo + '<input id="b-cod" autocomplete="off" autocapitalize="characters" placeholder="HMXXXXXXXX"></label><p class="o">' + g.o + '</p>' +
+    '<label>' + g.apellido + '<input id="b-ape" autocomplete="family-name"></label><label>' + g.llegada + '<input id="b-lle" type="date"></label>' +
+    '<button class="enviar">' + g.buscar + '</button><p class="msg" id="b-msg" role="status"></p></form></div>';
+  document.getElementById('f-buscar').addEventListener('submit', async e => {
+    e.preventDefault(); const m = document.getElementById('b-msg'); m.textContent = '…';
+    try { const r = await llamar('rh_huesped_buscar', { u: U, codigo: document.getElementById('b-cod').value.trim(), apellido: document.getElementById('b-ape').value.trim(), llegada: document.getElementById('b-lle').value });
+      location.replace(location.pathname + '?r=' + encodeURIComponent(r.r)); }
+    catch (err) { m.textContent = err.message; }
+  });
+}
+function filaPersona(i) {
+  const g = RG[L];
+  return '<fieldset class="persona"><legend>' + g.persona + ' ' + (i + 1) + '</legend><label>' + g.nombre + '<input name="nombre" required autocomplete="name"></label>' +
+    '<label>' + g.tipo + '<select name="tipo"><option value="pasaporte">' + g.pas + '</option><option value="cedula">' + g.ced + '</option><option value="licencia">' + g.lic + '</option></select></label>' +
+    '<label>' + g.doc + '<input name="doc" required autocomplete="off"></label><label>' + g.nac + '<input name="nac" autocomplete="country-name"></label>' +
+    '<label>' + g.foto + '<input name="foto" type="file" accept="image/*,application/pdf" capture="environment"></label></fieldset>';
+}
+function pintarRegistro() {
+  const rg = D && D.registro; if (!rg || !rg.abierto || DEMO) return;
+  const g = RG[L], faltan = Math.max(1, rg.esperados - rg.registrados);
+  const caja = document.createElement('div'); caja.className = 'card'; caja.id = 'registro';
+  caja.innerHTML = '<h2>' + g.tit + '</h2>' + (rg.registrados ? '<p class="ok">✓ ' + rg.registrados + ' ' + g.listo + '</p>' : '') + '<p>' + g.txt + '</p>' +
+    '<form id="f-reg" class="reg"><div id="personas">' + Array.from({ length: Math.min(faltan, 6) }, (_, i) => filaPersona(rg.registrados + i)).join('') + '</div>' +
+    '<button type="button" class="otra" id="b-otra">+ ' + g.otra + '</button><label class="acepto"><input type="checkbox" id="r-acepto" required> ' + g.acepto + '</label>' +
+    '<button class="enviar">' + g.enviar + '</button><p class="msg" id="r-msg" role="status"></p></form>';
+  const pase = document.querySelector('#app .etapa'); (pase ? pase.parentNode.insertBefore(caja, pase.nextSibling) : document.getElementById('app').appendChild(caja));
+  document.getElementById('b-otra').addEventListener('click', () => { const n = document.querySelectorAll('#personas fieldset').length; document.getElementById('personas').insertAdjacentHTML('beforeend', filaPersona(rg.registrados + n)); });
+  document.getElementById('f-reg').addEventListener('submit', async e => {
+    e.preventDefault(); const m = document.getElementById('r-msg'); m.textContent = '…';
+    const leer = f => new Promise((ok, no) => { if (!f) return ok(null); if (f.size > 5e6) return no(new Error('5 MB máx.')); const r = new FileReader(); r.onload = () => ok({ mime: f.type, base64: String(r.result).split(',')[1] }); r.onerror = no; r.readAsDataURL(f); });
+    try {
+      const personas = [];
+      for (const fs of document.querySelectorAll('#personas fieldset')) {
+        const v = n => fs.querySelector('[name="' + n + '"]');
+        if (!v('nombre').value.trim() && !v('doc').value.trim()) continue;
+        personas.push({ nombre: v('nombre').value.trim(), tipo_documento: v('tipo').value, numero_documento: v('doc').value.trim(), nacionalidad: v('nac').value.trim(), foto: await leer(v('foto').files[0]) });
+      }
+      const r = await llamar('rh_huesped_registro', { r: R, acepta: document.getElementById('r-acepto').checked, personas });
+      m.textContent = r.mensaje; D.registro.registrados = r.registrados; setTimeout(cargar, 1500);
+    } catch (err) { m.textContent = err.message; }
+  });
+}
 async function cargar() {
+  if (U && !R && SERVICIO) return pintarBuscar();
   try {
     if (DEMO) D = demo('en_estadia');
     else { const r = await fetch(SERVICIO, { method: 'POST', body: JSON.stringify({ accion: 'huesped', r: R }) }); D = await r.json(); if (!D.ok) throw new Error(D.error); }
-    pintar();
+    pintar(); pintarRegistro();
   } catch (e) { document.getElementById('app').innerHTML = '<div class="error">' + esc(e.message || T[L].error) + '</div>'; }
 }
 function pintar() {
@@ -2452,7 +2520,7 @@ function pintar() {
   if (Number(f.minimo_noches) > 1) reglas.push(t.noches.replace('{n}', f.minimo_noches));
   document.getElementById('app').innerHTML =
     (DEMO ? '<div class="demo">' + t.demo + ' ' + ['antes', 'puede_llegar', 'en_estadia', 'terminada'].map(e => '<button data-etapa="' + e + '">' + e.replace('_', ' ') + '</button>').join('') + '</div>' : '') +
-    '<div class="pase"><div class="cab"><h1>' + t.hola + esc(titulo(D.huesped)) + '</h1><div class="lugar">' + esc(D.torre) + ' · ' + t.apto + ' ' + esc(D.apto) + '</div></div>' +
+    '<div class="pase"><div class="cab"><h1>' + (D.huesped && !/^Huésped( |$)/.test(D.huesped) ? t.hola + esc(titulo(D.huesped)) : t.hola.replace(/,\s*$/, '')) + '</h1><div class="lugar">' + esc(D.torre) + ' · ' + t.apto + ' ' + esc(D.apto) + '</div></div>' +
       '<div class="fechas"><div><span>' + t.llegada + '</span><b>' + fFecha(D.inicio || D.llegada) + '</b><div class="h">' + t.desde + ' ' + esc(D.hora_entrada || fHora(D.inicio)) + '</div></div><div aria-hidden="true">→</div>' +
       '<div><span>' + t.salida + '</span><b>' + fFecha(D.fin || D.salida) + '</b><div class="h">' + t.hasta + ' ' + esc(D.hora_salida || fHora(D.fin)) + '</div></div></div>' +
       (D.etapa !== 'terminada' ? '<div class="qr"><div id="qr"></div><span class="cod">' + esc(D.codigo_reserva) + '</span><p>' + t.qr + '</p></div>' : '') + '</div>' +
@@ -2471,7 +2539,7 @@ function pintar() {
 }
 const titulo = n => String(n || '').toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
 document.addEventListener('click', e => {
-  const l = e.target.closest('[data-l]'); if (l) { L = l.dataset.l; try { localStorage.setItem('stili-lang', L); } catch (x) { /* nada */ } if (D) pintar(); return; }
+  const l = e.target.closest('[data-l]'); if (l) { L = l.dataset.l; try { localStorage.setItem('stili-lang', L); } catch (x) { /* nada */ } if (D) { pintar(); pintarRegistro(); } else if (U && !R && SERVICIO) pintarBuscar(); return; }
   const c = e.target.closest('[data-copiar]');
   if (c) { navigator.clipboard.writeText(c.dataset.copiar).then(() => { c.textContent = T[L].copiado; }).catch(() => { const r = document.createRange(); r.selectNodeContents(c.parentElement.querySelector('b')); getSelection().removeAllRanges(); getSelection().addRange(r); }); return; }
   const et = e.target.closest('[data-etapa]'); if (et) { D = demo(et.dataset.etapa); pintar(); }
