@@ -2481,7 +2481,7 @@ async function cargarPase() {
     datos = DEMO ? demoPase() : await llamar('rh_pase', { p: P, disp: disp.d });
     if (datos.por_activar) return pintarActivar(datos, disp);
   } catch (e) {
-    if (/otro tel|another phone|no válido|Invalid|no longer|ya no|Demasiados|Too many/i.test(e.message)) throw e;
+    if (/otro tel|another phone|no válido|Invalid|no longer|ya no/i.test(e.message)) throw e;     // «Demasiados» o sin red: se usa lo guardado
     try { datos = JSON.parse(localStorage.getItem(k) || 'null'); } catch (x) { datos = null; }
     if (!datos) throw e; sinRed = true;
   }
