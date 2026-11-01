@@ -205,6 +205,12 @@ textarea.msg { min-height: 150px; font-size: 13px; }
   <label class="campo ancho">Mensaje sugerido (español e inglés)<textarea id="en-msg" class="msg" readonly></textarea></label>
   <div class="pie ancho"><button class="btn" type="button" data-copiar="en-msg">Copiar el mensaje</button><button class="btn" value="cerrar">Cerrar</button></div>
 </form></dialog>
+<dialog id="dlg-pases"><form method="dialog">
+  <h3 id="pa-titulo">Pases de entrada</h3>
+  <p class="ancho" style="margin:0;font-size:14px;color:var(--muted)">Cada huésped tiene su propio pase. Envíele a cada uno el suyo: se activa en el <b>primer teléfono</b> que lo abre y muestra un QR que cambia cada 30 segundos. Una captura o un enlace reenviado no abren la portería. Si alguien cambia de teléfono, pulse «Reiniciar».</p>
+  <ul class="lista ancho" id="pa-lista"></ul>
+  <div class="pie ancho"><button class="btn" value="cerrar">Cerrar</button></div>
+</form></dialog>
 <div class="toast" id="toast" hidden role="status"></div>
 <script src="config.js"></script>
 <script>
@@ -267,6 +273,14 @@ $('#f-clave').addEventListener('submit', async e => {
 });
 $('#salir').addEventListener('click', async () => { try { await api('rh_salir'); } catch (e) { /* igual sale */ } guardarSes(''); location.replace(location.pathname); });
 
+// ---- Pases de entrada de cada huésped
+function abrirPases(codigo, L) {
+  const d = $('#dlg-pases'); d.dataset.codigo = codigo; $('#pa-titulo').textContent = 'Pases de entrada · ' + codigo;
+  $('#pa-lista').innerHTML = L.length ? L.map(p => '<li><span class="f">' + esc(p.nombre) + '</span><span class="chip ' + (p.activo ? 'ok' : '') + '">' + (p.activo ? 'Activado' : 'Sin abrir') + '</span>' +
+    '<span><button class="btn chico primario" data-enviar-pase="' + esc(p.enlace) + '" data-nombre="' + esc(p.nombre) + '">Enviar</button>' + (p.activo ? ' <button class="btn chico" data-reiniciar="' + esc(p.id) + '">Reiniciar</button>' : '') + '</span></li>').join('')
+    : '<li style="display:block;color:var(--muted)">Todavía no hay personas registradas. El huésped las registra con el enlace del apartamento, o use «Agregar huésped».</li>';
+  if (!d.open) d.showModal();
+}
 // ---- Equipo (solo el dueño)
 async function cargarEquipo() { try { pintarEquipo((await api('rh_equipo')).equipo); } catch (e) { $('#equipo').hidden = true; } }
 function pintarEquipo(L) {
@@ -344,7 +358,8 @@ $('#f-con').addEventListener('submit', async e => {
 });
 document.addEventListener('click', async e => {
   const m = e.target.closest('[data-mapear]'), bo = e.target.closest('[data-borrar]'), re = e.target.closest('[data-reenvio]'), en = e.target.closest('[data-enlace]'), ig = e.target.closest('[data-ignorar]'), lk = e.target.closest('[data-link]'), cp = e.target.closest('[data-copiar]'),
-    ve = e.target.closest('[data-verificar]'), cf = e.target.closest('[data-confirmar]');
+    ve = e.target.closest('[data-verificar]'), cf = e.target.closest('[data-confirmar]'),
+    pa = e.target.closest('[data-pases]'), ag = e.target.closest('[data-agregar]'), ri = e.target.closest('[data-reiniciar]'), en2 = e.target.closest('[data-enviar-pase]');
   try {
     if (m) {
       const caja = document.querySelector('.mapa[data-con="' + CSS.escape(m.dataset.mapear) + '"]');
@@ -361,6 +376,20 @@ document.addEventListener('click', async e => {
     } else if (ve) {
       const inp = [...document.querySelectorAll('[data-vcod]')].find(i => i.dataset.vcod === ve.dataset.verificar);
       const r = await api('rh_correo_verificar', { correo: ve.dataset.verificar, codigo: inp ? inp.value.trim() : '' }); C.conexiones = r.conexiones; pintarConexiones(); toast('Correo confirmado.');
+    } else if (pa) {
+      const r = await api('rh_pases', { codigo_reserva: pa.dataset.pases }); abrirPases(pa.dataset.pases, r.pases);
+    } else if (ag) {
+      const nombre = prompt('Nombre completo de la persona que llega:'); if (!nombre) return;
+      const doc = prompt('Número de pasaporte o cédula (opcional; también puede registrarlo ella con su pase o en la portería):') || '';
+      const r = await api('rh_huesped_agregar', { codigo_reserva: ag.dataset.agregar, nombre, numero_documento: doc });
+      toast(r.agregado + ' agregado. La portería ya recibió el aviso. Envíele su pase.'); cargar();
+      const l = await api('rh_pases', { codigo_reserva: ag.dataset.agregar }); abrirPases(ag.dataset.agregar, l.pases);
+    } else if (ri) {
+      if (!confirm('¿Reiniciar este pase? El teléfono anterior deja de servir y hay que enviarle el enlace nuevo.')) return;
+      const r = await api('rh_pase_reiniciar', { id: ri.dataset.reiniciar }); abrirPases($('#dlg-pases').dataset.codigo, r.pases); toast('Pase reiniciado. Envíe el enlace nuevo.');
+    } else if (en2) {
+      const txt = en2.dataset.nombre + ': su pase de entrada (ábralo en su teléfono; vale solo en ese teléfono) · Your entry pass (open it on your phone; it only works on that phone): ' + en2.dataset.enviarPase;
+      if (navigator.share) await navigator.share({ title: 'Pase de entrada', text: txt }).catch(() => {}); else { await navigator.clipboard.writeText(txt); toast('Mensaje copiado. Péguelo en el chat de Airbnb o WhatsApp.'); }
     } else if (cf) {
       const nombre = prompt('Nombre del huésped, como aparece en Booking:'); if (!nombre) return;
       const personas = prompt('¿Cuántas personas llegan?', '2'); if (!personas) return;
@@ -414,6 +443,7 @@ function pintar() {
     (r.canal ? ' <span class="chip azul">' + esc(r.canal) + '</span>' : '') + (r.por_confirmar ? ' <span class="chip warn">Por confirmar</span>' : '') +
     (r.estatus === 'pendiente' ? '<br><button class="btn chico" data-link="' + esc(r.codigo) + '">Copiar enlace del huésped</button>' + (r.por_confirmar ? ' <button class="btn chico primario" data-confirmar="' + esc(r.codigo) + '">Confirmar</button>' : '') +
       (r.automatica ? ' <button class="btn chico" data-ignorar="' + esc(r.codigo) + '">No es una reserva</button>' : '') : '') +
+    (r.estatus === 'pendiente' || r.estatus === 'ingresado' ? (r.estatus === 'ingresado' ? '<br>' : ' ') + '<button class="btn chico" data-pases="' + esc(r.codigo) + '">🎫 Pases</button> <button class="btn chico" data-agregar="' + esc(r.codigo) + '">➕ Agregar huésped</button>' : '') +
     '</span><span class="chip ' + (r.estatus === 'ingresado' ? 'oro' : r.estatus === 'finalizado' ? 'ok' : '') + '">' + esc(r.estatus) + '</span></li>';
   $('#proximas').innerHTML = D.proximas.map(fila).join('') || '<li style="display:block;color:var(--muted)">No hay llegadas registradas. Conecte su calendario abajo o use «➕ Nueva reserva» en el bot.</li>';
   $('#historial').innerHTML = D.historial.map(fila).join('') || '<li style="display:block;color:var(--muted)">Sin estadías recientes.</li>';
@@ -501,6 +531,10 @@ function demo(accion, d) {
     k.por_verificar = k.por_verificar.filter(x => x !== d.correo); k.reenvio = [k.reenvio, d.correo].filter(Boolean).join(', '); return Promise.resolve({ verificado: d.correo, conexiones: demo.C.conexiones }); }
   if (accion === 'rh_correos_reenvio') { const k = demo.C.conexiones[1].correo, l = d.correos.map(x => x.trim().toLowerCase()).filter(Boolean), ya = k.reenvio.split(', ');
     k.reenvio = ya.filter(x => l.indexOf(x) >= 0).join(', '); k.por_verificar = l.filter(x => ya.indexOf(x) < 0); return Promise.resolve({ por_verificar: k.por_verificar, conexiones: demo.C.conexiones }); }
+  if (!demo.P) demo.P = [{ id: 'STL-9MX3T-W1', nombre: 'EMMA JOHNSON', activo: true, enlace: 'https://stiligroup.github.io/lobby/huesped.html?p=demoEmma' }, { id: 'STL-9MX3T-W2', nombre: 'LIAM JOHNSON', activo: false, enlace: 'https://stiligroup.github.io/lobby/huesped.html?p=demoLiam' }];
+  if (accion === 'rh_pases') return Promise.resolve({ pases: demo.P.slice() });
+  if (accion === 'rh_pase_reiniciar') { const x = demo.P.find(p => p.id === d.id); x.activo = false; x.enlace += 'n'; return Promise.resolve({ pases: demo.P.slice() }); }
+  if (accion === 'rh_huesped_agregar') { demo.P.push({ id: 'STL-9MX3T-H' + demo.P.length, nombre: d.nombre.toUpperCase(), activo: false, enlace: 'https://stiligroup.github.io/lobby/huesped.html?p=demoNuevo' }); return Promise.resolve({ agregado: d.nombre.toUpperCase() }); }
   if (accion === 'rh_reserva_confirmar') { const r = demo.D.proximas.find(x => x.codigo === d.codigo_reserva); r.huesped = d.nombre.toUpperCase(); r.personas = d.personas; r.por_confirmar = false; return Promise.resolve({ confirmada: true }); }
   if (accion === 'rh_conexiones') return Promise.resolve(JSON.parse(JSON.stringify(demo.C)));
   if (accion === 'rh_unidad_enlace') return Promise.resolve({ enlace: 'https://stiligroup.github.io/lobby/huesped.html?u=demo' + d.codigo_unidad, mensaje: 'Antes de llegar, complete su registro de entrada aquí (2 minutos): …\n\nBefore arrival, please complete your check-in here (2 minutes): …' });

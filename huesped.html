@@ -86,6 +86,23 @@ details.art p { margin: 6px 0 0; white-space: pre-line; font-size: 15px; }
 .pie { text-align: center; color: var(--muted); font-size: 13px; }
 .demo { background: var(--hue-suave); color: var(--hue); border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; text-align: center; }
 .demo button { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; padding: 2px 9px; margin: 4px 2px 0; font-size: 12px; font-weight: 700; }
+/* v3.7 · pase personal con QR que cambia */
+.vivo { position: relative; padding: 18px 18px 20px; display: grid; justify-items: center; gap: 10px; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.vivo .marco { position: relative; width: 236px; height: 236px; border-radius: 16px; background: #fff; padding: 12px; box-shadow: 0 0 0 4px var(--teal-suave); }
+.vivo canvas { width: 212px; height: 212px; image-rendering: pixelated; display: block; }
+.vivo .barra { width: 236px; height: 6px; border-radius: 3px; background: var(--teal-suave); overflow: hidden; }
+.vivo .barra i { display: block; height: 100%; background: var(--teal); transition: width .25s linear; }
+.vivo .reloj { font-family: var(--f-mono); font-size: 30px; font-weight: 700; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.vivo .franja { position: absolute; left: -40%; top: 0; bottom: 0; width: 40%; background: linear-gradient(100deg, transparent, rgba(201,165,76,.28), transparent); animation: barrido 2.4s linear infinite; pointer-events: none; }
+@keyframes barrido { to { left: 110%; } }
+@media (prefers-reduced-motion: reduce) { .vivo .franja { animation-duration: 6s; } }
+.vivo .punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--ok); margin-right: 6px; animation: latido 1s ease-in-out infinite; vertical-align: middle; }
+@keyframes latido { 50% { opacity: .25; transform: scale(.7); } }
+.vivo p { margin: 0; text-align: center; color: var(--muted); font-size: 14px; }
+.pases-lista { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.pases-lista li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 8px; }
+.pases-lista li:first-child { border-top: 0; padding-top: 0; } .pases-lista b { overflow-wrap: anywhere; } .pases-lista small { display: block; color: var(--muted); }
+.btn-pase { display: block; text-align: center; background: var(--teal); color: #fff; border-radius: 10px; padding: 12px; font-weight: 700; text-decoration: none; }
 /* v3.7 · registro previo */
 .reg { display: grid; gap: 10px; } .reg label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
 .reg input, .reg select { font: inherit; padding: 10px; border: 1px solid #c9d3da; border-radius: 8px; width: 100%; box-sizing: border-box; min-width: 0; }
@@ -2407,7 +2424,8 @@ const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&a
 const SERVICIO = (window.STILI && window.STILI.servicio) || '';
 const R = new URLSearchParams(location.search).get('r') || '';
 const U = new URLSearchParams(location.search).get('u') || '';      // v3.7 · enlace fijo del apartamento (mensaje programado de Airbnb)
-const DEMO = !SERVICIO || (!R && !U);
+const P = new URLSearchParams(location.search).get('p') || '';      // pase personal de cada huésped (QR que cambia)
+const DEMO = !SERVICIO || (!R && !U && !P);
 const T = {
   es: { hola: 'Bienvenido(a), ', apto: 'Apartamento', llegada: 'Llegada', salida: 'Salida', desde: 'desde', hasta: 'hasta las', qr: 'Muestre este código en la portería. El portero verificará el documento de cada persona.',
     antes: 'Su apartamento estará listo el {f} a partir de las {h}. Antes de esa hora el código no da acceso.', puede_llegar: 'Ya puede llegar. Muestre el código en la portería; el código de la puerta y la clave del wifi aparecen aquí cuando el portero confirma su ingreso.',
@@ -2433,6 +2451,114 @@ let D = null;
 const fFecha = d => new Date(d).toLocaleDateString({ es: 'es-DO', en: 'en-US', fr: 'fr-FR' }[L], { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' });
 const fHora = d => new Date(d).toLocaleTimeString({ es: 'es-DO', en: 'en-US', fr: 'fr-FR' }[L], { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
 // v3.7 · registro previo: buscar la reserva con el enlace del apartamento y registrar a cada persona antes de llegar
+const PS = {
+  es: { tit: 'Pase de entrada', vivo: 'En vivo', txt: 'Muestre esta pantalla en la portería. El código cambia cada 30 segundos y solo vale en este teléfono: una captura o una foto no sirven.', antes: 'Su pase abre desde el {f} a las {h}.', fin: 'Este pase venció.', sinRed: 'Sin internet: el pase sigue funcionando.', grupo: 'Pases de su grupo', grupoTxt: 'Cada persona tiene su propio pase. Envíele a cada una el suyo: se activa en el primer teléfono que lo abra.', enviar: 'Enviar', mio: 'Abrir mi pase de entrada', activo: 'Activado en un teléfono', pend: 'Sin abrir todavía', priv: 'Abra este pase en el navegador normal, no en modo privado: si no, no podrá volver a abrirlo.' },
+  en: { tit: 'Entry pass', vivo: 'Live', txt: 'Show this screen at the front desk. The code changes every 30 seconds and only works on this phone: screenshots or photos will not work.', antes: 'Your pass opens on {f} at {h}.', fin: 'This pass has expired.', sinRed: 'Offline: your pass still works.', grupo: 'Passes for your group', grupoTxt: 'Each guest has their own pass. Send each person theirs: it activates on the first phone that opens it.', enviar: 'Send', mio: 'Open my entry pass', activo: 'Active on a phone', pend: 'Not opened yet', priv: 'Open this pass in your normal browser, not in private mode, or you will not be able to open it again.' },
+  fr: { tit: 'Pass d’entrée', vivo: 'En direct', txt: 'Montrez cet écran à la réception. Le code change toutes les 30 secondes et ne fonctionne que sur ce téléphone : une capture ou une photo ne marche pas.', antes: 'Votre pass s’ouvre le {f} à {h}.', fin: 'Ce pass a expiré.', sinRed: 'Hors ligne : votre pass fonctionne toujours.', grupo: 'Pass de votre groupe', grupoTxt: 'Chaque personne a son propre pass. Envoyez-le à chacune : il s’active sur le premier téléphone qui l’ouvre.', enviar: 'Envoyer', mio: 'Ouvrir mon pass d’entrée', activo: 'Activé sur un téléphone', pend: 'Pas encore ouvert', priv: 'Ouvrez ce pass dans votre navigateur habituel, pas en navigation privée, sinon vous ne pourrez plus l’ouvrir.' },
+};
+// Identidad de este teléfono: se crea una vez y no sale del teléfono más que como huella
+function dispositivo() {
+  try { let d = localStorage.getItem('stili-pase-disp'); if (!d) { d = b64u(crypto.getRandomValues(new Uint8Array(24))); localStorage.setItem('stili-pase-disp', d); } return { d, fijo: true }; }
+  catch (e) { return { d: dispositivo.mem || (dispositivo.mem = b64u(crypto.getRandomValues(new Uint8Array(24)))), fijo: false }; }
+}
+const b64u = a => btoa(String.fromCharCode(...a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const deB64u = t => Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '') + '==='.slice((t.replace(/=+$/, '').length + 3) % 4)), c => c.charCodeAt(0));
+let PASE = null, PASE_TIMER = 0;
+async function codigoPase(clave, id, ventana) {
+  const firma = new Uint8Array(await crypto.subtle.sign('HMAC', clave, new TextEncoder().encode(id + '.' + ventana)));
+  return Array.from(firma.slice(0, 6), b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+// La clave del QR se guarda como llave de WebCrypto NO exportable en IndexedDB: ni la página puede leerla para copiarla
+function idb(modo, fn) {
+  return new Promise((ok, no) => { const q = indexedDB.open('stili-pases', 1); q.onupgradeneeded = () => q.result.createObjectStore('llaves');
+    q.onsuccess = () => { const tx = q.result.transaction('llaves', modo), r = fn(tx.objectStore('llaves')); tx.oncomplete = () => ok(r && r.result); tx.onerror = () => no(tx.error); }; q.onerror = () => no(q.error); });
+}
+const enApp = /FBAN|FBAV|Instagram|Line\/|; wv\)|GSA\//.test(navigator.userAgent);
+async function cargarPase() {
+  const k = 'stili-pase-' + P.slice(0, 12), disp = dispositivo();
+  let datos = null, sinRed = false;
+  try {
+    datos = DEMO ? demoPase() : await llamar('rh_pase', { p: P, disp: disp.d });
+    if (datos.por_activar) return pintarActivar(datos, disp);
+  } catch (e) {
+    if (/otro tel|another phone|no válido|Invalid|no longer|ya no|Demasiados|Too many/i.test(e.message)) throw e;
+    try { datos = JSON.parse(localStorage.getItem(k) || 'null'); } catch (x) { datos = null; }
+    if (!datos) throw e; sinRed = true;
+  }
+  let clave = null;
+  if (datos.semilla) {                     // solo llega al activar (o en la demostración)
+    clave = await crypto.subtle.importKey('raw', deB64u(datos.semilla), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    if (!DEMO) await idb('readwrite', st => st.put(clave, P)).catch(() => {});
+  } else clave = await idb('readonly', st => st.get(P)).catch(() => null);
+  if (!clave) throw new Error({ es: 'Este teléfono ya no tiene la clave del pase (se borraron los datos del navegador). Pida al host que lo reinicie.', en: 'This phone no longer has the pass key (browser data was cleared). Ask your host to reset it.', fr: 'Ce téléphone n’a plus la clé du pass (données du navigateur effacées). Demandez à votre hôte de le réinitialiser.' }[L]);
+  datos.off = datos.ahora - Date.now();
+  const mostrar = Object.assign({}, datos); delete mostrar.semilla;
+  try { if (!sinRed) localStorage.setItem(k, JSON.stringify(mostrar)); } catch (e) { /* sin guardar */ }
+  PASE = Object.assign(mostrar, { clave, sinRed, privado: !disp.fijo });
+  pintarPase();
+}
+function pintarActivar(x, disp) {
+  const t = PS[L], a = AC[L];
+  document.getElementById('app').innerHTML = '<div class="card"><h2>' + t.tit + '</h2><p style="font-size:18px;font-weight:700;margin:0 0 6px">' + a.hola.replace('{n}', esc(titulo(x.nombre))) + '</p><p>' + a.txt + '</p>' +
+    (enApp ? '<p style="color:var(--crit);font-weight:600">⚠️ ' + a.app + '</p>' : '') + (!disp.fijo ? '<p style="color:var(--crit);font-weight:600">⚠️ ' + t.priv + '</p>' : '') +
+    '<form id="f-act" class="reg">' + (x.pide_documento ? '<label>' + a.doc + '<input id="a-ult" maxlength="4" autocomplete="off" autocapitalize="characters" required></label>' : '') +
+    '<button class="enviar">' + a.boton + '</button><p class="msg" id="a-msg" role="status"></p></form></div>';
+  document.getElementById('f-act').addEventListener('submit', async e => {
+    e.preventDefault(); const m = document.getElementById('a-msg'); m.textContent = '…';
+    try {
+      const r = await llamar('rh_pase', { p: P, disp: disp.d, activar: true, ultimos: (document.getElementById('a-ult') || {}).value || '' });
+      const clave = await crypto.subtle.importKey('raw', deB64u(r.semilla), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      await idb('readwrite', st => st.put(clave, P));
+      r.off = r.ahora - Date.now(); delete r.semilla;
+      try { localStorage.setItem('stili-pase-' + P.slice(0, 12), JSON.stringify(r)); } catch (x2) { /* sin guardar */ }
+      PASE = Object.assign(r, { clave, sinRed: false, privado: !disp.fijo }); pintarPase();
+    } catch (err) { m.textContent = err.message; }
+  });
+}
+const AC = {
+  es: { hola: 'Hola, {n}', txt: 'Este pase es personal. Se activa una sola vez y queda guardado solo en este teléfono. Ábralo en el teléfono que va a llevar.', doc: 'Últimos 4 caracteres de su pasaporte o cédula', boton: 'Activar en este teléfono', app: 'Está dentro de otra aplicación. Para no perder el pase, ábralo en Safari o Chrome (menú ⋯ › Abrir en el navegador).' },
+  en: { hola: 'Hi, {n}', txt: 'This pass is personal. It activates once and stays only on this phone. Open it on the phone you will carry.', doc: 'Last 4 characters of your passport or ID', boton: 'Activate on this phone', app: 'You are inside another app. To keep your pass, open it in Safari or Chrome (menu ⋯ › Open in browser).' },
+  fr: { hola: 'Bonjour, {n}', txt: 'Ce pass est personnel. Il s’active une seule fois et reste uniquement sur ce téléphone. Ouvrez-le sur le téléphone que vous aurez sur vous.', doc: '4 derniers caractères de votre passeport ou pièce d’identité', boton: 'Activer sur ce téléphone', app: 'Vous êtes dans une autre application. Pour garder votre pass, ouvrez-le dans Safari ou Chrome (menu ⋯ › Ouvrir dans le navigateur).' },
+};
+function pintarPase() {
+  const t = PS[L], x = PASE; document.documentElement.lang = L;
+  document.querySelectorAll('.idiomas button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === L)));
+  document.getElementById('empresa').textContent = x.empresa || 'Stili Group';
+  const ahora = Date.now() + (x.off || 0), antes = x.inicio && new Date(x.inicio) > ahora, vencido = x.fin && new Date(x.fin) < ahora;
+  document.getElementById('app').innerHTML = (DEMO ? '<div class="demo">' + ({ es: 'Demostración', en: 'Demo', fr: 'Démo' }[L]) + '</div>' : '') +
+    '<div class="pase"><div class="cab"><h1>' + esc(titulo(x.nombre)) + '</h1><div class="lugar">' + esc(x.torre) + ' · ' + T[L].apto + ' ' + esc(x.apto) + '</div></div>' +
+    (vencido ? '<div class="etapa terminada" style="margin:0 16px 16px">' + t.fin + '</div>' :
+      '<div class="vivo"><div class="franja" aria-hidden="true"></div><div class="marco"><canvas id="qr-vivo" width="212" height="212" aria-label="QR"></canvas>' +
+      '</div><div class="barra" aria-hidden="true"><i id="barra"></i></div>' +
+      '<div class="reloj" id="reloj">--:--:--</div><p><span class="punto"></span><b>' + t.vivo + '</b> · ' + t.txt + '</p>' +
+      (antes ? '<div class="etapa antes" style="width:100%;box-sizing:border-box">' + esc(t.antes.replace('{f}', fFecha(x.inicio)).replace('{h}', fHora(x.inicio))) + '</div>' : '') +
+      (x.sinRed ? '<p>📴 ' + t.sinRed + '</p>' : '') + (x.privado ? '<p style="color:var(--crit)">⚠️ ' + t.priv + '</p>' : '') + '</div>') + '</div>' +
+    '<p class="pie">' + T[L].pie + '</p>';
+  clearInterval(PASE_TIMER);
+  if (vencido) return;
+  let ultima = -1;
+  const tic = async () => {
+    const ms = Date.now() + (x.off || 0), v = Math.floor(ms / 1000 / x.segundos);
+    const r = document.getElementById('reloj'); if (!r) return clearInterval(PASE_TIMER);
+    r.textContent = new Date(ms).toLocaleTimeString('es-DO', { timeZone: TZ, hour12: false });
+    const resto = x.segundos - (ms / 1000) % x.segundos; document.getElementById('barra').style.width = (resto / x.segundos * 100) + '%';
+    if (v === ultima) return; ultima = v;
+    const texto = 'STP.' + String(x.id).toUpperCase() + '.' + v + '.' + await codigoPase(x.clave, String(x.id).toUpperCase(), v);
+    const q = qrcode(0, 'M'); q.addData(texto); q.make();
+    const c = document.getElementById('qr-vivo'), g = c.getContext('2d'), n = q.getModuleCount(), m = c.width / n;
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#13293D';
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (q.isDark(i, j)) g.fillRect(Math.floor(j * m), Math.floor(i * m), Math.ceil(m), Math.ceil(m));
+  };
+  tic(); PASE_TIMER = setInterval(tic, 250);
+}
+function demoPase() { return { id: 'STL-7K2PQ-W1', nombre: 'SOPHIE MARTIN', torre: 'Torre Esperilla 17', apto: '5D', inicio: new Date(Date.now() - 3600e3).toISOString(), fin: new Date(Date.now() + 3 * 864e5).toISOString(), semilla: 'ZGVtby1zZW1pbGxhLWRlLXBydWViYS0xMjM0NTY3OA', ahora: Date.now(), segundos: 30, empresa: 'Stili Group' }; }
+function pintarPasesGrupo() {
+  const l = (D && D.pases) || []; if (!l.length || DEMO) return;
+  const t = PS[L], caja = document.createElement('div'); caja.className = 'card'; caja.id = 'pases';
+  caja.innerHTML = '<a class="btn-pase" href="' + esc(l[0].enlace) + '">🎫 ' + t.mio + '</a>' + (l.length > 1 ? '<h2 style="margin-top:14px">' + t.grupo + '</h2><p style="margin-top:0">' + t.grupoTxt + '</p><ul class="pases-lista">' +
+    l.slice(1).map(x => '<li><div><b>' + esc(titulo(x.nombre)) + '</b><small>' + (x.activo ? '✓ ' + t.activo : t.pend) + '</small></div><button class="copiar" data-compartir="' + esc(x.enlace) + '" data-nombre="' + esc(titulo(x.nombre)) + '">' + t.enviar + '</button></li>').join('') + '</ul>' : '');
+  const ancla = document.querySelector('#app .etapa'); (ancla ? ancla.parentNode.insertBefore(caja, ancla.nextSibling) : document.getElementById('app').appendChild(caja));
+}
 const RG = {
   es: { buscarTit: 'Registro de entrada', buscarTxt: 'Escriba el código de su reservación (Airbnb: HM…) o su apellido y la fecha de llegada.', codigo: 'Código de reservación', o: 'o bien', apellido: 'Apellido', llegada: 'Fecha de llegada', buscar: 'Buscar mi reserva',
     tit: 'Registro previo', txt: 'Registre a cada persona con su documento antes de llegar. En la portería solo mostrarán el documento.', nombre: 'Nombre completo', tipo: 'Documento', doc: 'Número de documento', nac: 'Nacionalidad', foto: 'Foto del documento (opcional)',
@@ -2491,11 +2617,12 @@ function pintarRegistro() {
   });
 }
 async function cargar() {
+  if (P) { try { await cargarPase(); } catch (e) { document.getElementById('app').innerHTML = '<div class="error">' + esc(e.message || T[L].error) + '</div>'; } return; }
   if (U && !R && SERVICIO) return pintarBuscar();
   try {
     if (DEMO) D = demo('en_estadia');
     else { const r = await fetch(SERVICIO, { method: 'POST', body: JSON.stringify({ accion: 'huesped', r: R }) }); D = await r.json(); if (!D.ok) throw new Error(D.error); }
-    pintar(); pintarRegistro();
+    pintar(); pintarPasesGrupo(); pintarRegistro();
   } catch (e) { document.getElementById('app').innerHTML = '<div class="error">' + esc(e.message || T[L].error) + '</div>'; }
 }
 function pintar() {
@@ -2523,7 +2650,7 @@ function pintar() {
     '<div class="pase"><div class="cab"><h1>' + (D.huesped && !/^Huésped( |$)/.test(D.huesped) ? t.hola + esc(titulo(D.huesped)) : t.hola.replace(/,\s*$/, '')) + '</h1><div class="lugar">' + esc(D.torre) + ' · ' + t.apto + ' ' + esc(D.apto) + '</div></div>' +
       '<div class="fechas"><div><span>' + t.llegada + '</span><b>' + fFecha(D.inicio || D.llegada) + '</b><div class="h">' + t.desde + ' ' + esc(D.hora_entrada || fHora(D.inicio)) + '</div></div><div aria-hidden="true">→</div>' +
       '<div><span>' + t.salida + '</span><b>' + fFecha(D.fin || D.salida) + '</b><div class="h">' + t.hasta + ' ' + esc(D.hora_salida || fHora(D.fin)) + '</div></div></div>' +
-      (D.etapa !== 'terminada' ? '<div class="qr"><div id="qr"></div><span class="cod">' + esc(D.codigo_reserva) + '</span><p>' + t.qr + '</p></div>' : '') + '</div>' +
+      (D.etapa !== 'terminada' && !(D.pases && D.pases.length) ? '<div class="qr"><div id="qr"></div><span class="cod">' + esc(D.codigo_reserva) + '</span><p>' + t.qr + '</p></div>' : '') + '</div>' +
     '<div class="etapa ' + esc(D.etapa) + '" role="status">' + esc(etapaTxt) + '</div>' +
     (datos.length ? '<div class="card"><h2>' + t.datos + '</h2>' + datos.join('') + '</div>' : '') +
     '<div class="card"><h2>' + t.salidaTit + '</h2><p style="margin:0 0 10px;font-weight:600">' + esc(t.salidaTxt.replace('{f}', fFecha(D.fin || D.salida)).replace('{h}', D.hora_salida || fHora(D.fin))) + '</p>' +
@@ -2532,14 +2659,17 @@ function pintar() {
       (reglas.length ? '<ul class="reglas">' + reglas.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '') + (f.normas ? '<p>' + esc(f.normas) + '</p>' : '') + '</div>' : '') +
     (condo.length ? '<div class="card"><h2>' + t.normasCondo + '</h2>' + condo.map(n => '<details class="art"><summary>' + esc(n.articulo) + ' · <span style="font-weight:500;color:var(--muted)">' + esc(n.documento) + '</span></summary><p>' + esc(n.texto) + '</p></details>').join('') + '</div>' : '') +
     '<p class="pie">' + t.pie + '</p>';
-  if (D.etapa !== 'terminada' && window.qrcode) {
+  if (D.etapa !== 'terminada' && window.qrcode && document.getElementById('qr')) {
     const q = qrcode(0, 'M'); q.addData(D.codigo_reserva); q.make();
     document.getElementById('qr').innerHTML = q.createImgTag(6, 0, 'QR ' + D.codigo_reserva);
   }
 }
 const titulo = n => String(n || '').toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
 document.addEventListener('click', e => {
-  const l = e.target.closest('[data-l]'); if (l) { L = l.dataset.l; try { localStorage.setItem('stili-lang', L); } catch (x) { /* nada */ } if (D) { pintar(); pintarRegistro(); } else if (U && !R && SERVICIO) pintarBuscar(); return; }
+  const l = e.target.closest('[data-l]'); if (l) { L = l.dataset.l; try { localStorage.setItem('stili-lang', L); } catch (x) { /* nada */ } if (PASE) pintarPase(); else if (D) { pintar(); pintarPasesGrupo(); pintarRegistro(); } else if (U && !R && SERVICIO) pintarBuscar(); return; }
+  const sh = e.target.closest('[data-compartir]');
+  if (sh) { const u = sh.dataset.compartir, txt = sh.dataset.nombre + ': ' + PS[L].tit + ' · ' + u;
+    if (navigator.share) navigator.share({ title: PS[L].tit, text: txt }).catch(() => {}); else navigator.clipboard.writeText(txt).then(() => { sh.textContent = T[L].copiado; }); return; }
   const c = e.target.closest('[data-copiar]');
   if (c) { navigator.clipboard.writeText(c.dataset.copiar).then(() => { c.textContent = T[L].copiado; }).catch(() => { const r = document.createRange(); r.selectNodeContents(c.parentElement.querySelector('b')); getSelection().removeAllRanges(); getSelection().addRange(r); }); return; }
   const et = e.target.closest('[data-etapa]'); if (et) { D = demo(et.dataset.etapa); pintar(); }

@@ -708,6 +708,7 @@ body[data-sesion="huespedes"] { --ses: var(--ses-hue); --ses-suave: var(--ses-hu
             <ul>
               <li><b>QR VIS-:</b> una invitación creada en la pestaña Invitaciones. Al escanearla se llenan nombre, apartamento y autorización.</li>
               <li><b>QR STL-:</b> un huésped de renta corta. Al escanearlo se llenan nombre y apartamento desde la reserva.</li>
+              <li><b>Pase personal (STP.):</b> el QR que cada huésped muestra en su teléfono. Cambia cada 30 segundos y vale una sola vez: si sale «ya se usó» o «vencido», es una captura o una foto. Pida que lo abra en vivo y revise el documento.</li>
               <li>Después, escanea también su documento para guardar su perfil.</li>
               <li><b>Crear una invitación:</b> pestaña Invitaciones → nombre, apartamento y vigencia → Crear. Copia el mensaje y envíalo al residente o al invitado por WhatsApp.</li>
             </ul>
@@ -3294,6 +3295,7 @@ async function procesarLectura(texto) {
   const u = t.toUpperCase();
   try {
     if (/^VST-/.test(u)) return await salidaPorGafete(u);
+    if (/^STP\./.test(u)) { cambiarSesion('huespedes'); return await leerPase(t); }
     if (/^STL-/.test(u)) {
       // Los huéspedes de renta corta se reciben en su propia sesión
       toast('QR de huésped: abriendo la sesión Huéspedes.', 'aviso');
@@ -3862,8 +3864,33 @@ async function abrirReserva(codigo) {
   pintarListaHue(); pintarRecibir();
   if (x.estado === 'antes_de_hora') sonar(2);
 }
+// v3.7 · pase personal del huésped: QR que cambia cada 30 s y vale una sola vez (una captura no sirve)
+async function leerPase(texto) {
+  try {
+    const r = await api('pase', { codigo: texto.trim(), portero: CFG.portero }), x = r.pase;
+    const no = !x.valido;
+    sonar(no || x.repetido ? 2 : 1);
+    const franja = (x.estado === 'antes_de_hora' ? '<div class="franja no">⛔ Todavía no puede subir: el apartamento recibe desde el ' + fmtFecha(x.desde) + ' a las ' + fmtHora(x.desde) + '.</div>'
+      : x.estado === 'vencido' ? '<div class="franja no">⏰ La estadía terminó el ' + fmtFecha(x.hasta) + ' a las ' + fmtHora(x.hasta) + '. No dar acceso.</div>'
+      : no ? '<div class="franja no">⛔ La reserva no está activa. No dar acceso y avisar a la administración.</div>'
+      : '<div class="franja ok">✅ PASE VÁLIDO · en vivo, de su teléfono</div>') +
+      (x.repetido ? '<div class="franja no" style="background:var(--warn-suave,#FFF4D6);color:#8A5A00">⚠️ Este pase se escaneó hace ' + x.minutos + ' min. Si no es la misma persona que acaba de pasar, puede ser una copia: revise el documento con cuidado.</div>' : '');
+    modal('<h3>' + esc(x.nombre) + '</h3><p class="meta">Apto <b>' + esc(x.apto) + '</b> · <span class="mono">' + esc(x.codigo_reserva) + '</span>' + (x.ya_ingreso ? ' · reingreso' : '') + '</p>' + franja +
+      '<p>Compare la cara con el documento físico' + (x.documento_final ? ' (' + esc(x.tipo_documento || 'documento') + ' terminado en <b class="mono">' + esc(x.documento_final.slice(-4)) + '</b>)' : '') + '. El nombre del documento debe ser <b>' + esc(x.nombre) + '</b>.</p>' +
+      '<div class="botones">' + (!no && !x.ya_ingreso ? '<button class="btn hue" id="m-abrir">Abrir la reserva para confirmar el ingreso</button>' : '') + '<button class="btn primario" data-cerrar>Entendido</button></div>', no ? 'critico' : '', null, () => {
+      const b = $('#m-abrir'); if (b) b.onclick = async () => {
+        cerrarModal(); await abrirReserva(x.codigo_reserva);
+        if (S.reserva && !S.docsHue.some(d => (d.nombre || '').toUpperCase() === x.nombre.toUpperCase())) {
+          const libre = S.docsHue.find(d => !d.nombre && !d.documento); if (libre) libre.nombre = x.nombre; else S.docsHue.push({ nombre: x.nombre, documento: '', tipo: x.tipo_documento || 'pasaporte' });
+          pintarRecibir();
+        }
+      };
+    });
+  } catch (e) { sonar(2); modal('<h3>⛔ Pase no válido</h3><p>' + esc(e.message) + '</p><div class="botones"><button class="btn peligro" data-cerrar>Entendido</button></div>', 'critico'); }
+}
 function lecturaHuespedes(texto) {
   const u = texto.trim().toUpperCase();
+  if (/^STP\./.test(u)) return leerPase(texto);
   if (/^STL-/.test(u)) return abrirReserva(u);
   if (!S.reserva) { toast('Primero escanee el QR de la reserva.', 'aviso'); return; }
   const d = interpretarDocumento(texto);
@@ -3884,7 +3911,8 @@ function pintarRecibir() {
   if (x.estado === 'antes_de_hora') franja = '<div class="franja no">⛔ QR TODAVÍA NO VÁLIDO. El apartamento recibe desde el ' + fmtFecha(x.desde) + ' a las ' + fmtHora(x.desde) + '. No dar acceso antes.</div>';
   else if (x.estado === 'cancelado') franja = '<div class="franja no">⛔ RESERVA CANCELADA. No dar acceso. Avise a la administración.</div>';
   else if (x.estado === 'salida_vencida') franja = '<div class="franja no">⏰ La estadía terminó el ' + fmtFecha(x.hasta) + ' a las ' + fmtHora(x.hasta) + ' · El QR ya no da acceso. Debe desalojar.</div>' + htmlRespaldo('salida_huesped');
-  else if (x.estado === 'ingresado') franja = '<div class="franja ok">✅ Ya ingresó el ' + fmtFechaHora(x.ingreso) + '. Acceso hasta ' + fmtFecha(x.hasta) + ' ' + fmtHora(x.hasta) + '.</div>';
+  else if (x.estado === 'ingresado') franja = '<div class="franja ok">✅ Ya ingresó el ' + fmtFechaHora(x.ingreso) + '. Acceso hasta ' + fmtFecha(x.hasta) + ' ' + fmtHora(x.hasta) + '.</div>' +
+    '<div class="franja no" style="background:#FFF4D6;color:#8A5A00">El QR de la reserva NO basta para volver a entrar: cada huésped muestra su pase personal en vivo. Quien no tenga pase se registra aquí con su documento.</div>';
   else franja = '<div class="franja ok">✅ RESERVA VÁLIDA · puede ingresar. Verifique el documento de cada persona.</div>';
   caja.innerHTML = '<div class="rotulo-sesion">Recepción del huésped</div>' +
     '<div class="recibir-cab"><div class="apto-grande">' + esc(x.apto) + '</div><div><h3>' + esc(x.huesped || 'Huésped') + '</h3><div class="meta" style="color:var(--muted)">' +
@@ -4270,6 +4298,12 @@ const Demo = (() => {
       case 'historial': { const t = (d.texto || '').toUpperCase();
         return { visitas: D.visitas.filter(v => (!d.fecha || diaClave(v.entrada) === d.fecha) && (!t || [v.nombre, v.documento, v.destino_apto, v.empresa, v.placa].some(x => String(x || '').toUpperCase().includes(t)))) }; }
       case 'alerta': return {};
+      case 'pase': {
+        const m = String(d.codigo).toUpperCase().match(/^STP\.([A-Z0-9-]+)\.(\d+)\.([0-9A-F]{12})$/); if (!m) throw err('Ese QR no es un pase de huésped.');
+        Demo.pases = Demo.pases || {}; if (Demo.pases[m[0]]) throw err('Este código ya se usó: parece una captura o una foto. Pida al huésped que muestre el pase en vivo.');
+        Demo.pases[m[0]] = 1; const r = D.reservas[0];
+        return { pase: { codigo_reserva: r.codigo, apto: r.apto, nombre: r.huesped, tipo_documento: 'pasaporte', documento_final: '••••4321', estado: 'pendiente', valido: true, repetido: false, ya_ingreso: false, desde: r.desde, hasta: r.hasta } };
+      }
       case 'huespedes': return { reservas: D.reservas.map(vistaRes).sort((a, b) => new Date(a.desde) - new Date(b.desde)), conectado: true, respaldo: respaldoDemo(), capacidad: capacidadDemo() };
       case 'normas': return { normas: (D.normas || []).map((n, i) => Object.assign({ id: 'N' + i }, n)), temas: TEMAS_DEMO };
       case 'checkin_confirmar': {
