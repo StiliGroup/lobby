@@ -103,15 +103,63 @@ details.norma p { margin: 6px 0 0; white-space: pre-line; color: var(--fg); line
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--navy); color: #fff; padding: 12px 18px; border-radius: 10px; font-weight: 600; z-index: 50; max-width: calc(100% - 32px); }
 .toast.error { background: var(--crit); }
 @media (max-width: 560px) { .lista li { grid-template-columns: 78px minmax(0, 1fr); } .lista li > :last-child { grid-column: 2; } }
+/* v3.7 · acceso, conexiones y registro del huésped */
+.acceso { max-width: 420px; margin: 40px auto; display: grid; gap: 12px; }
+.acceso form { display: grid; gap: 12px; }
+.prov { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 10px; }
+.prov button { text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 12px; display: grid; gap: 2px; }
+.prov button:hover, .prov button[aria-pressed="true"] { border-color: var(--teal); background: var(--teal-suave); }
+.prov b { font-size: 15px; } .prov small { color: var(--muted); font-size: 12px; }
+.conex { border-top: 1px solid var(--line); padding: 12px 0; display: grid; gap: 8px; }
+.conex:first-child { border-top: 0; }
+.conex header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.conex .res { font-size: 13px; color: var(--muted); }
+.mapa { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, 220px); gap: 8px; align-items: center; font-size: 14px; }
+.copiar { display: flex; gap: 8px; } .copiar input { font-family: var(--f-mono); font-size: 13px; }
+.paso { margin: 0; padding-left: 20px; } .paso li { margin: 4px 0; font-size: 14px; }
+.codigo-gmail { font-family: var(--f-mono); font-size: 22px; font-weight: 700; letter-spacing: .08em; }
+.chip.azul { background: var(--teal-suave); color: var(--teal); border-color: transparent; }
+.chip.warn { background: var(--warn-suave); color: var(--warn); border-color: transparent; }
+.btn.chico { padding: 5px 10px; font-size: 13px; }
+textarea.msg { min-height: 150px; font-size: 13px; }
 </style>
 </head>
 <body>
-<header class="barra"><div class="in gutter"><div><small>Stili Group · Panel del host</small><h1 id="titulo">Mi panel</h1></div><span class="act" id="act"></span></div></header>
+<header class="barra"><div class="in gutter"><div><small>Stili Group · Panel del host</small><h1 id="titulo">Mi panel</h1></div><span class="act"><span id="act"></span> <button class="btn chico" id="salir" hidden style="margin-left:8px">Salir</button></span></div></header>
 <main class="gutter">
   <div class="aviso" id="aviso-demo" hidden>Demostración con datos de ejemplo. Su enlace personal llega por el bot con /panel.</div>
   <div class="error" id="error" hidden></div>
+  <section class="acceso card" id="acceso" hidden>
+    <h2>Entrar al panel de host</h2>
+    <form id="f-login"><label class="campo">Correo<input id="l-correo" type="email" autocomplete="username" required></label>
+      <label class="campo">Clave<input id="l-clave" type="password" autocomplete="current-password" required></label>
+      <button class="btn primario">Entrar</button></form>
+    <button class="btn" id="b-olvido" type="button">Primera vez u olvidé mi clave</button>
+    <form id="f-olvido" hidden><p class="ayuda" style="margin:0">Le enviamos un código de 8 dígitos al correo. Escríbalo con su clave nueva.</p>
+      <label class="campo">Código<input id="o-codigo" inputmode="numeric" maxlength="8" autocomplete="one-time-code"></label>
+      <label class="campo">Clave nueva<input id="o-clave" type="password" autocomplete="new-password" minlength="8"></label>
+      <button class="btn primario">Cambiar la clave y entrar</button></form>
+    <p class="ayuda" style="margin:0">¿Es el dueño y entra por primera vez? Escriba /panel en el bot de check-in: el enlace le deja crear su clave. ¿Le invitaron como asistente? Escriba su correo y pulse «Primera vez u olvidé mi clave».</p>
+  </section>
+  <div class="card" id="crear-clave" hidden><h2>Entre sin el bot</h2>
+    <p style="margin-top:0;font-size:14px;color:var(--muted)">Cree su correo y clave para abrir este panel desde cualquier equipo, sin pedir el enlace al bot.</p>
+    <form id="f-clave" class="grid2" style="gap:12px"><label class="campo">Correo<input id="c-correo" type="email" autocomplete="username" required></label>
+      <label class="campo">Clave (8 o más, letras y números)<input id="c-clave" type="password" autocomplete="new-password" minlength="8" required></label>
+      <div><button class="btn primario">Guardar mi clave</button></div></form></div>
   <div class="kpis" id="kpis"></div>
   <section><h2>Mis unidades</h2><div class="unidades" id="unidades"></div></section>
+  <section class="card" id="conexiones"><h2>Reservas automáticas: Airbnb, Booking y otros</h2>
+    <p style="margin-top:0;font-size:14px;color:var(--muted)">Conecte sus calendarios, sus correos de reservas o su sistema de gestión. Cada 15 minutos las reservas llegan solas a la portería: usted no tiene que reportar nada.</p>
+    <div id="lista-conex"></div>
+    <div class="pie" style="justify-content:flex-start"><button class="btn primario" id="b-conectar">Conectar</button><button class="btn" id="b-sync">Revisar ahora</button></div>
+  </section>
+  <section class="card" id="equipo" hidden><h2>Mi equipo</h2>
+    <p style="margin-top:0;font-size:14px;color:var(--muted)">Sus asistentes entran con su propio correo y clave. Ven las reservas, copian los enlaces para los huéspedes, confirman o quitan las llegadas automáticas y editan las fichas. Solo usted conecta sistemas y maneja el equipo. Al quitar a alguien, pierde el acceso al instante.</p>
+    <ul class="lista" id="lista-equipo"></ul>
+    <form id="f-equipo" class="grid2" style="gap:12px;margin-top:12px"><label class="campo">Nombre<input id="eq-nombre" maxlength="60" required></label>
+      <label class="campo">Correo<input id="eq-correo" type="email" required></label>
+      <div><button class="btn primario">Invitar asistente</button></div></form>
+  </section>
   <div class="grid2">
     <div class="card"><h2>Próximas llegadas</h2><ul class="lista" id="proximas"></ul></div>
     <div class="card"><h2>Últimos 60 días</h2><ul class="lista" id="historial"></ul></div>
@@ -144,6 +192,25 @@ details.norma p { margin: 6px 0 0; white-space: pre-line; color: var(--fg); line
     <div class="pie ancho"><button class="btn" value="cancelar" formnovalidate>Cancelar</button><button class="btn primario" id="h-guardar" value="guardar">Guardar ficha</button></div>
   </form>
 </dialog>
+<dialog id="dlg-con"><form id="f-con" method="dialog">
+  <h3>Conectar reservas</h3>
+  <div class="prov ancho" id="prov"></div>
+  <div class="ancho" id="con-campos"></div>
+  <div class="pie ancho"><button class="btn" value="cancelar" formnovalidate>Cancelar</button><button class="btn primario" id="con-ok" value="ok" disabled>Probar y conectar</button></div>
+</form></dialog>
+<dialog id="dlg-enlace"><form method="dialog">
+  <h3 id="en-titulo">Enlace de registro del huésped</h3>
+  <p class="ancho" style="margin:0;font-size:14px;color:var(--muted)">Es el mismo para todas las reservas de este apartamento. Póngalo en el <b>mensaje programado</b> de Airbnb o Booking (por ejemplo, 2 días antes de la llegada): el huésped escribe su código de reservación, registra a cada persona con su documento y en la portería solo muestra el documento.</p>
+  <div class="ancho copiar"><input id="en-url" readonly><button class="btn" type="button" data-copiar="en-url">Copiar</button></div>
+  <label class="campo ancho">Mensaje sugerido (español e inglés)<textarea id="en-msg" class="msg" readonly></textarea></label>
+  <div class="pie ancho"><button class="btn" type="button" data-copiar="en-msg">Copiar el mensaje</button><button class="btn" value="cerrar">Cerrar</button></div>
+</form></dialog>
+<dialog id="dlg-pases"><form method="dialog">
+  <h3 id="pa-titulo">Pases de entrada</h3>
+  <p class="ancho" style="margin:0;font-size:14px;color:var(--muted)">Cada huésped tiene su propio pase. Envíele a cada uno el suyo: se activa en el <b>primer teléfono</b> que lo abre y muestra un QR que cambia cada 30 segundos. Una captura o un enlace reenviado no abren la portería. Si alguien cambia de teléfono, pulse «Reiniciar».</p>
+  <ul class="lista ancho" id="pa-lista"></ul>
+  <div class="pie ancho"><button class="btn" value="cerrar">Cerrar</button></div>
+</form></dialog>
 <div class="toast" id="toast" hidden role="status"></div>
 <script src="config.js"></script>
 <script>
@@ -153,23 +220,205 @@ const $ = s => document.querySelector(s);
 const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtFecha = d => d ? new Date(d).toLocaleDateString('es-DO', { timeZone: TZ, weekday: 'short', day: '2-digit', month: 'short' }) : '';
 const SERVICIO = (window.STILI && window.STILI.servicio) || '';
-const K = new URLSearchParams(location.search).get('k') || '';
-const DEMO = !SERVICIO || !K;
+const Q = new URLSearchParams(location.search);
+const leerSes = () => { try { return localStorage.getItem('stili-host-ses') || ''; } catch (e) { return ''; } };
+const guardarSes = v => { try { v ? localStorage.setItem('stili-host-ses', v) : localStorage.removeItem('stili-host-ses'); } catch (e) { /* sin almacenamiento */ } };
+let K = Q.get('k') || leerSes();
+const DEMO = !SERVICIO || Q.get('demo') === '1';
+let C = null, provElegido = '';
 let D = null, actual = null;
 const ESTADOS = { libre: 'Libre', ocupada: 'Ocupada', bloqueada_deuda: 'Bloqueada · balance vencido', en_revision: 'En revisión' };
 function toast(t, tipo) { const e = $('#toast'); e.textContent = t; e.className = 'toast' + (tipo ? ' ' + tipo : ''); e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => e.hidden = true, 4000); }
 async function api(accion, datos) {
   if (DEMO) return demo(accion, datos || {});
+  if (!K && !/^rh_(login|olvido|restablecer)$/.test(accion)) throw new Error('SIN_SESION');
   const r = await fetch(SERVICIO, { method: 'POST', body: JSON.stringify(Object.assign({ accion, k: K }, datos || {})) });
   const j = await r.json(); if (!j.ok) throw new Error(j.error); return j;
 }
-async function cargar() {
-  try { D = await api('panel_host'); pintar(); }
-  catch (e) { $('#error').hidden = false; $('#error').textContent = e.message; }
+function mostrarAcceso(msg) {
+  $('#acceso').hidden = false; $('main').querySelectorAll(':scope > :not(#acceso):not(#error):not(#aviso-demo)').forEach(x => x.hidden = true);
+  if (msg) { $('#error').hidden = false; $('#error').textContent = msg; }
 }
+async function cargar() {
+  if (!DEMO && !K) return mostrarAcceso();
+  try {
+    D = await api('panel_host'); pintar();
+    $('#salir').hidden = DEMO || !String(K).startsWith('S.');
+    if (!DEMO && !String(K).startsWith('S.')) { try { const c = await api('rh_cuenta'); $('#crear-clave').hidden = c.tiene_clave; if (c.correo) $('#c-correo').value = c.correo; } catch (e) { /* sin aviso */ } }
+    cargarConexiones();
+    if (ES_DUENO()) cargarEquipo();
+  } catch (e) {
+    if (/sesión venció|SIN_HOST|SIN_SESION/.test(e.message) && String(K).startsWith('S.')) { guardarSes(''); K = ''; return mostrarAcceso('Su sesión venció. Entre de nuevo.'); }
+    $('#error').hidden = false; $('#error').textContent = e.message;
+  }
+}
+$('#f-login').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { const r = await api('rh_login', { correo: $('#l-correo').value.trim(), clave: $('#l-clave').value }); K = r.ses; guardarSes(K); location.replace(location.pathname); }
+  catch (err) { toast(err.message, 'error'); }
+});
+$('#b-olvido').addEventListener('click', async () => {
+  const correo = $('#l-correo').value.trim(); if (!correo) return toast('Escriba su correo arriba.', 'error');
+  try { const r = await api('rh_olvido', { correo }); toast(r.mensaje); $('#f-olvido').hidden = false; } catch (err) { toast(err.message, 'error'); }
+});
+$('#f-olvido').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { const r = await api('rh_restablecer', { correo: $('#l-correo').value.trim(), codigo: $('#o-codigo').value.trim(), clave: $('#o-clave').value }); K = r.ses; guardarSes(K); location.replace(location.pathname); }
+  catch (err) { toast(err.message, 'error'); }
+});
+$('#f-clave').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { const r = await api('rh_clave', { correo: $('#c-correo').value.trim(), clave: $('#c-clave').value }); guardarSes(r.ses); $('#crear-clave').hidden = true; toast('Clave guardada. Desde ahora entre con su correo en esta misma página.'); }
+  catch (err) { toast(err.message, 'error'); }
+});
+$('#salir').addEventListener('click', async () => { try { await api('rh_salir'); } catch (e) { /* igual sale */ } guardarSes(''); location.replace(location.pathname); });
+
+// ---- Pases de entrada de cada huésped
+function abrirPases(codigo, L) {
+  const d = $('#dlg-pases'); d.dataset.codigo = codigo; $('#pa-titulo').textContent = 'Pases de entrada · ' + codigo;
+  $('#pa-lista').innerHTML = L.length ? L.map(p => '<li><span class="f">' + esc(p.nombre) + '</span><span class="chip ' + (p.activo ? 'ok' : '') + '">' + (p.activo ? 'Activado' : 'Sin abrir') + '</span>' +
+    '<span><button class="btn chico primario" data-enviar-pase="' + esc(p.enlace) + '" data-nombre="' + esc(p.nombre) + '">Enviar</button>' + (p.activo ? ' <button class="btn chico" data-reiniciar="' + esc(p.id) + '">Reiniciar</button>' : '') + '</span></li>').join('')
+    : '<li style="display:block;color:var(--muted)">Todavía no hay personas registradas. El huésped las registra con el enlace del apartamento, o use «Agregar huésped».</li>';
+  if (!d.open) d.showModal();
+}
+// ---- Equipo (solo el dueño)
+async function cargarEquipo() { try { pintarEquipo((await api('rh_equipo')).equipo); } catch (e) { $('#equipo').hidden = true; } }
+function pintarEquipo(L) {
+  const est = { invitado: ['warn', 'Invitado'], activo: ['ok', 'Activo'] };
+  $('#lista-equipo').innerHTML = L.length ? L.map(m => '<li><span class="f">' + esc(m.nombre) + '</span><span class="mono" style="overflow-wrap:anywhere">' + esc(m.correo) + '</span>' +
+    '<span><span class="chip ' + (est[m.estado] || ['', m.estado])[0] + '">' + esc((est[m.estado] || ['', m.estado])[1]) + '</span> <button class="btn chico" data-quitar="' + esc(m.id) + '">Quitar</button></span></li>').join('')
+    : '<li style="display:block;color:var(--muted)">Todavía no tiene asistentes.</li>';
+}
+$('#f-equipo').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { const r = await api('rh_equipo_invitar', { nombre: $('#eq-nombre').value.trim(), correo: $('#eq-correo').value.trim() }); pintarEquipo(r.equipo); e.target.reset(); toast('Invitación enviada por correo.'); }
+  catch (err) { toast(err.message, 'error'); }
+});
+$('#lista-equipo').addEventListener('click', async e => {
+  const b = e.target.closest('[data-quitar]'); if (!b) return;
+  if (!confirm('¿Quitar a este asistente? Perderá el acceso al instante.')) return;
+  try { const r = await api('rh_equipo_quitar', { id: b.dataset.quitar }); pintarEquipo(r.equipo); toast('Asistente quitado.'); } catch (err) { toast(err.message, 'error'); }
+});
+// ---- Conexiones
+const ESTADO_CON = { activa: ['ok', 'Activa'], con_error: ['warn', 'Revisar'] };
+async function cargarConexiones() { try { C = await api('rh_conexiones'); pintarConexiones(); } catch (e) { $('#lista-conex').innerHTML = '<p class="falta">' + esc(e.message) + '</p>'; } }
+function opcionesUnidad(sel) { return '<option value="">— sin apartamento —</option>' + C.unidades.filter(u => !u.compartida).map(u => '<option value="' + esc(u.codigo) + '"' + (u.codigo === sel ? ' selected' : '') + '>' + esc(u.torre + ' · ' + u.apto) + '</option>').join(''); }
+function pintarConexiones() {
+  const L = C.conexiones;
+  $('#lista-conex').innerHTML = L.length ? L.map(c => {
+    const p = C.proveedores[c.proveedor] || { nombre: c.proveedor, via: '' }, e = ESTADO_CON[c.estado] || ['', c.estado];
+    const mapa = ES_DUENO() && (c.proveedor === 'correo' || p.tipo === 'api') ? '<div class="mapa" data-con="' + esc(c.id) + '">' + c.anuncios.map(a => '<span>' + esc(a.externo_nombre) + '</span><select data-ext="' + esc(a.externo_id) + '">' + opcionesUnidad(a.codigo_unidad) + '</select>').join('') +
+      (c.anuncios.length ? '<span></span><button class="btn chico" data-mapear="' + esc(c.id) + '">Guardar apartamentos</button>' : '') + '</div>' : '';
+    const k = c.correo;
+    const correo = k ? '<ol class="paso"><li>Su correo de reservas debe reenviar a <b class="mono">' + esc(k.direccion) + '</b> los mensajes de Airbnb y Booking. En Gmail: Configuración › Reenvío › Agregar una dirección de reenvío; luego un filtro «De: airbnb.com OR booking.com» con «Reenviar a».</li>' +
+      '<li>Correos verificados desde los que reenvía: <b>' + esc(k.reenvio || 'ninguno todavía') + '</b>' + (ES_DUENO() ? ' <button class="btn chico" data-reenvio="' + esc(c.id) + '">Cambiar</button>' : '') +
+        ' <span class="ayuda" style="display:block">Solo se leen los correos que Airbnb o Booking enviaron a una de estas direcciones.</span></li>' +
+      (ES_DUENO() ? (k.por_verificar || []).map(d => '<li class="falta">Le enviamos un código de 8 dígitos a <b>' + esc(d) + '</b>. Escríbalo aquí: ' +
+        '<input data-vcod="' + esc(d) + '" inputmode="numeric" maxlength="8" autocomplete="one-time-code" style="width:9em" aria-label="Código de ' + esc(d) + '"> <button class="btn chico" data-verificar="' + esc(d) + '">Confirmar</button></li>').join('') : '') +
+      (k.gmail_codigo ? '<li>Gmail pidió confirmar el reenvío. Su código: <span class="codigo-gmail">' + esc(k.gmail_codigo) + '</span></li>' : '') +
+      (k.pendientes ? '<li class="falta">' + k.pendientes + ' correo(s) esperan: elija abajo a qué apartamento corresponde cada anuncio.</li>' : '') + '</ol>' : '';
+    return '<div class="conex"><header><b>' + esc(c.nombre) + '</b><span class="chip ' + e[0] + '">' + esc(e[1]) + '</span><span class="chip">' + esc(p.via) + '</span>' +
+      (ES_DUENO() ? '<button class="btn chico" style="margin-left:auto" data-borrar="' + esc(c.id) + '">Desconectar</button>' : '') + '</header>' +
+      '<div class="res">' + (c.ultima_sync ? 'Revisado ' + new Date(c.ultima_sync).toLocaleString('es-DO', { timeZone: TZ, day: '2-digit', month: 'short', hour: 'numeric', minute: '2-digit' }) + ' · ' : '') + esc(c.ultimo_resultado || 'Pendiente de la primera revisión') + '</div>' +
+      (c.ultimo_error ? '<div class="falta">' + esc(c.ultimo_error) + '</div>' : '') + correo + mapa + '</div>';
+  }).join('') : '<p style="margin:0;color:var(--muted);font-size:14px">Todavía no hay conexiones. Pulse «Conectar».</p>';
+}
+$('#b-conectar').addEventListener('click', () => {
+  if (!C) return;
+  provElegido = '';
+  $('#prov').innerHTML = Object.keys(C.proveedores).map(k => { const p = C.proveedores[k]; return '<button type="button" data-prov="' + k + '" aria-pressed="false"><b>' + esc(p.nombre) + '</b><small>' + esc(p.via + ' · ' + p.costo + (p.beta ? ' · nuevo' : '')) + '</small></button>'; }).join('');
+  $('#con-campos').innerHTML = '<p class="ayuda">¿No usa ningún sistema de gestión? Elija <b>Airbnb</b> o <b>Booking.com</b> (calendario) y además <b>Correos de Airbnb y Booking</b> para que llegue el nombre del huésped.</p>';
+  $('#con-ok').disabled = true; $('#dlg-con').showModal();
+});
+$('#prov').addEventListener('click', e => {
+  const b = e.target.closest('[data-prov]'); if (!b) return;
+  provElegido = b.dataset.prov; document.querySelectorAll('#prov [data-prov]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  const p = C.proveedores[provElegido];
+  let h = '<p class="ayuda" style="font-size:13px">' + esc(p.ayuda) + '</p>';
+  if (p.tipo === 'ical') h += '<label class="campo">Apartamento<select id="cx-unidad" required>' + opcionesUnidad('') + '</select></label><label class="campo">Enlace del calendario<input id="cx-url" type="url" placeholder="https://… .ics" required></label>';
+  else if (p.tipo === 'correo') h += '<label class="campo">Correo desde el que reenvía (si no es su correo de acceso)<input id="cx-correos" type="email" placeholder="reservas.suyas@gmail.com"></label>';
+  else h += p.campos.map(c => '<label class="campo">' + esc(c.t) + '<input data-campo="' + esc(c.k) + '" type="' + (c.secreto ? 'password' : 'text') + '" autocomplete="off" required></label>').join('') + '<p class="ayuda">La clave se guarda cifrada en el servicio de Stili y no vuelve a mostrarse.</p>';
+  $('#con-campos').innerHTML = h; $('#con-ok').disabled = false;
+});
+$('#f-con').addEventListener('submit', async e => {
+  if (e.submitter && e.submitter.value === 'cancelar') return;
+  e.preventDefault();
+  const p = C.proveedores[provElegido], d = { proveedor: provElegido };
+  if (p.tipo === 'ical') { d.codigo_unidad = $('#cx-unidad').value; d.url = $('#cx-url').value.trim(); }
+  else if (p.tipo === 'correo') d.correos = [$('#cx-correos').value.trim()].filter(Boolean);
+  else { d.campos = {}; document.querySelectorAll('[data-campo]').forEach(i => { d.campos[i.dataset.campo] = i.value.trim(); }); }
+  $('#con-ok').disabled = true; $('#con-ok').textContent = 'Probando…';
+  try {
+    const r = await api('rh_conexion_crear', d); C.conexiones = r.conexiones; pintarConexiones(); $('#dlg-con').close();
+    toast(p.tipo === 'api' ? 'Conectado. Elija a qué apartamento corresponde cada anuncio y pulse «Guardar apartamentos».' : p.tipo === 'correo' ? 'Listo. Configure el reenvío como indica el panel.' :
+      'Conectado: ' + ((r.resultado || {}).creadas || 0) + ' reserva(s) nuevas.');
+    cargar();
+  } catch (err) { toast(err.message, 'error'); }
+  finally { $('#con-ok').disabled = false; $('#con-ok').textContent = 'Probar y conectar'; }
+});
+document.addEventListener('click', async e => {
+  const m = e.target.closest('[data-mapear]'), bo = e.target.closest('[data-borrar]'), re = e.target.closest('[data-reenvio]'), en = e.target.closest('[data-enlace]'), ig = e.target.closest('[data-ignorar]'), lk = e.target.closest('[data-link]'), cp = e.target.closest('[data-copiar]'),
+    ve = e.target.closest('[data-verificar]'), cf = e.target.closest('[data-confirmar]'),
+    pa = e.target.closest('[data-pases]'), ag = e.target.closest('[data-agregar]'), ri = e.target.closest('[data-reiniciar]'), en2 = e.target.closest('[data-enviar-pase]');
+  try {
+    if (m) {
+      const caja = document.querySelector('.mapa[data-con="' + CSS.escape(m.dataset.mapear) + '"]');
+      const mapa = [...caja.querySelectorAll('select')].map(s => ({ externo_id: s.dataset.ext, codigo_unidad: s.value }));
+      const r = await api('rh_conexion_mapear', { id: m.dataset.mapear, mapa }); C.conexiones = r.conexiones; pintarConexiones(); toast('Apartamentos guardados.'); cargar();
+    } else if (bo) {
+      if (!confirm('¿Desconectar? Las reservas ya registradas se quedan; dejan de llegar las nuevas.')) return;
+      const r = await api('rh_conexion_borrar', { id: bo.dataset.borrar }); C.conexiones = r.conexiones; pintarConexiones();
+    } else if (re) {
+      const k = C.conexiones.find(c => c.id === re.dataset.reenvio).correo || {};
+      const v = prompt('Correos desde los que reenvía (separados por coma). A cada dirección nueva le llega un código para confirmarla:', [k.reenvio].concat(k.por_verificar || []).filter(Boolean).join(', ')); if (v === null) return;
+      const r = await api('rh_correos_reenvio', { correos: v.split(',') }); C.conexiones = r.conexiones; pintarConexiones();
+      if (r.por_verificar && r.por_verificar.length) toast('Revise el correo: le enviamos un código a ' + r.por_verificar.join(', ') + '.');
+    } else if (ve) {
+      const inp = [...document.querySelectorAll('[data-vcod]')].find(i => i.dataset.vcod === ve.dataset.verificar);
+      const r = await api('rh_correo_verificar', { correo: ve.dataset.verificar, codigo: inp ? inp.value.trim() : '' }); C.conexiones = r.conexiones; pintarConexiones(); toast('Correo confirmado.');
+    } else if (pa) {
+      const r = await api('rh_pases', { codigo_reserva: pa.dataset.pases }); abrirPases(pa.dataset.pases, r.pases);
+    } else if (ag) {
+      const nombre = prompt('Nombre completo de la persona que llega:'); if (!nombre) return;
+      const doc = prompt('Número de pasaporte o cédula (opcional; también puede registrarlo ella con su pase o en la portería):') || '';
+      const r = await api('rh_huesped_agregar', { codigo_reserva: ag.dataset.agregar, nombre, numero_documento: doc });
+      toast(r.agregado + ' agregado. La portería ya recibió el aviso. Envíele su pase.'); cargar();
+      const l = await api('rh_pases', { codigo_reserva: ag.dataset.agregar }); abrirPases(ag.dataset.agregar, l.pases);
+    } else if (ri) {
+      if (!confirm('¿Reiniciar este pase? El teléfono anterior deja de servir y hay que enviarle el enlace nuevo.')) return;
+      const r = await api('rh_pase_reiniciar', { id: ri.dataset.reiniciar }); abrirPases($('#dlg-pases').dataset.codigo, r.pases); toast('Pase reiniciado. Envíe el enlace nuevo.');
+    } else if (en2) {
+      const txt = en2.dataset.nombre + ': su pase de entrada (ábralo en su teléfono; vale solo en ese teléfono) · Your entry pass (open it on your phone; it only works on that phone): ' + en2.dataset.enviarPase;
+      if (navigator.share) await navigator.share({ title: 'Pase de entrada', text: txt }).catch(() => {}); else { await navigator.clipboard.writeText(txt); toast('Mensaje copiado. Péguelo en el chat de Airbnb o WhatsApp.'); }
+    } else if (cf) {
+      const nombre = prompt('Nombre del huésped, como aparece en Booking:'); if (!nombre) return;
+      const personas = prompt('¿Cuántas personas llegan?', '2'); if (!personas) return;
+      await api('rh_reserva_confirmar', { codigo_reserva: cf.dataset.confirmar, nombre, personas: Number(personas) }); toast('Confirmada. La portería recibe el aviso en un minuto.'); cargar();
+    } else if (en) {
+      const r = await api('rh_unidad_enlace', { codigo_unidad: en.dataset.enlace }); const u = D.unidades.find(x => x.codigo === en.dataset.enlace);
+      $('#en-titulo').textContent = 'Enlace de registro · ' + u.torre + ' · Apto ' + u.apto; $('#en-url').value = r.enlace; $('#en-msg').value = r.mensaje; $('#dlg-enlace').showModal();
+    } else if (ig) {
+      if (!confirm('¿No es una reserva (por ejemplo, un cierre que usted puso en Booking)? Se quita de la portería y no vuelve a entrar.')) return;
+      await api('rh_reserva_ignorar', { codigo_reserva: ig.dataset.ignorar }); toast('Quitada.'); cargar();
+    } else if (lk) {
+      const r = await api('rh_enlace', { codigo_reserva: lk.dataset.link }); await navigator.clipboard.writeText(r.enlace); toast('Enlace del huésped copiado.');
+    } else if (cp) {
+      const i = document.getElementById(cp.dataset.copiar); i.select(); await navigator.clipboard.writeText(i.value); toast('Copiado.');
+    }
+  } catch (err) { toast(err.message, 'error'); }
+});
+$('#b-sync').addEventListener('click', async () => {
+  try { const r = await api('rh_conexion_sync'); C.conexiones = r.conexiones; pintarConexiones(); const x = r.resultado;
+    toast(x.creadas + ' nuevas · ' + x.actualizadas + ' cambios · ' + x.canceladas + ' canceladas' + (x.errores.length ? ' · revise los avisos' : '')); cargar(); }
+  catch (err) { toast(err.message, 'error'); }
+});
+const ES_DUENO = () => !D || D.rol !== 'asistente';
 function pintar() {
   $('#aviso-demo').hidden = !DEMO;
-  $('#titulo').textContent = 'Hola, ' + D.host.nombre.split(' ')[0];
+  $('#titulo').textContent = 'Hola, ' + (D.persona || D.host.nombre).split(' ')[0];
+  if (!ES_DUENO()) $('#titulo').insertAdjacentHTML('beforeend', '<small style="display:block;font-size:13px;font-weight:500;opacity:.8;letter-spacing:0;text-transform:none">Asistente de ' + esc(D.host.nombre) + '</small>');
+  $('#b-conectar').hidden = !ES_DUENO();
+  $('#equipo').hidden = !ES_DUENO();
   $('#act').textContent = 'Actualizado ' + new Date(D.generado).toLocaleTimeString('es-DO', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
   const R = D.resumen, ocup = D.unidades.length ? Math.round(100 * R.noches_mes / (R.dias_mes * D.unidades.length)) : 0;
   $('#kpis').innerHTML = [['Reservas del mes', R.reservas_mes, 'en ' + D.unidades.length + ' unidad(es)'], ['Ocupación del mes', ocup + '%', R.noches_mes + ' noches de ' + R.dias_mes * D.unidades.length],
@@ -187,10 +436,16 @@ function pintar() {
         ' · <b style="color:var(--fg)">capacidad ' + (u.ocupacion_maxima ? u.ocupacion_maxima + ' personas' : 'sin límite') + '</b></div>' +
       '<div class="params">' + resumenParams(f, u.ocupacion_maxima) + '</div>' +
       (faltan.length ? '<div class="falta">Falta: ' + faltan.join(', ') + '. Sus huéspedes no lo verán hasta que lo complete.</div>' : '') +
-      '<div><button class="btn primario" data-editar="' + i + '"' + (u.estado === 'en_revision' ? ' disabled' : '') + '>Editar ficha y parámetros</button></div></div>';
+      '<div class="pie" style="justify-content:flex-start"><button class="btn primario" data-editar="' + i + '"' + (u.estado === 'en_revision' ? ' disabled' : '') + '>Editar ficha y parámetros</button>' +
+      '<button class="btn" data-enlace="' + esc(u.codigo) + '"' + (u.estado === 'en_revision' ? ' disabled' : '') + '>Enlace de registro del huésped</button></div></div>';
   }).join('') || '<div class="card">No tiene unidades asignadas.</div>';
-  const fila = r => '<li><span class="f">' + fmtFecha(r.llegada) + '</span><span><b>' + esc(r.huesped || 'Sin nombre') + '</b> · ' + r.personas + ' pers. · <span class="mono">' + esc(r.unidad) + '</span></span><span class="chip ' + (r.estatus === 'ingresado' ? 'oro' : r.estatus === 'finalizado' ? 'ok' : '') + '">' + esc(r.estatus) + '</span></li>';
-  $('#proximas').innerHTML = D.proximas.map(fila).join('') || '<li style="display:block;color:var(--muted)">No hay llegadas registradas. Use «➕ Nueva reserva» en el bot.</li>';
+  const fila = r => '<li><span class="f">' + fmtFecha(r.llegada) + '</span><span><b>' + esc(r.huesped || 'Sin nombre') + '</b> · ' + r.personas + ' pers. · <span class="mono">' + esc(r.unidad) + '</span>' +
+    (r.canal ? ' <span class="chip azul">' + esc(r.canal) + '</span>' : '') + (r.por_confirmar ? ' <span class="chip warn">Por confirmar</span>' : '') +
+    (r.estatus === 'pendiente' ? '<br><button class="btn chico" data-link="' + esc(r.codigo) + '">Copiar enlace del huésped</button>' + (r.por_confirmar ? ' <button class="btn chico primario" data-confirmar="' + esc(r.codigo) + '">Confirmar</button>' : '') +
+      (r.automatica ? ' <button class="btn chico" data-ignorar="' + esc(r.codigo) + '">No es una reserva</button>' : '') : '') +
+    (r.estatus === 'pendiente' || r.estatus === 'ingresado' ? (r.estatus === 'ingresado' ? '<br>' : ' ') + '<button class="btn chico" data-pases="' + esc(r.codigo) + '">🎫 Pases</button> <button class="btn chico" data-agregar="' + esc(r.codigo) + '">➕ Agregar huésped</button>' : '') +
+    '</span><span class="chip ' + (r.estatus === 'ingresado' ? 'oro' : r.estatus === 'finalizado' ? 'ok' : '') + '">' + esc(r.estatus) + '</span></li>';
+  $('#proximas').innerHTML = D.proximas.map(fila).join('') || '<li style="display:block;color:var(--muted)">No hay llegadas registradas. Conecte su calendario abajo o use «➕ Nueva reserva» en el bot.</li>';
   $('#historial').innerHTML = D.historial.map(fila).join('') || '<li style="display:block;color:var(--muted)">Sin estadías recientes.</li>';
   const regl = D.reglamentos || {}, torres = Object.keys(regl);
   $('#regl-caja').hidden = !torres.some(t => regl[t].length);
@@ -239,7 +494,8 @@ function demo(accion, d) {
           minimo_noches: '2', maximo_noches: '30', max_huespedes: '4', mascotas: 'NO', fumar: 'NO', fiestas: 'NO' } },
       { codigo: 'NIZA7-8B', torre: 'Torre Niza 7', apto: '8B', estado: 'libre', huesped: '', personas: 0, sale: '', noches_mes: 9, ocupacion_mes: 29, ocupacion_maxima: 2,
         ficha: { hora_entrada: '', hora_salida: '12:00', codigo_puerta: '', wifi_red: '', wifi_clave: '', parqueo: '', ubicacion: '', mapa_url: '', normas: '' } }],
-    proximas: [{ codigo: 'STL-9MX3T', unidad: 'NIZA7-8B', huesped: 'EMMA JOHNSON', personas: 3, llegada: dia(1), salida: dia(4), estatus: 'pendiente' }, { codigo: 'STL-2HQ8R', unidad: 'ESP17-5D', huesped: 'KENJI SATO', personas: 2, llegada: dia(3), salida: dia(7), estatus: 'pendiente' }],
+    proximas: [{ codigo: 'STL-9MX3T', unidad: 'NIZA7-8B', huesped: 'EMMA JOHNSON', personas: 3, llegada: dia(1), salida: dia(4), estatus: 'pendiente' }, { codigo: 'STL-2HQ8R', unidad: 'ESP17-5D', huesped: 'KENJI SATO', personas: 2, llegada: dia(3), salida: dia(7), estatus: 'pendiente' },
+      { codigo: 'STL-6BK2M', unidad: 'NIZA7-8B', huesped: 'Huésped Booking.com', personas: 1, llegada: dia(9), salida: dia(12), estatus: 'pendiente', canal: 'Booking.com', automatica: true, por_confirmar: true }],
     historial: [{ codigo: 'STL-7K2PQ', unidad: 'ESP17-5D', huesped: 'PEDRO ALMONTE', personas: 2, llegada: dia(-2), salida: dia(2), estatus: 'ingresado' }, { codigo: 'STL-4HD8W', unidad: 'NIZA7-8B', huesped: 'SOPHIE MARTIN', personas: 2, llegada: dia(-9), salida: dia(-5), estatus: 'finalizado' }],
     resumen: { reservas_mes: 5, noches_mes: 26, dias_mes: 31, valoraciones: 7, promedio_estrellas: 4.6, por_valorar: 1 },
     temas: { salida_huesped: 'Salida de huéspedes y renta corta', ruido: 'Ruido y convivencia', visitas: 'Visitas y registro en portería', horario_trabajo: 'Horario del personal de trabajo' },
@@ -247,7 +503,11 @@ function demo(accion, d) {
       { documento: 'Reglamento de convivencia', articulo: 'Artículo 4', tema: 'salida_huesped', texto: 'Los huéspedes de alquileres de corta estadía deberán desalojar la unidad a la hora de salida pactada. Pasada esa hora el acceso queda suspendido y la administración podrá solicitar el desalojo.' },
       { documento: 'Reglamento de convivencia', articulo: 'Artículo 3', tema: 'ruido', texto: 'Se prohíbe la música o el ruido a alto volumen desde las 10:00 p. m. hasta las 7:00 a. m.' },
       { documento: 'Reglamento de convivencia', articulo: 'Artículo 2', tema: 'visitas', texto: 'Toda persona que no resida en el condominio debe identificarse y registrarse en la portería antes de subir.' }] } };
-  if (accion === 'panel_host') return Promise.resolve(JSON.parse(JSON.stringify(demo.D)));
+  if (accion === 'panel_host') return Promise.resolve(Object.assign(JSON.parse(JSON.stringify(demo.D)), Q.get('rol') === 'asistente' ? { rol: 'asistente', persona: 'Luisa Marte' } : { rol: 'dueno' }));
+  if (!demo.E) demo.E = [{ id: 'EQ-1', nombre: 'Luisa Marte', correo: 'luisa.limpieza@gmail.com', estado: 'activo' }];
+  if (accion === 'rh_equipo') return Promise.resolve({ equipo: demo.E.slice() });
+  if (accion === 'rh_equipo_invitar') { if (!d.nombre || !/@/.test(d.correo)) return Promise.reject(new Error('Escriba el nombre y un correo válido.')); demo.E.push({ id: 'EQ-' + (demo.E.length + 1), nombre: d.nombre, correo: d.correo.toLowerCase(), estado: 'invitado' }); return Promise.resolve({ equipo: demo.E.slice() }); }
+  if (accion === 'rh_equipo_quitar') { demo.E = demo.E.filter(m => m.id !== d.id); return Promise.resolve({ equipo: demo.E.slice() }); }
   if (accion === 'unidad_guardar') {
     const f = d.ficha; for (const k of ['hora_entrada', 'hora_salida']) if (f[k] && !/^\d{1,2}:\d{2}$/.test(f[k])) return Promise.reject(new Error('La hora debe tener el formato 15:00.'));
     if (f.mapa_url && !/^https:\/\//i.test(f.mapa_url)) return Promise.reject(new Error('El enlace del mapa debe empezar con https://'));
@@ -256,6 +516,30 @@ function demo(accion, d) {
     if (Number(f.minimo_noches) && Number(f.maximo_noches) && Number(f.minimo_noches) > Number(f.maximo_noches)) return Promise.reject(new Error('Las noches mínimas no pueden ser más que las máximas.'));
     u.ficha = Object.assign({}, f); return Promise.resolve({ guardado: true, ficha: u.ficha });
   }
+  if (accion === 'rh_cuenta') return Promise.resolve({ nombre: 'Carlos Peña', correo: '', tiene_clave: true });
+  if (!demo.C) demo.C = { unidades: demo.D.unidades.map(u => ({ codigo: u.codigo, torre: u.torre, apto: u.apto, activa: true, compartida: false })),
+    proveedores: { ical_airbnb: { nombre: 'Airbnb', via: 'Calendario', tipo: 'ical', costo: 'Gratis', ayuda: 'En Airbnb: Calendario › Disponibilidad › Sincronizar calendarios › Exportar calendario.' },
+      ical_booking: { nombre: 'Booking.com', via: 'Calendario', tipo: 'ical', costo: 'Gratis', ayuda: 'Extranet de Booking › Sincronizar calendarios › Exportar.' },
+      correo: { nombre: 'Correos de Airbnb y Booking', via: 'Correo', tipo: 'correo', costo: 'Gratis', ayuda: 'Reenvíe los correos de reservas a la dirección de Stili.' },
+      beds24: { nombre: 'Beds24', via: 'API', tipo: 'api', costo: 'Desde ~€8/mes', ayuda: 'Settings › Marketplace › API › invite code.', campos: [{ k: 'codigo', t: 'Código de invitación', secreto: true }] },
+      hostaway: { nombre: 'Hostaway', via: 'API', tipo: 'api', costo: 'Por cotización', ayuda: 'Settings › Hostaway API.', campos: [{ k: 'cuenta', t: 'Account ID' }, { k: 'secreto', t: 'API Key', secreto: true }] } },
+    conexiones: [{ id: 'CX-1', proveedor: 'ical_airbnb', nombre: 'Airbnb · NIZA7-8B', estado: 'activa', ultima_sync: new Date().toISOString(), ultimo_resultado: '1 nuevas · 0 cambios · 0 canceladas', ultimo_error: '', anuncios: [], correo: null },
+      { id: 'CX-2', proveedor: 'correo', nombre: 'Correos de Airbnb y Booking', estado: 'activa', ultima_sync: new Date().toISOString(), ultimo_resultado: '1 correo(s) esperan que asigne el anuncio a un apartamento', ultimo_error: '',
+        anuncios: [{ externo_id: 'estudio', externo_nombre: 'Estudio moderno frente al parque', codigo_unidad: '', activo: false }],
+        correo: { direccion: 'reservas@stili.com.do', acceso: 'carlos@gmail.com', reenvio: 'carlos@gmail.com', por_verificar: ['reservas.carlos@gmail.com'], gmail_codigo: '584 213 907', pendientes: 1 } }] };
+  if (accion === 'rh_correo_verificar') { const k = demo.C.conexiones[1].correo; if (!/^\d{8}$/.test(d.codigo)) return Promise.reject(new Error('Código incorrecto.'));
+    k.por_verificar = k.por_verificar.filter(x => x !== d.correo); k.reenvio = [k.reenvio, d.correo].filter(Boolean).join(', '); return Promise.resolve({ verificado: d.correo, conexiones: demo.C.conexiones }); }
+  if (accion === 'rh_correos_reenvio') { const k = demo.C.conexiones[1].correo, l = d.correos.map(x => x.trim().toLowerCase()).filter(Boolean), ya = k.reenvio.split(', ');
+    k.reenvio = ya.filter(x => l.indexOf(x) >= 0).join(', '); k.por_verificar = l.filter(x => ya.indexOf(x) < 0); return Promise.resolve({ por_verificar: k.por_verificar, conexiones: demo.C.conexiones }); }
+  if (!demo.P) demo.P = [{ id: 'STL-9MX3T-W1', nombre: 'EMMA JOHNSON', activo: true, enlace: 'https://stiligroup.github.io/lobby/huesped.html?p=demoEmma' }, { id: 'STL-9MX3T-W2', nombre: 'LIAM JOHNSON', activo: false, enlace: 'https://stiligroup.github.io/lobby/huesped.html?p=demoLiam' }];
+  if (accion === 'rh_pases') return Promise.resolve({ pases: demo.P.slice() });
+  if (accion === 'rh_pase_reiniciar') { const x = demo.P.find(p => p.id === d.id); x.activo = false; x.enlace += 'n'; return Promise.resolve({ pases: demo.P.slice() }); }
+  if (accion === 'rh_huesped_agregar') { demo.P.push({ id: 'STL-9MX3T-H' + demo.P.length, nombre: d.nombre.toUpperCase(), activo: false, enlace: 'https://stiligroup.github.io/lobby/huesped.html?p=demoNuevo' }); return Promise.resolve({ agregado: d.nombre.toUpperCase() }); }
+  if (accion === 'rh_reserva_confirmar') { const r = demo.D.proximas.find(x => x.codigo === d.codigo_reserva); r.huesped = d.nombre.toUpperCase(); r.personas = d.personas; r.por_confirmar = false; return Promise.resolve({ confirmada: true }); }
+  if (accion === 'rh_conexiones') return Promise.resolve(JSON.parse(JSON.stringify(demo.C)));
+  if (accion === 'rh_unidad_enlace') return Promise.resolve({ enlace: 'https://stiligroup.github.io/lobby/huesped.html?u=demo' + d.codigo_unidad, mensaje: 'Antes de llegar, complete su registro de entrada aquí (2 minutos): …\n\nBefore arrival, please complete your check-in here (2 minutes): …' });
+  if (accion === 'rh_conexion_sync') return Promise.resolve({ conexiones: demo.C.conexiones, resultado: { creadas: 0, actualizadas: 0, canceladas: 0, errores: [] } });
+  if (accion === 'rh_conexion_mapear') { const c = demo.C.conexiones.find(x => x.id === d.id); d.mapa.forEach(m => { const a = c.anuncios.find(x => x.externo_id === m.externo_id); a.codigo_unidad = m.codigo_unidad; }); return Promise.resolve({ conexiones: demo.C.conexiones }); }
   return Promise.reject(new Error('No disponible en demostración.'));
 }
 cargar();
