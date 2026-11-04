@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es-DO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Crear su clave · Stili Soft</title>
+<meta name="theme-color" content="#003A75">
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap">
+<script src="../config.js"></script>
+<!-- v2.8.0 · la persona crea su propia clave con el enlace del correo de invitación (invitacion_ver / invitacion_activar) -->
+<style>
+:root {
+  --bg: #EEF2F3; --panel: #FFFFFF; --panel-2: #F6F8F9; --fg: #13293D; --muted: #5A6B78; --line: #D5DEE3;
+  --teal: #29417F; --sobre-teal: #fff; --teal-suave: #E3E8F4; --gold: #8A6608; --gold-suave: #F6EDD6; --crit: #B3261E; --crit-suave: #FBE3E1; --ok: #1E6B3A; --ok-suave: #E1F2E7;
+  --r: 14px; --sombra: 0 1px 2px rgba(19,41,61,.06), 0 4px 16px rgba(19,41,61,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+    --teal: #8FB3E8; --sobre-teal: #0C1822; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18; --ok: #7FD39B; --ok-suave: #16301F; --sombra: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1822; --panel: #13222F; --panel-2: #182A39; --fg: #E6EEF2; --muted: #93A6B4; --line: #26394A;
+  --teal: #8FB3E8; --sobre-teal: #0C1822; --teal-suave: #15263F; --gold: #DCB40C; --gold-suave: #33291A; --crit: #F07C73; --crit-suave: #3A1A18; --ok: #7FD39B; --ok-suave: #16301F; --sombra: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: Montserrat, "Segoe UI", system-ui, sans-serif; font-size: 15px; line-height: 1.45; min-height: 100vh; }
+button, input { font: inherit; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+header { background: #003A75; color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #DCB40C; }
+header img { width: 34px; height: 34px; border-radius: 8px; }
+header b { font-size: 17px; }
+header span { color: #C9D3DF; font-size: 13px; }
+main { max-width: 460px; margin: 0 auto; padding: 22px 16px 40px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; box-shadow: var(--sombra); }
+h1 { font-size: 22px; margin: 0 0 4px; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0 0 16px; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+input { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--fg); width: 100%; }
+.reglas { list-style: none; padding: 0; margin: 0 0 14px; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.reglas li::before { content: "○ "; }
+.reglas li.ok { color: var(--ok); }
+.reglas li.ok::before { content: "✓ "; }
+.ver { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 500; font-size: 14px; color: var(--fg); }
+.ver input { width: auto; }
+.btn { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: var(--panel-2); color: var(--fg); border-radius: 9px; padding: 12px 20px; font-weight: 700; cursor: pointer; min-height: 44px; text-decoration: none; }
+.btn.primario { background: var(--teal); border-color: var(--teal); color: var(--sobre-teal); width: 100%; }
+.btn:disabled { opacity: .55; cursor: wait; }
+.msg { min-height: 1.4em; font-size: 14px; margin: 12px 0 0; }
+.msg.error { color: var(--crit); }
+.aviso { background: var(--gold-suave); color: var(--gold); border-radius: 9px; padding: 10px 12px; font-size: 14px; font-weight: 600; margin: 0 0 14px; }
+.listo { background: var(--ok-suave); color: var(--ok); border-radius: 999px; display: inline-flex; padding: 4px 12px; font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+.nota { color: var(--muted); font-size: 13px; margin: 16px 0 0; }
+</style>
+</head>
+<body>
+<header><img src="icono-192.png" alt=""><div><b>Stili Soft</b><br><span>Crear su clave</span></div></header>
+<main>
+  <div class="card" id="caja">
+    <h1>Revisando el enlace…</h1>
+    <p class="sub">Un momento.</p>
+  </div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const SERVICIO = (window.STILI && window.STILI.servicio) || '';
+// El enlace lleva el código de la invitación; se lee y se quita de la barra de direcciones para que no quede en el historial
+const T = new URLSearchParams(location.search).get('t') || '';
+if (T) history.replaceState(null, '', location.pathname);
+async function llamar(accion, datos) {
+  const j = await fetch(SERVICIO, { method: 'POST', body: JSON.stringify(Object.assign({ accion, t: T }, datos || {})) }).then(r => r.json());
+  if (!j.ok) { const e = new Error(j.error || 'Error del servicio'); e.codigo = j.codigo; throw e; }
+  return j;
+}
+const REGLAS = [['largo', 'Al menos 8 caracteres', c => c.length >= 8], ['letra', 'Al menos una letra', c => /[a-záéíóúñ]/i.test(c)], ['numero', 'Al menos un número', c => /\d/.test(c)]];
+function sinServicio(msg) { $('#caja').innerHTML = '<h1>No se pudo abrir</h1><p class="sub">' + esc(msg) + '</p>'; }
+function pintar(d) {
+  const nombre = String(d.nombre || '').split(' ')[0];
+  $('#caja').innerHTML = '<h1>Hola ' + esc(nombre) + ', cree su clave</h1>' +
+    '<p class="sub">Su usuario es <b>' + esc(d.correo) + '</b>. Con esta clave entrará a Stili Soft: Torres, Lobby, Finanzas y Nómina, según sus permisos.</p>' +
+    (d.pendiente_aprobacion ? '<p class="aviso">Podrá entrar cuando el Gerente General apruebe su acceso.</p>' : '') +
+    '<form id="f" autocomplete="off" novalidate>' +
+    '<input type="email" name="usuario" autocomplete="username" value="' + esc(d.correo) + '" hidden>' +
+    '<label>Clave nueva<input type="password" id="nueva" autocomplete="new-password" required></label>' +
+    '<label>Repita la clave<input type="password" id="repetir" autocomplete="new-password" required></label>' +
+    '<ul class="reglas" id="reglas">' + REGLAS.map(([k, t]) => '<li data-r="' + k + '">' + esc(t) + '</li>').join('') + '<li data-r="igual">Las dos claves son iguales</li></ul>' +
+    '<label class="ver"><input type="checkbox" id="ver"> Mostrar las claves</label>' +
+    '<button class="btn primario" id="b">Crear mi clave</button><p class="msg" id="msg" role="status"></p></form>' +
+    (d.vence ? '<p class="nota">Este enlace vence el ' + esc(d.vence) + ' y sirve una sola vez. No lo comparta.</p>' : '');
+  const revisar = () => {
+    const n = $('#nueva').value, r = $('#repetir').value;
+    REGLAS.forEach(([k, , f]) => $('[data-r="' + k + '"]').classList.toggle('ok', f(n)));
+    $('[data-r="igual"]').classList.toggle('ok', !!n && n === r);
+  };
+  $('#nueva').addEventListener('input', revisar); $('#repetir').addEventListener('input', revisar);
+  $('#ver').addEventListener('change', e => { ['#nueva', '#repetir'].forEach(s => { $(s).type = e.target.checked ? 'text' : 'password'; }); });
+  $('#f').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const nueva = $('#nueva').value, repetir = $('#repetir').value, msg = $('#msg');
+    msg.className = 'msg error';
+    if (!REGLAS.every(([, , f]) => f(nueva))) { msg.textContent = 'La clave debe tener al menos 8 caracteres, con letras y números.'; return; }
+    if (nueva !== repetir) { msg.textContent = 'Las dos claves no coinciden.'; }   // el servicio también lo revisa y cuenta el intento
+    $('#b').disabled = true; if (nueva === repetir) { msg.className = 'msg'; msg.textContent = 'Guardando…'; }
+    try { listo(await llamar('invitacion_activar', { nueva, repetir })); }
+    catch (err) {
+      if (err.codigo === 'INVITACION') return sinServicio(err.message);
+      msg.className = 'msg error'; msg.textContent = err.message; $('#b').disabled = false;
+    }
+  });
+  setTimeout(() => $('#nueva').focus(), 30);
+}
+function listo(r) {
+  $('#caja').innerHTML = '<span class="listo">Clave creada</span><h1>Listo. Ya puede entrar</h1>' +
+    '<p class="sub">Entre al Portal con su correo <b>' + esc(r.correo) + '</b> y la clave que acaba de crear. Le llegará un código de verificación a su correo (o a su Telegram si lo vincula con el Bot de Torres).</p>' +
+    (r.pendiente_aprobacion ? '<p class="aviso">Podrá entrar cuando el Gerente General apruebe su acceso.</p>' : '') +
+    '<a class="btn primario" href="./">Ir al Portal</a>';
+}
+(async () => {
+  if (!T) { $('#caja').innerHTML = '<h1>Falta el enlace</h1><p class="sub">Abra esta página desde el botón «Crear mi clave» del correo de invitación.</p>'; return; }
+  if (!SERVICIO) return sinServicio('Falta la dirección del servicio. Avísele a quien le creó el usuario.');
+  try { pintar(await llamar('invitacion_ver')); }
+  catch (err) { sinServicio(err.message); }
+})();
+</script>
+</body>
+</html>

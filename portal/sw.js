@@ -10,6 +10,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || url.origin !== location.origin || !url.pathname.includes('/portal/')) return;
   if (url.pathname.includes('/recursos/') && !url.pathname.includes('/recursos/mini/')) return;   // los descargables no se guardan en el teléfono
   if (url.pathname.endsWith('/aprobar.html')) return;   // v2.5 · el enlace de aprobación lleva una firma: nunca se guarda
+  if (url.pathname.endsWith('/activar.html')) return;   // v2.8.0 · el enlace de invitación lleva un código de un solo uso: nunca se guarda
   e.respondWith(fetch(e.request).then(r => { const copia = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copia)); return r; })
     .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html'))));
 });
